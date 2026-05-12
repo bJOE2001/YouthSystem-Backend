@@ -3,6 +3,13 @@
 .env
 .env.backup
 .env.production
+
+# Laravel Boost
+/AGENTS.md
+/.agents
+/.codex
+/boost.json
+
 .phpactor.json
 .phpunit.result.cache
 /.fleet
