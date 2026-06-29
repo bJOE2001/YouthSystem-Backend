@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Enums\UserRole;
+use App\Enums\UserStatus;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -29,6 +31,8 @@ class UserFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
+            'role' => UserRole::Youth->value,
+            'status' => UserStatus::Active->value,
             'remember_token' => Str::random(10),
         ];
     }
@@ -40,6 +44,66 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    /**
+     * Indicate that the user is a youth administrator.
+     */
+    public function youthAdmin(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'role' => UserRole::YouthAdmin->value,
+        ]);
+    }
+
+    /**
+     * Indicate that the user is an SK official.
+     */
+    public function skOfficial(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'role' => UserRole::SkOfficial->value,
+        ]);
+    }
+
+    /**
+     * Indicate that the user is a youth member.
+     */
+    public function youth(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'role' => UserRole::Youth->value,
+        ]);
+    }
+
+    /**
+     * Indicate that the user's account is pending approval.
+     */
+    public function pending(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'status' => UserStatus::Pending->value,
+        ]);
+    }
+
+    /**
+     * Indicate that the user's account is active.
+     */
+    public function active(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'status' => UserStatus::Active->value,
+        ]);
+    }
+
+    /**
+     * Indicate that the user's account is suspended.
+     */
+    public function suspended(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'status' => UserStatus::Suspended->value,
         ]);
     }
 }
