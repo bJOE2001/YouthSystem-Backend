@@ -48,22 +48,22 @@ class UserFactory extends Factory
     }
 
     /**
-     * Indicate that the user is a youth administrator.
+     * Indicate that the user is an administrator.
      */
-    public function youthAdmin(): static
+    public function admin(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'role' => UserRole::YouthAdmin->value,
+            'role' => UserRole::Admin->value,
         ]);
     }
 
     /**
      * Indicate that the user is an SK official.
      */
-    public function skOfficial(): static
+    public function skAdmin(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'role' => UserRole::SkOfficial->value,
+            'role' => UserRole::SkAdmin->value,
         ]);
     }
 

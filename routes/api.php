@@ -6,6 +6,13 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/health', fn () => response()->json(['status' => 'ok']));
 
+Route::post('/login', [AuthController::class, 'login'])
+    ->middleware('throttle:login')
+    ->name('api.login');
+
+Route::post('/register', [AuthController::class, 'register'])
+    ->name('api.register');
+
 Route::get('/user', [AuthController::class, 'user'])
     ->middleware(['auth:sanctum', 'active'])
     ->name('auth.user');

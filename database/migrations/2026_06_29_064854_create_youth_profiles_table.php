@@ -52,7 +52,7 @@ return new class extends Migration
             $table->string('province', 100);
             $table->string('postal_code', 10);
             $table->string('status')->default('pending')->index();
-            $table->foreignId('reviewed_by')->nullable()->constrained('users')->restrictOnDelete();
+            $table->foreignId('reviewed_by')->nullable()->constrained('users')->noActionOnDelete();
             $table->timestamp('reviewed_at')->nullable();
             $table->text('rejection_reason')->nullable();
             $table->timestamps();
