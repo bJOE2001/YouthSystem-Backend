@@ -60,6 +60,9 @@ class YouthProfile extends Model
         'city',
         'province',
         'postal_code',
+        'status',
+        'reviewed_by',
+        'reviewed_at',
     ];
 
     /**

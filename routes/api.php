@@ -1,29 +1,12 @@
 <?php
 
-use App\Http\Controllers\Api\YouthProfileController;
-use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/health', fn () => response()->json(['status' => 'ok']));
+require __DIR__.'/api/auth.php';
+require __DIR__.'/api/admin.php';
+require __DIR__.'/api/sk-admin.php';
+require __DIR__.'/api/youth.php';
 
-Route::post('/login', [AuthController::class, 'login'])
-    ->middleware('throttle:login')
-    ->name('api.login');
-
-Route::post('/register', [AuthController::class, 'register'])
-    ->name('api.register');
-
-Route::get('/user', [AuthController::class, 'user'])
-    ->middleware(['auth:sanctum', 'active'])
-    ->name('auth.user');
-
-Route::prefix('youth')
-    ->middleware(['auth:sanctum', 'active', 'role:youth'])
-    ->group(function (): void {
-        Route::get('/profile', [YouthProfileController::class, 'show'])
-            ->name('youth.profile.show');
-        Route::post('/profile', [YouthProfileController::class, 'store'])
-            ->name('youth.profile.store');
-        Route::match(['put', 'patch'], '/profile', [YouthProfileController::class, 'update'])
-            ->name('youth.profile.update');
-    });
+Route::get('/health', fn () => response()->json([
+    'status' => 'ok',
+]));
