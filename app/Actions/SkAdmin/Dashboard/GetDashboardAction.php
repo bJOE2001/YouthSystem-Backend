@@ -10,9 +10,18 @@ class GetDashboardAction
 {
     public function handle(): array
     {
+        $user = auth()->user();
+        $barangay = \App\Models\SkOfficial::where('email', $user->email)->value('barangay');
+
+        $query = YouthProfile::query()
+            ->where('status', YouthProfileStatus::Approved->value);
+
+        if ($barangay) {
+            $query->where('barangay', $barangay);
+        }
+
         // 1. Cards (Aggregations in one query for optimization)
-        $cards = YouthProfile::query()
-            ->where('status', YouthProfileStatus::Approved->value)
+        $cards = (clone $query)
             ->selectRaw("
                 COUNT(id) as total_youth,
                 SUM(CASE WHEN lgbtq_member = 1 THEN 1 ELSE 0 END) as lgbtq,
@@ -27,8 +36,7 @@ class GetDashboardAction
             ->first();
 
         // 2. Charts
-        $approvedQuery = YouthProfile::query()
-            ->where('status', YouthProfileStatus::Approved->value);
+        $approvedQuery = $query;
 
         $genderDistribution = (clone $approvedQuery)
             ->select('gender', DB::raw('COUNT(*) as total'))
