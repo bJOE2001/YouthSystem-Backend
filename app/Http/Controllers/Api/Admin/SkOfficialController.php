@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Api\SkAdmin;
+namespace App\Http\Controllers\Api\Admin;
 
 use App\Actions\SkAdmin\SkOfficials\CreateSkOfficialAction;
 use App\Actions\SkAdmin\SkOfficials\DeleteSkOfficialAction;

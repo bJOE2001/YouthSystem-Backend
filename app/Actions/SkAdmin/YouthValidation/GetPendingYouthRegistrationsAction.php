@@ -2,7 +2,9 @@
 
 namespace App\Actions\SkAdmin\YouthValidation;
 
+use App\Enums\UserRole;
 use App\Enums\YouthProfileStatus;
+use App\Models\SkOfficial;
 use App\Models\YouthProfile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +19,15 @@ class GetPendingYouthRegistrationsAction
         $query = YouthProfile::query()
             ->with('user')
             ->where('status', YouthProfileStatus::Pending->value);
+
+        if ($user = auth()->user()) {
+            if ($user->role === UserRole::SkAdmin) {
+                $skOfficial = SkOfficial::where('email', $user->email)->first();
+                if ($skOfficial && $skOfficial->barangay) {
+                    $query->where('barangay', $skOfficial->barangay);
+                }
+            }
+        }
 
         if (! empty($filters['search'])) {
             $search = '%'.$filters['search'].'%';

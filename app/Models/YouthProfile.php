@@ -61,6 +61,7 @@ class YouthProfile extends Model
         'province',
         'postal_code',
         'status',
+        'sinag_member',
         'reviewed_by',
         'reviewed_at',
     ];
@@ -97,6 +98,7 @@ class YouthProfile extends Model
             'birth_registered' => 'boolean',
             'solo_parent' => 'boolean',
             'status' => YouthProfileStatus::class,
+            'sinag_member' => 'boolean',
             'reviewed_at' => 'datetime',
         ];
     }

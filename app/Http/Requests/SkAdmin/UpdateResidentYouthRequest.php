@@ -73,7 +73,7 @@ class UpdateResidentYouthRequest extends FormRequest
                 'Indigenous People Youth',
                 'None',
             ])],
-            'attachedId' => ['nullable', File::types(['jpg', 'jpeg', 'png', 'pdf'])->max('5mb')],
+            'attachedId' => ['nullable', File::types(['jpg', 'jpeg', 'png', 'pdf'])->max('20mb')],
             'birthRegistered' => ['required', Rule::in(['yes', 'no'])],
             'civilStatus' => ['required', Rule::in(['Single', 'Married', 'Widowed', 'Separated'])],
             'soloParent' => ['required', Rule::in(['yes', 'no'])],

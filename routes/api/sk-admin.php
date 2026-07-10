@@ -56,10 +56,10 @@ Route::middleware([
     */
 
         Route::prefix('sk-officials')->name('sk-officials.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Api\SkAdmin\SkOfficialController::class, 'index'])->name('index');
-            Route::get('/{skOfficial}', [\App\Http\Controllers\Api\SkAdmin\SkOfficialController::class, 'show'])->name('show');
-            Route::post('/', [\App\Http\Controllers\Api\SkAdmin\SkOfficialController::class, 'store'])->name('store');
-            Route::post('/{skOfficial}/delete', [\App\Http\Controllers\Api\SkAdmin\SkOfficialController::class, 'destroy'])->name('destroy');
+            Route::get('/', [SkOfficialController::class, 'index'])->name('index');
+            Route::get('/{skOfficial}', [SkOfficialController::class, 'show'])->name('show');
+            Route::post('/', [SkOfficialController::class, 'store'])->name('store');
+            Route::post('/{skOfficial}/delete', [SkOfficialController::class, 'destroy'])->name('destroy');
         });
 
     });

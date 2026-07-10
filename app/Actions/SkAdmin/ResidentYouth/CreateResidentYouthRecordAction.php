@@ -5,6 +5,7 @@ namespace App\Actions\SkAdmin\ResidentYouth;
 use App\Actions\YouthProfile\CreateYouthProfileAction;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
+use App\Enums\YouthProfileStatus;
 use App\Models\User;
 use App\Models\YouthProfile;
 use Illuminate\Http\UploadedFile;
@@ -76,6 +77,9 @@ class CreateResidentYouthRecordAction
                 'city' => $data['city'],
                 'province' => $data['province'],
                 'postal_code' => $data['zipcode'],
+                'status' => YouthProfileStatus::Approved->value,
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
             ];
 
             return $this->createYouthProfileAction->execute($user, $mappedProfileData, $attachedId);
