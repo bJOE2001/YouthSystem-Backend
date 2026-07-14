@@ -82,7 +82,7 @@ class ResidentYouthController extends Controller
 
     public function toggleSinag(YouthProfile $youthProfile): JsonResponse
     {
-        $youthProfile->sinag_member = !$youthProfile->sinag_member;
+        $youthProfile->sinag_member = ! $youthProfile->sinag_member;
         $youthProfile->save();
 
         return response()->json([

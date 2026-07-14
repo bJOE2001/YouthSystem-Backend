@@ -3,6 +3,7 @@
 namespace App\Actions\SkAdmin\ResidentYouth;
 
 use App\Enums\UserRole;
+use App\Enums\YouthProfileStatus;
 use App\Models\SkOfficial;
 use App\Models\YouthProfile;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -15,7 +16,7 @@ class GetResidentYouthRecordsAction
      */
     public function execute(array $filters = []): LengthAwarePaginator
     {
-        $query = YouthProfile::query()->with('user')->where('status', \App\Enums\YouthProfileStatus::Approved);
+        $query = YouthProfile::query()->with('user')->where('status', YouthProfileStatus::Approved);
 
         if ($user = auth()->user()) {
             $query->where('user_id', '!=', $user->id);

@@ -3,6 +3,7 @@
 namespace App\Actions\SkAdmin\Dashboard;
 
 use App\Enums\YouthProfileStatus;
+use App\Models\SkOfficial;
 use App\Models\YouthProfile;
 use Illuminate\Support\Facades\DB;
 
@@ -11,7 +12,7 @@ class GetDashboardAction
     public function handle(): array
     {
         $user = auth()->user();
-        $barangay = \App\Models\SkOfficial::where('email', $user->email)->value('barangay');
+        $barangay = SkOfficial::where('email', $user->email)->value('barangay');
 
         $query = YouthProfile::query()
             ->where('status', YouthProfileStatus::Approved->value);

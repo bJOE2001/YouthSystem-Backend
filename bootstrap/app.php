@@ -29,6 +29,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (ValidationException $e, $request) {
+            Log::error('Validation Failed: ', $e->errors());
+        });
         $exceptions->reportable(function (ValidationException $e) {
             Log::error('Validation failed: ', $e->errors());
         });

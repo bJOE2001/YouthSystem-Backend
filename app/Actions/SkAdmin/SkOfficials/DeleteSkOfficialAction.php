@@ -2,7 +2,9 @@
 
 namespace App\Actions\SkAdmin\SkOfficials;
 
+use App\Enums\UserRole;
 use App\Models\SkOfficial;
+use App\Models\User;
 
 class DeleteSkOfficialAction
 {
@@ -12,10 +14,10 @@ class DeleteSkOfficialAction
         $skOfficial->delete();
 
         if ($email) {
-            $user = \App\Models\User::where('email', $email)->first();
+            $user = User::where('email', $email)->first();
             // Revert back to Youth if they were an SkAdmin (don't downgrade actual Admins)
-            if ($user && $user->role === \App\Enums\UserRole::SkAdmin) {
-                $user->role = \App\Enums\UserRole::Youth;
+            if ($user && $user->role === UserRole::SkAdmin) {
+                $user->role = UserRole::Youth;
                 $user->save();
             }
         }

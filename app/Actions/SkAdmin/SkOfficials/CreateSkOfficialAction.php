@@ -2,7 +2,9 @@
 
 namespace App\Actions\SkAdmin\SkOfficials;
 
+use App\Enums\UserRole;
 use App\Models\SkOfficial;
+use App\Models\User;
 
 class CreateSkOfficialAction
 {
@@ -23,10 +25,10 @@ class CreateSkOfficialAction
             'term' => '2023 - 2025',
         ]);
 
-        if (!empty($data['email'])) {
-            $user = \App\Models\User::where('email', $data['email'])->first();
-            if ($user && $user->role !== \App\Enums\UserRole::Admin) {
-                $user->role = \App\Enums\UserRole::SkAdmin;
+        if (! empty($data['email'])) {
+            $user = User::where('email', $data['email'])->first();
+            if ($user && $user->role !== UserRole::Admin) {
+                $user->role = UserRole::SkAdmin;
                 $user->save();
             }
         }

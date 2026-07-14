@@ -18,13 +18,13 @@ Route::middleware([
     |--------------------------------------------------------------------------
     */
 
-        Route::get('/profile', [YouthProfileController::class, 'show'])
-            ->name('profile.show');
+        // Route::get('/profile', [YouthProfileController::class, 'show'])
+        //     ->name('profile.show');
 
-        Route::post('/profile/create', [YouthProfileController::class, 'store'])
-            ->name('profile.create');
+        // Route::post('/profile/create', [YouthProfileController::class, 'store'])
+        //     ->name('profile.create');
 
-        Route::post('/profile/update', [YouthProfileController::class, 'update'])
-            ->name('profile.update');
+        // Route::post('/profile/update', [YouthProfileController::class, 'update'])
+        //     ->name('profile.update');
 
     });
