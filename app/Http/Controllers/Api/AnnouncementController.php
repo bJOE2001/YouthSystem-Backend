@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AnnouncementResource;
 use App\Models\Announcement;
+use App\Models\User;
+use App\Notifications\NewAnnouncementNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 
 class AnnouncementController extends Controller
 {
@@ -53,6 +56,9 @@ class AnnouncementController extends Controller
         $validated['user_id'] = auth('sanctum')->id();
 
         $announcement = Announcement::create($validated);
+
+        $youthUsers = User::where('role', 'youth')->get();
+        Notification::send($youthUsers, new NewAnnouncementNotification($announcement));
 
         return new AnnouncementResource($announcement);
     }

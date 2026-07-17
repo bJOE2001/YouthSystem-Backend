@@ -12,8 +12,10 @@ use App\Http\Resources\UnifiedEventResource;
 use App\Models\Event;
 use App\Models\SportsProgram;
 use App\Models\User;
+use App\Notifications\NewEventNotification;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 class EventController extends Controller
@@ -91,6 +93,9 @@ class EventController extends Controller
         $data = $this->mapToSnakeCase($request->validated());
         $data['user_id'] = auth()->id();
         $event = Event::create($data);
+
+        $youthUsers = User::where('role', 'youth')->get();
+        Notification::send($youthUsers, new NewEventNotification($event));
 
         return new EventResource($event);
     }

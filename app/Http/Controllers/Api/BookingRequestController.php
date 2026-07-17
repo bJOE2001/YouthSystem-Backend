@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\BookingRequestResource;
 use App\Models\BookingRequest;
+use App\Notifications\BookingApprovedNotification;
+use App\Notifications\BookingRejectedNotification;
 use Illuminate\Http\Request;
 
 class BookingRequestController extends Controller
@@ -53,6 +55,7 @@ class BookingRequestController extends Controller
     public function approve(BookingRequest $bookingRequest)
     {
         $bookingRequest->update(['status' => 'Approved']);
+        $bookingRequest->user->notify(new BookingApprovedNotification($bookingRequest));
 
         return response()->json(['message' => 'Booking request approved']);
     }
@@ -60,6 +63,7 @@ class BookingRequestController extends Controller
     public function reject(BookingRequest $bookingRequest)
     {
         $bookingRequest->update(['status' => 'Declined']);
+        $bookingRequest->user->notify(new BookingRejectedNotification($bookingRequest));
 
         return response()->json(['message' => 'Booking request rejected']);
     }

@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\FacilityResource;
 use App\Models\Facility;
+use App\Models\User;
+use App\Notifications\NewBookingRequestNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
 class FacilityController extends Controller
@@ -18,7 +21,7 @@ class FacilityController extends Controller
             $userId = auth('sanctum')->id();
             $query->withCount(['bookingRequests as already_booked' => function ($query) use ($userId) {
                 $query->where('user_id', $userId)
-                      ->whereIn('status', ['Pending', 'Approved']);
+                    ->whereIn('status', ['Pending', 'Approved']);
             }]);
         }
 
@@ -45,9 +48,10 @@ class FacilityController extends Controller
             $userId = auth('sanctum')->id();
             $facility->loadCount(['bookingRequests as already_booked' => function ($query) use ($userId) {
                 $query->where('user_id', $userId)
-                      ->whereIn('status', ['Pending', 'Approved']);
+                    ->whereIn('status', ['Pending', 'Approved']);
             }]);
         }
+
         return new FacilityResource($facility);
     }
 
@@ -130,6 +134,9 @@ class FacilityController extends Controller
             'purpose' => $validated['purpose'],
             'status' => 'Pending',
         ]);
+
+        $admins = User::where('role', 'admin')->get();
+        Notification::send($admins, new NewBookingRequestNotification($booking));
 
         return response()->json([
             'message' => 'Booking request submitted successfully',
