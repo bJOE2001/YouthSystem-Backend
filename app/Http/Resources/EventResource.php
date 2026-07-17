@@ -51,7 +51,7 @@ class EventResource extends JsonResource
             'primaryObjective2' => $this->primary_objective_2,
             'primaryObjective3' => $this->primary_objective_3,
             'status' => $this->status,
-            'joined' => auth()->check() ? $this->participants()->where('user_id', auth()->id())->exists() : false,
+            'joined' => auth('sanctum')->check() ? $this->participants()->where('user_id', auth('sanctum')->id())->exists() : false,
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
         ];

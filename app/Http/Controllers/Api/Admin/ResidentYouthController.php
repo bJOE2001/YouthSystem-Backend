@@ -10,8 +10,12 @@ use App\Actions\SkAdmin\ResidentYouth\UpdateResidentYouthRecordAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SkAdmin\StoreResidentYouthRequest;
 use App\Http\Requests\SkAdmin\UpdateResidentYouthRequest;
+use App\Http\Resources\BookingRequestResource;
+use App\Http\Resources\EventResource;
 use App\Http\Resources\SkAdmin\ResidentYouthDetailsResource;
 use App\Http\Resources\SkAdmin\ResidentYouthListResource;
+use App\Models\BookingRequest;
+use App\Models\Event;
 use App\Models\YouthProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -90,5 +94,26 @@ class ResidentYouthController extends Controller
             'message' => 'Sinag status updated successfully.',
             'data' => ResidentYouthDetailsResource::make($youthProfile),
         ]);
+    }
+
+    public function bookings(YouthProfile $youthProfile): JsonResponse
+    {
+        $bookings = BookingRequest::with(['facility'])
+            ->where('user_id', $youthProfile->user_id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json(BookingRequestResource::collection($bookings));
+    }
+
+    public function events(YouthProfile $youthProfile): JsonResponse
+    {
+        $events = Event::whereHas('participants', function ($q) use ($youthProfile) {
+            $q->where('user_id', $youthProfile->user_id);
+        })
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json(EventResource::collection($events));
     }
 }

@@ -57,7 +57,7 @@ class UnifiedEventResource extends JsonResource
             'primaryObjective2' => $isEvent ? $this->primary_objective_2 : $this->objective_2,
             'primaryObjective3' => $isEvent ? $this->primary_objective_3 : $this->objective_3,
             'status' => $this->status,
-            'joined' => auth()->check() ? $this->participants()->where('user_id', auth()->id())->exists() : false,
+            'joined' => auth('sanctum')->check() ? $this->participants()->where('user_id', auth('sanctum')->id())->exists() : false,
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
         ];

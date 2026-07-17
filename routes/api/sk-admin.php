@@ -32,6 +32,8 @@ Route::middleware([
         Route::prefix('resident-youth')->name('resident-youth.')->group(function () {
             Route::get('/', [ResidentYouthController::class, 'index'])->name('index');
             Route::get('/{youthProfile}', [ResidentYouthController::class, 'show'])->name('show');
+            Route::get('/{youthProfile}/bookings', [ResidentYouthController::class, 'bookings'])->name('bookings');
+            Route::get('/{youthProfile}/events', [ResidentYouthController::class, 'events'])->name('events');
             Route::post('/', [ResidentYouthController::class, 'store'])->name('store');
             Route::post('/{youthProfile}', [ResidentYouthController::class, 'update'])->name('update');
             Route::post('/{youthProfile}/delete', [ResidentYouthController::class, 'destroy'])->name('destroy');

@@ -20,10 +20,10 @@ class EventController extends Controller
 {
     public function index(Request $request)
     {
-        $user = auth()->user();
+        $user = auth('sanctum')->user();
         $isOwnerRequest = $request->input('owner') === 'me';
 
-        if ($isOwnerRequest && ($user->role === UserRole::Admin || $user->role === UserRole::SkAdmin)) {
+        if ($isOwnerRequest && $user && ($user->role === UserRole::Admin || $user->role === UserRole::SkAdmin)) {
             $query = Event::where('user_id', $user->id);
             if ($request->has('search') && ! empty($request->search)) {
                 $query->where(function ($q) use ($request) {
