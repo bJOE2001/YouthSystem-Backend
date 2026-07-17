@@ -37,6 +37,11 @@ class User extends Authenticatable
         return $this->belongsToMany(Event::class)->withPivot('attended_at')->withTimestamps();
     }
 
+    public function joinedSportsPrograms()
+    {
+        return $this->belongsToMany(SportsProgram::class)->withPivot('attended_at')->withTimestamps();
+    }
+
     /**
      * The model's default values for attributes.
      *

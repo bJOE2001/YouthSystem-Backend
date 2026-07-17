@@ -18,11 +18,13 @@ class EventParticipantResource extends JsonResource
         $name = 'Admin User';
         $contact = '';
         $purok = '';
+        $barangay = '';
 
         if ($this->role === UserRole::Youth && $this->youthProfile) {
             $name = $this->youthProfile->first_name.' '.$this->youthProfile->last_name;
             $contact = $this->youthProfile->mobile_number;
             $purok = $this->youthProfile->purok_sitio;
+            $barangay = $this->youthProfile->barangay;
         } elseif ($this->role === UserRole::SkAdmin) {
             $name = 'SK Admin User';
         }
@@ -33,6 +35,7 @@ class EventParticipantResource extends JsonResource
             'contact' => $contact,
             'email' => $this->email,
             'purok' => $purok,
+            'barangay' => $barangay,
             // Map attended_at to 'Attended' or 'Not Attended' for the frontend
             'status' => ($this->pivot && $this->pivot->attended_at) ? 'Attended' : 'Not Attended',
         ];

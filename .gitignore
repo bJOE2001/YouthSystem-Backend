@@ -10,6 +10,8 @@
 /.agents
 /.codex
 /boost.json
+/.gemini
+/GEMINI.md
 
 .phpactor.json
 .phpunit.result.cache

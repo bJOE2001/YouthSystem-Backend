@@ -3,6 +3,8 @@
 namespace App\Actions\SkAdmin\Dashboard;
 
 use App\Enums\YouthProfileStatus;
+use App\Http\Resources\AnnouncementResource;
+use App\Models\Announcement;
 use App\Models\SkOfficial;
 use App\Models\YouthProfile;
 use Illuminate\Support\Facades\DB;
@@ -50,8 +52,10 @@ class GetDashboardAction
             ->orderBy('purok_sitio')
             ->get();
 
-        // 3. Announcements (Empty for now)
-        $latestAnnouncements = [];
+        // 3. Announcements
+        $announcements = AnnouncementResource::collection(
+            Announcement::latest()->take(5)->get()
+        )->resolve();
 
         return [
             'cards' => $cards,
@@ -59,7 +63,7 @@ class GetDashboardAction
                 'genderDistribution' => $genderDistribution,
                 'youthPerPurok' => $youthPerPurok,
             ],
-            'latestAnnouncements' => $latestAnnouncements,
+            'announcements' => $announcements,
         ];
     }
 }

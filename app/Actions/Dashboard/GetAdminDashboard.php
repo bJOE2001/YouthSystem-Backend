@@ -3,6 +3,8 @@
 namespace App\Actions\Dashboard;
 
 use App\Enums\YouthProfileStatus;
+use App\Http\Resources\AnnouncementResource;
+use App\Models\Announcement;
 use App\Models\YouthProfile;
 use Illuminate\Support\Facades\DB;
 
@@ -71,6 +73,10 @@ class GetAdminDashboard
                     ->get(),
 
             ],
+
+            'announcements' => AnnouncementResource::collection(
+                Announcement::latest()->take(5)->get()
+            )->resolve(),
 
         ];
     }

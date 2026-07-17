@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Youth\DashboardController;
 use App\Http\Controllers\Api\YouthProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -11,6 +12,8 @@ Route::middleware([
     ->prefix('youth')
     ->name('youth.')
     ->group(function () {
+
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         /*
     |--------------------------------------------------------------------------

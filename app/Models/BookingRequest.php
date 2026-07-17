@@ -1,0 +1,33 @@
+<?php
+
+namespace App\Models;
+
+use Database\Factories\BookingRequestFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class BookingRequest extends Model
+{
+    /** @use HasFactory<BookingRequestFactory> */
+    use HasFactory;
+
+    protected $fillable = [
+        'user_id',
+        'facility_id',
+        'date',
+        'start_time',
+        'end_time',
+        'purpose',
+        'status',
+    ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function facility()
+    {
+        return $this->belongsTo(Facility::class);
+    }
+}

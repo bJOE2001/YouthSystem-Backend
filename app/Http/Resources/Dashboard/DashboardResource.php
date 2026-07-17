@@ -32,7 +32,7 @@ class DashboardResource extends JsonResource
                 'genderDistribution' => $this->resource['charts']['genderDistribution'],
                 'youthPerPurok' => $this->resource['charts']['youthPerPurok'],
             ],
-            'latestAnnouncements' => $this->resource['latestAnnouncements'],
+            'announcements' => $this->resource['announcements'],
         ];
     }
 }
