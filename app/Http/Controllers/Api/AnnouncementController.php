@@ -22,7 +22,7 @@ class AnnouncementController extends Controller
         }
 
         if ($request->input('owner') === 'me') {
-            $query->where('user_id', auth()->id());
+            $query->where('user_id', auth('sanctum')->id());
         }
 
         $sortBy = $request->input('sort_by', 'created_at');
@@ -50,7 +50,7 @@ class AnnouncementController extends Controller
             'description' => 'required|string',
         ]);
 
-        $validated['user_id'] = auth()->id();
+        $validated['user_id'] = auth('sanctum')->id();
 
         $announcement = Announcement::create($validated);
 

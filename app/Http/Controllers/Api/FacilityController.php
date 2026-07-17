@@ -14,6 +14,14 @@ class FacilityController extends Controller
     {
         $query = Facility::query();
 
+        if (auth('sanctum')->check()) {
+            $userId = auth('sanctum')->id();
+            $query->withCount(['bookingRequests as already_booked' => function ($query) use ($userId) {
+                $query->where('user_id', $userId)
+                      ->whereIn('status', ['Pending', 'Approved']);
+            }]);
+        }
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where('name', 'like', "%{$search}%")
@@ -33,6 +41,13 @@ class FacilityController extends Controller
 
     public function show(Facility $facility)
     {
+        if (auth('sanctum')->check()) {
+            $userId = auth('sanctum')->id();
+            $facility->loadCount(['bookingRequests as already_booked' => function ($query) use ($userId) {
+                $query->where('user_id', $userId)
+                      ->whereIn('status', ['Pending', 'Approved']);
+            }]);
+        }
         return new FacilityResource($facility);
     }
 
