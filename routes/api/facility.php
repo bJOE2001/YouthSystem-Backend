@@ -8,13 +8,9 @@ use Illuminate\Support\Facades\Route;
 // Public routes
 Route::get('/facilities', [FacilityController::class, 'index'])->name('facilities.index');
 Route::get('/facilities/{facility}', [FacilityController::class, 'show'])->name('facilities.show');
+Route::get('/facilities/{facility}/calendar', [FacilityController::class, 'calendar'])->name('facilities.calendar');
 
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
-    // Accessible by all authenticated users
-    Route::middleware('role:admin,sk_admin,youth')->group(function () {
-        Route::get('/facilities/{facility}/calendar', [FacilityController::class, 'calendar'])->name('facilities.calendar');
-    });
-
     // Accessible by youth and sk_admin
     Route::middleware('role:youth,sk_admin')->group(function () {
         Route::post('/facilities/{facility}/book', [FacilityController::class, 'book'])->name('facilities.book');

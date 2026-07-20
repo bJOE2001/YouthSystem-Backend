@@ -17,11 +17,11 @@ class SportsProgramController extends Controller
     public function index(Request $request)
     {
         $query = SportsProgram::query();
-        $user = auth()->user();
+        $user = auth('sanctum')->user();
 
         $isOwnerRequest = $request->input('owner') === 'me';
 
-        if ($isOwnerRequest && ($user->role === UserRole::Admin || $user->role === UserRole::SkAdmin)) {
+        if ($isOwnerRequest && $user && ($user->role === UserRole::Admin || $user->role === UserRole::SkAdmin)) {
             $query->where('user_id', $user->id);
         } else {
             // By default only show certain statuses if not owner? The frontend table shows all programs for the admin.

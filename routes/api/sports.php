@@ -3,13 +3,11 @@
 use App\Http\Controllers\Api\SportsProgramController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth:sanctum', 'active'])->group(function () {
-    // Accessible by all
-    Route::middleware('role:admin,sk_admin,youth')->group(function () {
-        Route::get('/sports', [SportsProgramController::class, 'index'])->name('sports.index');
-        Route::get('/sports/{sportsProgram}', [SportsProgramController::class, 'show'])->name('sports.show');
-    });
+// Public routes
+Route::get('/sports', [SportsProgramController::class, 'index'])->name('sports.index');
+Route::get('/sports/{sportsProgram}', [SportsProgramController::class, 'show'])->name('sports.show');
 
+Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Accessible by admin and sk_admin
     Route::middleware('role:admin,sk_admin')->group(function () {
         Route::post('/sports', [SportsProgramController::class, 'store'])->name('sports.store');
