@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\FacilityResource;
 use App\Models\Facility;
+use App\Models\FacilityBlackoutDate;
 use App\Models\User;
 use App\Notifications\NewBookingRequestNotification;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class FacilityController extends Controller
 {
@@ -119,12 +122,98 @@ class FacilityController extends Controller
 
     public function book(Request $request, Facility $facility)
     {
+        // 1. Strict Facility Status Guard
+        if ($facility->status !== 'Active') {
+            throw ValidationException::withMessages([
+                'facility' => ["This facility is currently {$facility->status} and cannot be booked."],
+            ]);
+        }
+
         $validated = $request->validate([
             'date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
             'purpose' => 'required|string',
         ]);
+
+        $todayDate = now()->toDateString();
+        $currentTime = now()->format('H:i');
+
+        // 2. No Past Date / Past Time Bookings
+        if ($validated['date'] < $todayDate) {
+            throw ValidationException::withMessages([
+                'date' => ['You cannot book a facility for a past date.'],
+            ]);
+        }
+
+        if ($validated['date'] === $todayDate && $validated['start_time'] <= $currentTime) {
+            throw ValidationException::withMessages([
+                'start_time' => ['You cannot book a time slot that has already passed today.'],
+            ]);
+        }
+
+        // 3. Maintenance / Holiday Blackout Dates Guard
+        $blackout = FacilityBlackoutDate::where('date', $validated['date'])
+            ->where(function ($q) use ($facility) {
+                $q->whereNull('facility_id')
+                    ->orWhere('facility_id', $facility->id);
+            })
+            ->first();
+
+        if ($blackout) {
+            $reasonStr = $blackout->reason ? " ({$blackout->reason})" : '';
+            throw ValidationException::withMessages([
+                'date' => ["Bookings are unavailable on {$validated['date']} due to scheduled maintenance or holiday{$reasonStr}."],
+            ]);
+        }
+
+        // 4. Active Booking Limit per User (Max 3 active/pending bookings)
+        $activeBookingsCount = $request->user()->bookingRequests()
+            ->whereIn('status', ['Pending', 'Approved'])
+            ->where('date', '>=', $todayDate)
+            ->count();
+
+        if ($activeBookingsCount >= 3) {
+            throw ValidationException::withMessages([
+                'date' => ['You have reached the maximum limit of 3 active or pending booking requests.'],
+            ]);
+        }
+
+        // 5. Operating Hours Enforcement
+        if ($facility->available_time) {
+            $availRange = $this->parseFacilityTimeRange($facility->available_time);
+
+            if ($availRange) {
+                [$availStart, $availEnd] = $availRange;
+
+                $availStartFormatted = Carbon::parse($availStart)->format('g:i A');
+                $availEndFormatted = Carbon::parse($availEnd)->format('g:i A');
+
+                if ($validated['start_time'] < $availStart || $validated['end_time'] > $availEnd) {
+                    throw ValidationException::withMessages([
+                        'start_time' => ["The requested booking time must be within the facility's available hours ({$availStartFormatted} - {$availEndFormatted})."],
+                    ]);
+                }
+            }
+        }
+
+        // 6. Overlapping Booking Conflict Guard
+        $existingBooking = $facility->bookingRequests()
+            ->where('date', $validated['date'])
+            ->whereIn('status', ['Pending', 'Approved'])
+            ->where(function ($q) use ($validated) {
+                $q->where(function ($query) use ($validated) {
+                    $query->where('start_time', '<', $validated['end_time'])
+                        ->where('end_time', '>', $validated['start_time']);
+                });
+            })
+            ->exists();
+
+        if ($existingBooking) {
+            throw ValidationException::withMessages([
+                'date' => ['The facility is already booked or has a pending request for the selected date and time range.'],
+            ]);
+        }
 
         $booking = $facility->bookingRequests()->create([
             'user_id' => $request->user()->id,
@@ -142,6 +231,27 @@ class FacilityController extends Controller
             'message' => 'Booking request submitted successfully',
             'data' => $booking,
         ], 201);
+    }
+
+    private function parseFacilityTimeRange(string $availableTime): ?array
+    {
+        if (empty($availableTime)) {
+            return null;
+        }
+
+        $parts = preg_split('/\s*(-|to)\s*/i', trim($availableTime));
+        if (count($parts) !== 2) {
+            return null;
+        }
+
+        try {
+            $start = Carbon::parse(trim($parts[0]))->format('H:i');
+            $end = Carbon::parse(trim($parts[1]))->format('H:i');
+
+            return [$start, $end];
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     public function calendar(Facility $facility)

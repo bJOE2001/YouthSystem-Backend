@@ -42,6 +42,11 @@ class User extends Authenticatable
         return $this->belongsToMany(SportsProgram::class)->withPivot('attended_at')->withTimestamps();
     }
 
+    public function bookingRequests()
+    {
+        return $this->hasMany(BookingRequest::class);
+    }
+
     /**
      * The model's default values for attributes.
      *

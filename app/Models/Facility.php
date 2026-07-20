@@ -24,4 +24,9 @@ class Facility extends Model
     {
         return $this->hasMany(BookingRequest::class);
     }
+
+    public function blackoutDates()
+    {
+        return $this->hasMany(FacilityBlackoutDate::class);
+    }
 }
