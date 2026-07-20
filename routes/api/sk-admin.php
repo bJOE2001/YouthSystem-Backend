@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\SkAdmin\DashboardController;
+use App\Http\Controllers\Api\SkAdmin\ProfileController;
 use App\Http\Controllers\Api\SkAdmin\ResidentYouthController;
 use App\Http\Controllers\Api\SkAdmin\SkOfficialController;
 use App\Http\Controllers\Api\SkAdmin\YouthValidationController;
@@ -16,12 +17,16 @@ Route::middleware([
     ->group(function () {
 
         /*
-    |--------------------------------------------------------------------------
-    | Dashboard
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Dashboard & Profile
+        |--------------------------------------------------------------------------
+        */
 
         Route::get('/dashboard', [DashboardController::class, '__invoke']);
+
+        Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+        Route::post('/profile/create', [ProfileController::class, 'store'])->name('profile.create');
+        Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
 
         /*
     |--------------------------------------------------------------------------

@@ -20,7 +20,7 @@ abstract class YouthProfileRequest extends FormRequest
 
         return $user instanceof User
             && $user->isActive()
-            && $user->hasRole(UserRole::Youth);
+            && ($user->hasRole(UserRole::Youth) || $user->hasRole(UserRole::SkAdmin));
     }
 
     /**
