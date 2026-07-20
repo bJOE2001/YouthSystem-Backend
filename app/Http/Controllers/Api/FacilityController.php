@@ -62,7 +62,7 @@ class FacilityController extends Controller
             'type' => 'required|string|max:255',
             'location' => 'required|string|max:255',
             'available_time' => 'required|string|max:255',
-            'image' => 'nullable|image|max:2048',
+            'image' => 'nullable|image|max:10240',
         ]);
 
         if ($request->hasFile('image')) {
@@ -81,7 +81,7 @@ class FacilityController extends Controller
             'type' => 'required|string|max:255',
             'location' => 'required|string|max:255',
             'available_time' => 'required|string|max:255',
-            'image' => 'nullable|image|max:2048',
+            'image' => 'nullable|image|max:10240',
         ]);
 
         if ($request->hasFile('image')) {

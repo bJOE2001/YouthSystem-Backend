@@ -21,6 +21,7 @@ class FacilityResource extends JsonResource
             'location' => $this->location,
             'availableTime' => $this->available_time,
             'status' => $this->status,
+            'image' => $this->image ? url('storage/'.$this->image) : null,
             'imageName' => $this->image ? url('storage/'.$this->image) : null,
             'alreadyBooked' => (bool) $this->already_booked,
             'created_at' => $this->created_at,
