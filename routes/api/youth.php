@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Youth\DashboardController;
-use App\Http\Controllers\Api\YouthProfileController;
+use App\Http\Controllers\Api\Youth\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware([
@@ -16,18 +16,13 @@ Route::middleware([
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         /*
-    |--------------------------------------------------------------------------
-    | Youth Profile
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Youth Profile
+        |--------------------------------------------------------------------------
+        */
 
-        // Route::get('/profile', [YouthProfileController::class, 'show'])
-        //     ->name('profile.show');
-
-        // Route::post('/profile/create', [YouthProfileController::class, 'store'])
-        //     ->name('profile.create');
-
-        // Route::post('/profile/update', [YouthProfileController::class, 'update'])
-        //     ->name('profile.update');
+        Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+        Route::post('/profile/create', [ProfileController::class, 'store'])->name('profile.create');
+        Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
 
     });
