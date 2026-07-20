@@ -13,6 +13,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
@@ -34,6 +35,16 @@ class AuthController extends Controller
         }
 
         $user = $request->user();
+
+        // Single Session Enforcement: Revoke previous tokens & sessions
+        $user->tokens()->delete();
+        if (config('session.driver') === 'database') {
+            DB::table(config('session.table', 'sessions'))
+                ->where('user_id', $user->id)
+                ->where('id', '!=', $request->session()->getId())
+                ->delete();
+        }
+
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
