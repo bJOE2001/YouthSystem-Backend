@@ -47,8 +47,8 @@ class EventController extends Controller
         }
 
         // Unified youth view
-        $events = Event::whereIn('status', ['upcoming', 'ongoing']);
-        $sports = SportsProgram::whereIn('status', ['upcoming', 'ongoing']);
+        $events = Event::whereIn('status', ['upcoming', 'ongoing', 'Upcoming', 'Ongoing']);
+        $sports = SportsProgram::whereIn('status', ['upcoming', 'ongoing', 'Upcoming', 'Ongoing']);
 
         if ($request->has('search') && ! empty($request->search)) {
             $search = '%'.$request->search.'%';

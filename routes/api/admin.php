@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\BarangayLibraryController;
 use App\Http\Controllers\Api\Admin\DashboardController;
+use App\Http\Controllers\Api\Admin\LydcMemberController;
 use App\Http\Controllers\Api\Admin\ResidentYouthController;
 use App\Http\Controllers\Api\Admin\SkOfficialController;
 use App\Http\Controllers\EcesproApplicationController;
@@ -26,11 +28,27 @@ Route::middleware([
         Route::get('/dashboard', [DashboardController::class, 'index'])
             ->name('dashboard');
 
+        Route::prefix('barangay-library')->name('barangay-library.')->group(function () {
+            Route::get('/', [BarangayLibraryController::class, 'index'])->name('index');
+            Route::get('/{barangay}', [BarangayLibraryController::class, 'show'])->name('show');
+            Route::post('/', [BarangayLibraryController::class, 'store'])->name('store');
+            Route::post('/{barangay}', [BarangayLibraryController::class, 'update'])->name('update');
+            Route::post('/{barangay}/delete', [BarangayLibraryController::class, 'destroy'])->name('destroy');
+        });
+
         Route::prefix('sk-officials')->name('sk-officials.')->group(function () {
+
             Route::get('/', [SkOfficialController::class, 'index'])->name('index');
             Route::get('/{skOfficial}', [SkOfficialController::class, 'show'])->name('show');
             Route::post('/', [SkOfficialController::class, 'store'])->name('store');
             Route::post('/{skOfficial}/delete', [SkOfficialController::class, 'destroy'])->name('destroy');
+        });
+
+        Route::prefix('lydc-members')->name('lydc-members.')->group(function () {
+            Route::get('/', [LydcMemberController::class, 'index'])->name('index');
+            Route::get('/{lydcMember}', [LydcMemberController::class, 'show'])->name('show');
+            Route::post('/', [LydcMemberController::class, 'store'])->name('store');
+            Route::post('/{lydcMember}/delete', [LydcMemberController::class, 'destroy'])->name('destroy');
         });
 
         Route::prefix('resident-youth')->name('resident-youth.')->group(function () {

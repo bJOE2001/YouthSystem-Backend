@@ -8,6 +8,7 @@ use App\Http\Requests\StoreSportsProgramRequest;
 use App\Http\Requests\UpdateSportsProgramRequest;
 use App\Http\Resources\EventParticipantResource;
 use App\Http\Resources\SportsProgramResource;
+use App\Http\Resources\UnifiedEventResource;
 use App\Models\SportsProgram;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -24,8 +25,7 @@ class SportsProgramController extends Controller
         if ($isOwnerRequest && $user && ($user->role === UserRole::Admin || $user->role === UserRole::SkAdmin)) {
             $query->where('user_id', $user->id);
         } else {
-            // By default only show certain statuses if not owner? The frontend table shows all programs for the admin.
-            // Let's just fetch all if not owner, or we can leave it to the user's role.
+            $query->whereIn('status', ['Upcoming', 'Ongoing', 'upcoming', 'ongoing']);
         }
 
         if ($request->has('search') && ! empty($request->search)) {
@@ -125,6 +125,19 @@ class SportsProgramController extends Controller
         });
 
         return response()->json(['data' => $result]);
+    }
+
+    public function join(SportsProgram $sportsProgram)
+    {
+        $user = auth()->user();
+
+        if ($user->joinedSportsPrograms()->where('sports_program_id', $sportsProgram->id)->exists()) {
+            return response()->json(['message' => 'Already joined this program.'], 400);
+        }
+
+        $user->joinedSportsPrograms()->attach($sportsProgram->id);
+
+        return new UnifiedEventResource($sportsProgram);
     }
 
     private function mapToSnakeCase(array $data): array

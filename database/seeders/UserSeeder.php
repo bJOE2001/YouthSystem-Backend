@@ -30,7 +30,7 @@ class UserSeeder extends Seeder
                 'email' => 'sk@test.com',
             ]);
 
-            $barangay = Barangay::inRandomOrder()->first();
+            $barangay = Barangay::where('name', 'Apokon')->first();
 
             SkOfficial::factory()->create([
                 'name' => 'SK Admin User',
@@ -46,7 +46,7 @@ class UserSeeder extends Seeder
                 'email' => 'youth@test.com',
             ]);
 
-            $barangay = Barangay::inRandomOrder()->first();
+            $barangay = Barangay::where('name', 'Apokon')->first();
 
             YouthProfile::factory()->create([
                 'user_id' => $youthUser->id,

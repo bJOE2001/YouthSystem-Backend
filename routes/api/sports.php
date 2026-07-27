@@ -8,6 +8,11 @@ Route::get('/sports', [SportsProgramController::class, 'index'])->name('sports.i
 Route::get('/sports/{sportsProgram}', [SportsProgramController::class, 'show'])->name('sports.show');
 
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
+    // Accessible by youth and sk_admin
+    Route::middleware('role:youth,sk_admin')->group(function () {
+        Route::post('/sports/{sportsProgram}/join', [SportsProgramController::class, 'join'])->name('sports.join');
+    });
+
     // Accessible by admin and sk_admin
     Route::middleware('role:admin,sk_admin')->group(function () {
         Route::post('/sports', [SportsProgramController::class, 'store'])->name('sports.store');

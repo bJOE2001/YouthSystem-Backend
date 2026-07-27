@@ -42,6 +42,7 @@ class SportsProgramResource extends JsonResource
             'objective2' => $this->objective_2,
             'objective3' => $this->objective_3,
             'status' => $this->status,
+            'joined' => auth('sanctum')->check() ? $this->participants()->where('user_id', auth('sanctum')->id())->exists() : false,
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
         ];

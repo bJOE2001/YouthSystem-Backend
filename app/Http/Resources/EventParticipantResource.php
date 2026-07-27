@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Enums\UserRole;
+use App\Models\SkOfficial;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -15,18 +16,27 @@ class EventParticipantResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $name = 'Admin User';
+        $name = $this->name ?? 'User';
         $contact = '';
         $purok = '';
         $barangay = '';
 
-        if ($this->role === UserRole::Youth && $this->youthProfile) {
-            $name = $this->youthProfile->first_name.' '.$this->youthProfile->last_name;
-            $contact = $this->youthProfile->mobile_number;
-            $purok = $this->youthProfile->purok_sitio;
-            $barangay = $this->youthProfile->barangay;
-        } elseif ($this->role === UserRole::SkAdmin) {
-            $name = 'SK Admin User';
+        if ($this->youthProfile) {
+            $fullName = trim($this->youthProfile->first_name.' '.$this->youthProfile->last_name);
+            $name = ! empty($fullName) ? $fullName : $this->name;
+            $contact = $this->youthProfile->mobile_number ?? '';
+            $purok = $this->youthProfile->purok_sitio ?? '';
+            $barangay = $this->youthProfile->barangay ?? '';
+        }
+
+        if (empty($barangay) && $this->role === UserRole::SkAdmin) {
+            $skOfficial = SkOfficial::where('email', $this->email)->first();
+            if ($skOfficial) {
+                if (empty($fullName ?? '')) {
+                    $name = $skOfficial->name ?: $this->name;
+                }
+                $barangay = $skOfficial->barangay ?? '';
+            }
         }
 
         return [
