@@ -12,7 +12,7 @@ class EcesproProgramController extends Controller
      */
     public function index()
     {
-        return EcesproProgram::all();
+        return EcesproProgram::withCount('applications')->orderBy('created_at', 'desc')->get();
     }
 
     /**
@@ -27,7 +27,7 @@ class EcesproProgramController extends Controller
             'end_date' => 'required|date',
             'slots' => 'required|integer|min:1',
             'status' => 'required|string',
-            'remarks' => 'nullable|string',
+            'description' => 'nullable|string',
         ]);
 
         return EcesproProgram::create($validated);
@@ -53,7 +53,7 @@ class EcesproProgramController extends Controller
             'end_date' => 'sometimes|date',
             'slots' => 'sometimes|integer|min:1',
             'status' => 'sometimes|string',
-            'remarks' => 'nullable|string',
+            'description' => 'nullable|string',
         ]);
 
         $ecesproProgram->update($validated);

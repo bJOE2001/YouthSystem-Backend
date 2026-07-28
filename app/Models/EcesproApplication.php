@@ -21,26 +21,30 @@ class EcesproApplication extends Model
         'school_citizenship', 'school', 'year_level', 'course', 'school_zip_code',
 
         // Father's Info
-        'father_last_name', 'father_first_name', 'father_address', 'father_occupation',
+        'father_last_name', 'father_middle_name', 'father_first_name', 'father_address', 'father_occupation',
         'father_educational_attainment',
 
         // Mother's Info
-        'mother_maiden_middle_name', 'mother_maiden_last_name', 'mother_occupation',
+        'mother_first_name', 'mother_maiden_middle_name', 'mother_maiden_last_name', 'mother_occupation',
         'mother_educational_attainment',
 
         // Guardian's Info
-        'guardian_maiden_middle_name', 'guardian_maiden_last_name', 'guardian_occupation',
+        'guardian_first_name', 'guardian_maiden_middle_name', 'guardian_maiden_last_name', 'guardian_occupation',
         'guardian_educational_attainment',
 
         // Other Family Info
-        'parents_guardian_total_income', 'number_of_siblings_in_family', 'parents_marital_status',
+        'parents_guardian_total_income',
+        'number_of_siblings_in_family',
+        'parents_marital_status',
 
         // Requirements
-        'certificate_of_indigency', 'report_card_grades', 'certificate_of_enrollment',
-        'certificate_of_registration', 'good_moral_certificate', 'barangay_clearance',
-        'other_supporting_documents',
+        'submitted_requirements',
 
         'application_status',
+    ];
+
+    protected $casts = [
+        'submitted_requirements' => 'array',
     ];
 
     public function user()

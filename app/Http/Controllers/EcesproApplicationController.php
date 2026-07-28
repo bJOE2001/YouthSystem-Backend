@@ -127,4 +127,36 @@ class EcesproApplicationController extends Controller
 
         return response()->json(null, 204);
     }
+
+    public function updateDocumentStatus(Request $request, EcesproApplication $ecesproApplication, $document_id)
+    {
+        $validated = $request->validate([
+            'status' => 'required|string|in:Pending,Validated,For Revision',
+            'remarks' => 'nullable|string'
+        ]);
+
+        $requirements = $ecesproApplication->submitted_requirements ?? [];
+        $found = false;
+        $updatedDoc = null;
+
+        foreach ($requirements as &$req) {
+            if ($req['id'] == $document_id) {
+                $req['status'] = $validated['status'];
+                if (isset($validated['remarks'])) {
+                    $req['remarks'] = $validated['remarks'];
+                }
+                $found = true;
+                $updatedDoc = $req;
+                break;
+            }
+        }
+
+        if (!$found) {
+            return response()->json(['message' => 'Document not found in application'], 404);
+        }
+
+        $ecesproApplication->update(['submitted_requirements' => $requirements]);
+
+        return response()->json($updatedDoc);
+    }
 }

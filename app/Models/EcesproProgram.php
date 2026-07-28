@@ -16,7 +16,7 @@ class EcesproProgram extends Model
         'end_date',
         'slots',
         'status',
-        'remarks',
+        'description',
     ];
 
     public function applications()

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\BarangayLibraryController;
 use App\Http\Controllers\Api\Admin\DashboardController;
+use App\Http\Controllers\Api\Admin\EcesproSettingController;
 use App\Http\Controllers\Api\Admin\LydcMemberController;
 use App\Http\Controllers\Api\Admin\ResidentYouthController;
 use App\Http\Controllers\Api\Admin\SkOfficialController;
@@ -66,11 +67,15 @@ Route::middleware([
         Route::apiResource('ecespro-programs', EcesproProgramController::class);
         Route::apiResource('ecespro-requirements', EcesproRequirementController::class);
         Route::apiResource('ecespro-applications', EcesproApplicationController::class);
+        Route::put('ecespro-applications/{ecespro_application}/documents/{document_id}', [EcesproApplicationController::class, 'updateDocumentStatus'])->name('ecespro-applications.documents.update');
         Route::apiResource('ecespro-exam-batches', EcesproExamBatchController::class);
         Route::apiResource('ecespro-examinations', EcesproExaminationController::class);
         Route::apiResource('ecespro-interview-batches', EcesproInterviewBatchController::class);
         Route::apiResource('ecespro-interviews', EcesproInterviewController::class);
         Route::apiResource('ecespro-contracts', EcesproContractController::class);
         Route::apiResource('ecespro-scholars', EcesproScholarController::class);
+
+        Route::get('ecespro-settings', [EcesproSettingController::class, 'index'])->name('ecespro-settings.index');
+        Route::post('ecespro-settings/{key}', [EcesproSettingController::class, 'store'])->name('ecespro-settings.store');
 
     });

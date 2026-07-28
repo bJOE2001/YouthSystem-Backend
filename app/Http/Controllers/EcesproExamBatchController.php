@@ -26,9 +26,29 @@ class EcesproExamBatchController extends Controller
             'time' => 'nullable|string',
             'venue' => 'nullable|string',
             'status' => 'nullable|string',
+            'applicants' => 'nullable|array',
+            'applicants.*.applicantId' => 'required|exists:ecespro_applications,id'
         ]);
 
-        return EcesproExamBatch::create($validated);
+        $batch = EcesproExamBatch::create([
+            'batch_name' => $validated['batch_name'],
+            'exam_date' => $validated['exam_date'],
+            'time' => $validated['time'] ?? null,
+            'venue' => $validated['venue'] ?? null,
+            'status' => $validated['status'] ?? null,
+        ]);
+
+        if (isset($validated['applicants'])) {
+            foreach ($validated['applicants'] as $applicant) {
+                \App\Models\EcesproExamination::create([
+                    'ecespro_exam_batch_id' => $batch->id,
+                    'ecespro_application_id' => $applicant['applicantId'],
+                    'status' => 'Pending'
+                ]);
+            }
+        }
+
+        return $batch;
     }
 
     /**
