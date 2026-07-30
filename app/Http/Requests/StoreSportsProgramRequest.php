@@ -35,6 +35,8 @@ class StoreSportsProgramRequest extends FormRequest
             'objective1' => 'nullable|string',
             'objective2' => 'nullable|string',
             'objective3' => 'nullable|string',
+            'openToAll' => 'nullable|boolean',
+            'open_to_all_barangays' => 'nullable|boolean',
             'status' => 'nullable|string|in:draft,upcoming,ongoing,completed,cancelled,Draft,Upcoming,Ongoing,Completed,Cancelled',
         ];
     }

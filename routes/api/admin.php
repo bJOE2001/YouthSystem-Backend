@@ -74,6 +74,8 @@ Route::middleware([
         Route::apiResource('ecespro-interviews', EcesproInterviewController::class);
         Route::apiResource('ecespro-contracts', EcesproContractController::class);
         Route::apiResource('ecespro-scholars', EcesproScholarController::class);
+        Route::get('ecespro-compliance-validations', [EcesproScholarController::class, 'complianceValidations'])->name('ecespro-compliance-validations.index');
+        Route::post('ecespro-compliance-validations/{ecesproScholar}/review', [EcesproScholarController::class, 'reviewCompliance'])->name('ecespro-compliance-validations.review');
 
         Route::get('ecespro-settings', [EcesproSettingController::class, 'index'])->name('ecespro-settings.index');
         Route::post('ecespro-settings/{key}', [EcesproSettingController::class, 'store'])->name('ecespro-settings.store');

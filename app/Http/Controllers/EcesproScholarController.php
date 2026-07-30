@@ -74,4 +74,90 @@ class EcesproScholarController extends Controller
 
         return response()->noContent();
     }
+
+    /**
+     * Get all semester compliance requirement submissions across scholars.
+     */
+    public function complianceValidations(Request $request)
+    {
+        $scholars = EcesproScholar::with(['user', 'application'])->get();
+        $submissions = [];
+
+        foreach ($scholars as $scholar) {
+            $history = $scholar->requirements_history ?? [];
+            if (! is_array($history)) {
+                continue;
+            }
+
+            foreach ($history as $index => $item) {
+                $files = [];
+                if (! empty($item['files']) && is_array($item['files'])) {
+                    $files = $item['files'];
+                } elseif (! empty($item['filePath'])) {
+                    $files = [[
+                        'name' => $item['fileName'] ?? $item['documentType'] ?? 'Requirement Document',
+                        'url' => $item['filePath'],
+                    ]];
+                }
+
+                $submissions[] = [
+                    'scholarId' => $scholar->id,
+                    'scholarNo' => $scholar->scholar_no,
+                    'scholarName' => $scholar->user?->name ?? $scholar->application?->full_name ?? ('Scholar #'.$scholar->id),
+                    'email' => $scholar->user?->email ?? $scholar->application?->email ?? '',
+                    'school' => $scholar->school ?? $scholar->application?->school_name ?? '',
+                    'course' => $scholar->course ?? $scholar->application?->course ?? '',
+                    'historyIndex' => $index,
+                    'submittedAt' => $item['submitted_at'] ?? $item['dateSubmitted'] ?? null,
+                    'schoolYear' => $item['school_year'] ?? $item['schoolYear'] ?? '',
+                    'semester' => $item['semester'] ?? '',
+                    'generalAverage' => $item['general_average'] ?? $item['generalAverage'] ?? null,
+                    'status' => $item['status'] ?? 'Pending',
+                    'remarks' => $item['remarks'] ?? '',
+                    'files' => $files,
+                ];
+            }
+        }
+
+        // Sort latest submitted first
+        usort($submissions, function ($a, $b) {
+            return strcmp($b['submittedAt'] ?? '', $a['submittedAt'] ?? '');
+        });
+
+        return response()->json(['data' => $submissions]);
+    }
+
+    /**
+     * Review/Validate a specific scholar requirement submission.
+     */
+    public function reviewCompliance(Request $request, EcesproScholar $ecesproScholar)
+    {
+        $request->validate([
+            'historyIndex' => 'required|integer',
+            'status' => 'required|string|in:Approved,For Resubmission,Disapproved,Pending,Verified',
+            'remarks' => 'nullable|string',
+        ]);
+
+        $index = $request->input('historyIndex');
+        $status = $request->input('status');
+        $remarks = $request->input('remarks', '');
+
+        $history = $ecesproScholar->requirements_history ?? [];
+        if (! isset($history[$index])) {
+            return response()->json(['message' => 'Submission record not found.'], 404);
+        }
+
+        $history[$index]['status'] = $status;
+        $history[$index]['remarks'] = $remarks;
+        $history[$index]['reviewed_at'] = now()->toIso8601String();
+
+        $ecesproScholar->requirements_history = $history;
+        $ecesproScholar->compliance_status = $status;
+        $ecesproScholar->save();
+
+        return response()->json([
+            'message' => 'Compliance requirement updated successfully.',
+            'scholar' => $ecesproScholar->load(['user', 'application']),
+        ]);
+    }
 }

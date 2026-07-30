@@ -10,6 +10,7 @@ use App\Http\Resources\EventParticipantResource;
 use App\Http\Resources\EventResource;
 use App\Http\Resources\UnifiedEventResource;
 use App\Models\Event;
+use App\Models\SkOfficial;
 use App\Models\SportsProgram;
 use App\Models\User;
 use App\Notifications\NewEventNotification;
@@ -47,8 +48,22 @@ class EventController extends Controller
         }
 
         // Unified youth view
+        $userBarangay = null;
+        if ($user) {
+            $userBarangay = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
+        }
+
         $events = Event::whereIn('status', ['upcoming', 'ongoing', 'Upcoming', 'Ongoing']);
         $sports = SportsProgram::whereIn('status', ['upcoming', 'ongoing', 'Upcoming', 'Ongoing']);
+
+        if (! $user || $user->role !== UserRole::Admin) {
+            $sports->where(function ($q) use ($userBarangay) {
+                $q->where('open_to_all_barangays', true);
+                if ($userBarangay) {
+                    $q->orWhereRaw('LOWER(barangay) = ?', [strtolower(trim($userBarangay))]);
+                }
+            });
+        }
 
         if ($request->has('search') && ! empty($request->search)) {
             $search = '%'.$request->search.'%';
@@ -148,6 +163,13 @@ class EventController extends Controller
         if (Str::startsWith($id, 'sport_')) {
             $sportId = str_replace('sport_', '', $id);
             $sport = SportsProgram::findOrFail($sportId);
+
+            if (! $sport->open_to_all_barangays) {
+                $userBarangay = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
+                if (! $userBarangay || strtolower(trim($userBarangay)) !== strtolower(trim($sport->barangay))) {
+                    return response()->json(['message' => 'This sports program is exclusive to residents of Barangay '.$sport->barangay.'.'], 403);
+                }
+            }
 
             if ($user->joinedSportsPrograms()->where('sports_program_id', $sport->id)->exists()) {
                 return response()->json(['message' => 'Already joined this program.'], 400);

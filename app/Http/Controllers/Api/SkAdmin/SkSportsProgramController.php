@@ -1,46 +1,30 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\Api\SkAdmin;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSportsProgramRequest;
 use App\Http\Requests\UpdateSportsProgramRequest;
 use App\Http\Resources\EventParticipantResource;
 use App\Http\Resources\SportsProgramResource;
-use App\Http\Resources\UnifiedEventResource;
 use App\Models\SkOfficial;
 use App\Models\SportsProgram;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
-class SportsProgramController extends Controller
+class SkSportsProgramController extends Controller
 {
+    /**
+     * Get list of sports programs for SK Admin.
+     */
     public function index(Request $request)
     {
         $query = SportsProgram::query();
         $user = auth('sanctum')->user();
 
-        $isOwnerRequest = $request->input('owner') === 'me';
-
-        if ($isOwnerRequest && $user && ($user->role === UserRole::Admin || $user->role === UserRole::SkAdmin)) {
+        // Filter by user's programs if requested or by default for SK management
+        if ($request->input('owner') === 'me' || ! $request->has('all')) {
             $query->where('user_id', $user->id);
-        } else {
-            $query->whereIn('status', ['Upcoming', 'Ongoing', 'upcoming', 'ongoing']);
-
-            $userBarangay = null;
-            if ($user) {
-                $userBarangay = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
-            }
-
-            if (! $user || $user->role !== UserRole::Admin) {
-                $query->where(function ($q) use ($userBarangay) {
-                    $q->where('open_to_all_barangays', true);
-                    if ($userBarangay) {
-                        $q->orWhereRaw('LOWER(barangay) = ?', [strtolower(trim($userBarangay))]);
-                    }
-                });
-            }
         }
 
         if ($request->has('search') && ! empty($request->search)) {
@@ -49,6 +33,10 @@ class SportsProgramController extends Controller
                     ->orWhere('location', 'like', '%'.$request->search.'%')
                     ->orWhere('type', 'like', '%'.$request->search.'%');
             });
+        }
+
+        if ($request->has('status') && ! empty($request->status)) {
+            $query->where('status', ucfirst(strtolower($request->status)));
         }
 
         if ($request->has('sort_by') && ! empty($request->sort_by)) {
@@ -64,11 +52,17 @@ class SportsProgramController extends Controller
         return SportsProgramResource::collection($query->paginate($perPage));
     }
 
+    /**
+     * Store a newly created sports program.
+     */
     public function store(StoreSportsProgramRequest $request)
     {
         $user = auth()->user();
         $data = $this->mapToSnakeCase($request->validated());
         $data['user_id'] = $user->id;
+        if (empty($data['status'])) {
+            $data['status'] = 'Draft';
+        }
 
         $isOpenToAll = filter_var($request->input('openToAll', $request->input('open_to_all_barangays', true)), FILTER_VALIDATE_BOOLEAN);
         $data['open_to_all_barangays'] = $isOpenToAll;
@@ -84,11 +78,17 @@ class SportsProgramController extends Controller
         return new SportsProgramResource($program);
     }
 
+    /**
+     * Display the specified sports program.
+     */
     public function show(SportsProgram $sportsProgram)
     {
         return new SportsProgramResource($sportsProgram);
     }
 
+    /**
+     * Update the specified sports program.
+     */
     public function update(UpdateSportsProgramRequest $request, SportsProgram $sportsProgram)
     {
         $user = auth()->user();
@@ -110,18 +110,24 @@ class SportsProgramController extends Controller
         return new SportsProgramResource($sportsProgram);
     }
 
+    /**
+     * Update status of a sports program.
+     */
     public function updateStatus(Request $request, SportsProgram $sportsProgram)
     {
         $request->validate([
             'status' => 'required|string',
         ]);
 
-        $status = ucfirst(strtolower($request->status)); // To match 'Completed', 'Upcoming', 'Draft', etc.
+        $status = ucfirst(strtolower($request->status));
         $sportsProgram->update(['status' => $status]);
 
         return new SportsProgramResource($sportsProgram);
     }
 
+    /**
+     * Remove the specified sports program.
+     */
     public function destroy(SportsProgram $sportsProgram)
     {
         $sportsProgram->delete();
@@ -129,20 +135,18 @@ class SportsProgramController extends Controller
         return response()->noContent();
     }
 
+    /**
+     * Get sports program participants grouped by barangay.
+     */
     public function participantsByBarangay(Request $request, SportsProgram $sportsProgram)
     {
-        // Get all participants
         $participants = $sportsProgram->participants()->with('youthProfile')->get();
-
-        // Convert to resource array
         $resourceCollection = EventParticipantResource::collection($participants)->resolve($request);
 
-        // Group by barangay
         $grouped = collect($resourceCollection)->groupBy(function ($participant) {
             return ! empty($participant['barangay']) ? $participant['barangay'] : 'Unknown';
         });
 
-        // Map to expected format
         $result = [];
         foreach ($grouped as $barangay => $items) {
             $result[] = [
@@ -151,7 +155,6 @@ class SportsProgramController extends Controller
             ];
         }
 
-        // Sort by barangay name alphabetically
         usort($result, function ($a, $b) {
             if ($a['barangay'] === 'Unknown') {
                 return 1;
@@ -166,26 +169,6 @@ class SportsProgramController extends Controller
         return response()->json(['data' => $result]);
     }
 
-    public function join(SportsProgram $sportsProgram)
-    {
-        $user = auth()->user();
-
-        if (! $sportsProgram->open_to_all_barangays) {
-            $userBarangay = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
-            if (! $userBarangay || strtolower(trim($userBarangay)) !== strtolower(trim($sportsProgram->barangay))) {
-                return response()->json(['message' => 'This sports program is exclusive to residents of Barangay '.$sportsProgram->barangay.'.'], 403);
-            }
-        }
-
-        if ($user->joinedSportsPrograms()->where('sports_program_id', $sportsProgram->id)->exists()) {
-            return response()->json(['message' => 'Already joined this program.'], 400);
-        }
-
-        $user->joinedSportsPrograms()->attach($sportsProgram->id);
-
-        return new UnifiedEventResource($sportsProgram);
-    }
-
     private function mapToSnakeCase(array $data): array
     {
         $mapped = [];
@@ -196,7 +179,6 @@ class SportsProgramController extends Controller
                 $snakeKey = 'open_to_all_barangays';
             }
 
-            // Fix for objective1 -> objective_1
             if (preg_match('/^objective(\d+)$/', $snakeKey, $matches)) {
                 $snakeKey = 'objective_'.$matches[1];
             }

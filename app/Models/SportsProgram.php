@@ -26,6 +26,8 @@ class SportsProgram extends Model
         'objective_2',
         'objective_3',
         'status',
+        'open_to_all_barangays',
+        'barangay',
     ];
 
     protected function casts(): array
@@ -35,6 +37,7 @@ class SportsProgram extends Model
             'end_date' => 'date',
             'budget_allocated' => 'decimal:2',
             'budget_utilized' => 'decimal:2',
+            'open_to_all_barangays' => 'boolean',
         ];
     }
 

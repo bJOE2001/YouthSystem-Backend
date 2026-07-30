@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\SkAdmin\DashboardController;
 use App\Http\Controllers\Api\SkAdmin\ProfileController;
 use App\Http\Controllers\Api\SkAdmin\ResidentYouthController;
 use App\Http\Controllers\Api\SkAdmin\SkOfficialController;
+use App\Http\Controllers\Api\SkAdmin\SkSportsProgramController;
 use App\Http\Controllers\Api\SkAdmin\YouthValidationController;
 use Illuminate\Support\Facades\Route;
 
@@ -67,6 +68,22 @@ Route::middleware([
             Route::get('/{skOfficial}', [SkOfficialController::class, 'show'])->name('show');
             Route::post('/', [SkOfficialController::class, 'store'])->name('store');
             Route::post('/{skOfficial}/delete', [SkOfficialController::class, 'destroy'])->name('destroy');
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Sports Programs Management
+        |--------------------------------------------------------------------------
+        */
+
+        Route::prefix('sports-programs')->name('sports-programs.')->group(function () {
+            Route::get('/', [SkSportsProgramController::class, 'index'])->name('index');
+            Route::post('/', [SkSportsProgramController::class, 'store'])->name('store');
+            Route::get('/{sportsProgram}', [SkSportsProgramController::class, 'show'])->name('show');
+            Route::post('/{sportsProgram}', [SkSportsProgramController::class, 'update'])->name('update');
+            Route::post('/{sportsProgram}/status', [SkSportsProgramController::class, 'updateStatus'])->name('update-status');
+            Route::post('/{sportsProgram}/delete', [SkSportsProgramController::class, 'destroy'])->name('destroy');
+            Route::get('/{sportsProgram}/participants-by-barangay', [SkSportsProgramController::class, 'participantsByBarangay'])->name('participants-by-barangay');
         });
 
     });
