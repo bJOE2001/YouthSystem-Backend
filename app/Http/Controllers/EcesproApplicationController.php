@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\EcesproApplication;
+use App\Models\EcesproScholar;
+use App\Notifications\EcesproApplicationStatusNotification;
 use Illuminate\Http\Request;
 
 class EcesproApplicationController extends Controller
@@ -19,7 +21,23 @@ class EcesproApplicationController extends Controller
             $query->where('ecespro_program_id', $request->program_id);
         }
 
-        return response()->json($query->latest()->paginate($request->input('per_page', 15)));
+        if ($request->has('without_examination') && $request->boolean('without_examination')) {
+            $query->whereDoesntHave('examination');
+        }
+
+        if ($request->has('without_interview') && $request->boolean('without_interview')) {
+            $query->whereDoesntHave('interview');
+        }
+
+        $allowedSortColumns = ['id', 'created_at', 'updated_at', 'application_status'];
+
+        if ($request->has('sort_by') && in_array($request->sort_by, $allowedSortColumns)) {
+            $query->orderBy($request->sort_by, $request->input('sort_order', 'asc'));
+        } else {
+            $query->latest();
+        }
+
+        return response()->json($query->paginate($request->input('per_page', 15)));
     }
 
     public function store(Request $request)
@@ -108,7 +126,7 @@ class EcesproApplicationController extends Controller
     public function update(Request $request, EcesproApplication $ecesproApplication)
     {
         $validated = $request->validate([
-            'application_status' => 'sometimes|required|string|in:Pending,Under Review,Exam Scheduled,Interview Scheduled,Contract Scheduled,Approved,Rejected',
+            'application_status' => 'sometimes|required|string|in:Submitted,Under Review,Qualified for Exam,Exam Scheduled,Failed Exam,Qualified for Interview,Interview Scheduled,Failed Interview,Qualified for Contract,Contract Scheduled,Approved,Rejected',
         ]);
 
         $updateData = $request->except(['application_status', 'user_id', 'ecespro_program_id']);
@@ -117,6 +135,41 @@ class EcesproApplicationController extends Controller
         }
 
         $ecesproApplication->update($updateData);
+
+        if (isset($updateData['application_status'])) {
+            if ($user = $ecesproApplication->user) {
+                $user->notify(new EcesproApplicationStatusNotification($ecesproApplication, $updateData['application_status']));
+            }
+        }
+
+        if (isset($updateData['application_status']) && $updateData['application_status'] === 'Approved') {
+            $initialReqs = array_map(function ($req) use ($ecesproApplication) {
+                return [
+                    'id' => $req['id'] ?? uniqid(),
+                    'dateSubmitted' => isset($ecesproApplication->created_at) ? $ecesproApplication->created_at->format('Y-m-d') : now()->format('Y-m-d'),
+                    'schoolYear' => $ecesproApplication->school_year ?? '2025-2026',
+                    'semester' => '1st Semester',
+                    'documentType' => $req['name'] ?? 'Initial Requirement Document',
+                    'fileName' => isset($req['path']) ? basename($req['path']) : 'document.pdf',
+                    'filePath' => $req['path'] ?? '',
+                    'status' => 'Validated',
+                    'remarks' => 'Initial Application Requirement',
+                ];
+            }, $ecesproApplication->submitted_requirements ?? []);
+
+            EcesproScholar::firstOrCreate(
+                ['ecespro_application_id' => $ecesproApplication->id],
+                [
+                    'user_id' => $ecesproApplication->user_id,
+                    'scholar_no' => 'SCH-'.str_pad($ecesproApplication->id, 4, '0', STR_PAD_LEFT),
+                    'school' => $ecesproApplication->school_intended_to_enroll ?? $ecesproApplication->school_attended_to_enroll ?? 'N/A',
+                    'course' => $ecesproApplication->course_intended_to_enroll ?? $ecesproApplication->course ?? 'N/A',
+                    'status' => 'Active',
+                    'compliance_status' => 'Compliant',
+                    'requirements_history' => $initialReqs,
+                ]
+            );
+        }
 
         return response()->json($ecesproApplication->load('user', 'program'));
     }
@@ -132,7 +185,7 @@ class EcesproApplicationController extends Controller
     {
         $validated = $request->validate([
             'status' => 'required|string|in:Pending,Validated,For Revision',
-            'remarks' => 'nullable|string'
+            'remarks' => 'nullable|string',
         ]);
 
         $requirements = $ecesproApplication->submitted_requirements ?? [];
@@ -151,7 +204,7 @@ class EcesproApplicationController extends Controller
             }
         }
 
-        if (!$found) {
+        if (! $found) {
             return response()->json(['message' => 'Document not found in application'], 404);
         }
 

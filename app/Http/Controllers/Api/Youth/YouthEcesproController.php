@@ -8,6 +8,7 @@ use App\Models\EcesproProgram;
 use App\Models\EcesproRequirement;
 use App\Models\EcesproScholar;
 use App\Models\EcesproSetting;
+use App\Notifications\EcesproApplicationStatusNotification;
 use Illuminate\Http\Request;
 
 class YouthEcesproController extends Controller
@@ -50,7 +51,8 @@ class YouthEcesproController extends Controller
      */
     public function myApplication(Request $request)
     {
-        $application = EcesproApplication::where('user_id', $request->user()->id)
+        $application = EcesproApplication::with(['examination.batch', 'interview.batch', 'contract'])
+            ->where('user_id', $request->user()->id)
             ->latest()
             ->first();
 
@@ -219,6 +221,8 @@ class YouthEcesproController extends Controller
 
         $application = EcesproApplication::create($mappedData);
 
+        $request->user()->notify(new EcesproApplicationStatusNotification($application, 'Submitted'));
+
         return response()->json([
             'message' => 'Application submitted successfully',
             'application' => $application,
@@ -233,14 +237,39 @@ class YouthEcesproController extends Controller
         $scholar = EcesproScholar::where('user_id', $request->user()->id)->first();
 
         if (! $scholar) {
-            return response()->json([
-                'message' => 'You are not an active scholar.',
-                'requirements_history' => [],
-            ]);
+            $app = EcesproApplication::where('user_id', $request->user()->id)->first();
+            if ($app && in_array($app->application_status, ['Approved', 'Qualified for Contract', 'Contract Scheduled'])) {
+                $initialReqs = array_map(function ($req) use ($app) {
+                    return [
+                        'id' => $req['id'] ?? uniqid(),
+                        'dateSubmitted' => isset($app->created_at) ? $app->created_at->format('Y-m-d') : now()->format('Y-m-d'),
+                        'schoolYear' => $app->school_year ?? '2025-2026',
+                        'semester' => '1st Semester',
+                        'documentType' => $req['name'] ?? 'Initial Requirement Document',
+                        'fileName' => isset($req['path']) ? basename($req['path']) : 'document.pdf',
+                        'filePath' => $req['path'] ?? '',
+                        'status' => 'Validated',
+                        'remarks' => 'Initial Application Requirement',
+                    ];
+                }, $app->submitted_requirements ?? []);
+
+                $scholar = EcesproScholar::firstOrCreate(
+                    ['user_id' => $request->user()->id],
+                    [
+                        'ecespro_application_id' => $app->id,
+                        'scholar_no' => 'SCH-'.str_pad($app->id, 4, '0', STR_PAD_LEFT),
+                        'school' => $app->school_intended_to_enroll ?? $app->school_attended_to_enroll ?? 'N/A',
+                        'course' => $app->course_intended_to_enroll ?? $app->course ?? 'N/A',
+                        'status' => 'Active',
+                        'compliance_status' => 'Compliant',
+                        'requirements_history' => $initialReqs,
+                    ]
+                );
+            }
         }
 
         return response()->json([
-            'requirements_history' => $scholar->requirements_history ?? [],
+            'requirements_history' => $scholar ? ($scholar->requirements_history ?? []) : [],
         ]);
     }
 
@@ -252,12 +281,31 @@ class YouthEcesproController extends Controller
         $scholar = EcesproScholar::where('user_id', $request->user()->id)->first();
 
         if (! $scholar) {
-            return response()->json(['message' => 'You are not an active scholar.'], 400);
+            $app = EcesproApplication::where('user_id', $request->user()->id)->first();
+            if ($app && in_array($app->application_status, ['Approved', 'Qualified for Contract', 'Contract Scheduled'])) {
+                $scholar = EcesproScholar::firstOrCreate(
+                    ['user_id' => $request->user()->id],
+                    [
+                        'ecespro_application_id' => $app->id,
+                        'scholar_no' => 'SCH-'.str_pad($app->id, 4, '0', STR_PAD_LEFT),
+                        'school' => $app->school_intended_to_enroll ?? $app->school_attended_to_enroll ?? 'N/A',
+                        'course' => $app->course_intended_to_enroll ?? $app->course ?? 'N/A',
+                        'status' => 'Active',
+                        'compliance_status' => 'Compliant',
+                        'requirements_history' => [],
+                    ]
+                );
+            }
+        }
+
+        if (! $scholar) {
+            return response()->json(['message' => 'You must have an approved scholarship application to submit semester requirements.'], 400);
         }
 
         $validated = $request->validate([
             'schoolYear' => 'required|string',
             'semester' => 'required|string',
+            'generalAverage' => 'nullable|string',
             'uploadGrades' => 'nullable|file',
             'uploadCertificateOfEnrollment' => 'nullable|file',
             'uploadCertificateOfRegistration' => 'nullable|file',
@@ -282,6 +330,7 @@ class YouthEcesproController extends Controller
                     'dateSubmitted' => now()->format('Y-m-d'),
                     'schoolYear' => $validated['schoolYear'],
                     'semester' => $validated['semester'],
+                    'generalAverage' => $validated['generalAverage'] ?? null,
                     'documentType' => $documentType,
                     'fileName' => $request->file($fileKey)->getClientOriginalName(),
                     'filePath' => $path,

@@ -79,7 +79,7 @@ return new class extends Migration
             $table->string('barangay_clearance')->nullable();
             $table->string('other_supporting_documents')->nullable();
 
-            $table->string('application_status')->default('Pending'); // Pending, Under Review, Exam Scheduled, Interview Scheduled, Contract Scheduled, Approved, Rejected
+            $table->string('application_status')->default('Submitted'); // Submitted, Under Review, Exam Scheduled, Interview Scheduled, Contract Scheduled, Approved, Rejected
             $table->timestamps();
         });
     }

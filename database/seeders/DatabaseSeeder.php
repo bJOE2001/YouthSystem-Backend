@@ -17,7 +17,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             LibraryBarangaysSeeder::class,
             UserSeeder::class,
-
+            SkSeeder::class,
         ]);
     }
 }

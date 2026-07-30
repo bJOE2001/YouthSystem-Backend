@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EcesproApplication;
+use App\Models\EcesproInterview;
 use App\Models\EcesproInterviewBatch;
+use App\Notifications\EcesproApplicationStatusNotification;
 use Illuminate\Http\Request;
 
 class EcesproInterviewBatchController extends Controller
@@ -12,7 +15,7 @@ class EcesproInterviewBatchController extends Controller
      */
     public function index()
     {
-        return EcesproInterviewBatch::with('interviews.application')->get();
+        return EcesproInterviewBatch::with('interviews.application.user')->get();
     }
 
     /**
@@ -27,9 +30,39 @@ class EcesproInterviewBatchController extends Controller
             'panel' => 'nullable|string',
             'mode' => 'nullable|string',
             'status' => 'nullable|string',
+            'applicants' => 'nullable|array',
+            'applicants.*.applicantId' => 'required|exists:ecespro_applications,id',
         ]);
 
-        return EcesproInterviewBatch::create($validated);
+        $batch = EcesproInterviewBatch::create([
+            'batch_name' => $validated['batch_name'],
+            'interview_date' => $validated['interview_date'],
+            'time' => $validated['time'] ?? null,
+            'panel' => $validated['panel'] ?? null,
+            'mode' => $validated['mode'] ?? null,
+            'status' => $validated['status'] ?? 'Scheduled',
+        ]);
+
+        if (isset($validated['applicants'])) {
+            foreach ($validated['applicants'] as $applicant) {
+                EcesproInterview::create([
+                    'ecespro_interview_batch_id' => $batch->id,
+                    'ecespro_application_id' => $applicant['applicantId'],
+                    'status' => 'Pending',
+                ]);
+
+                $app = EcesproApplication::find($applicant['applicantId']);
+                if ($app) {
+                    $app->update(['application_status' => 'Interview Scheduled']);
+                    if ($user = $app->user) {
+                        $msg = "Your ECESPRO Panel Interview has been scheduled! Date: {$batch->interview_date}, Time: {$batch->time}, Panel: {$batch->panel}, Mode: {$batch->mode} (Batch: {$batch->batch_name}).";
+                        $user->notify(new EcesproApplicationStatusNotification($app, 'Interview Scheduled', $msg));
+                    }
+                }
+            }
+        }
+
+        return $batch->load(['interviews.application.user']);
     }
 
     /**
@@ -37,7 +70,7 @@ class EcesproInterviewBatchController extends Controller
      */
     public function show(EcesproInterviewBatch $ecesproInterviewBatch)
     {
-        return $ecesproInterviewBatch->load('interviews.application');
+        return $ecesproInterviewBatch->load('interviews.application.user');
     }
 
     /**
@@ -64,6 +97,7 @@ class EcesproInterviewBatchController extends Controller
      */
     public function destroy(EcesproInterviewBatch $ecesproInterviewBatch)
     {
+        $ecesproInterviewBatch->interviews()->delete();
         $ecesproInterviewBatch->delete();
 
         return response()->noContent();

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\EcesproInterview;
+use App\Notifications\EcesproApplicationStatusNotification;
 use Illuminate\Http\Request;
 
 class EcesproInterviewController extends Controller
@@ -51,6 +52,19 @@ class EcesproInterviewController extends Controller
         ]);
 
         $ecesproInterview->update($validated);
+
+        if (isset($validated['status'])) {
+            $newStatus = $validated['status'] === 'Passed' ? 'Qualified for Contract' : ($validated['status'] === 'Failed' ? 'Failed Interview' : null);
+            if ($newStatus) {
+                $ecesproInterview->application()->update([
+                    'application_status' => $newStatus,
+                ]);
+                $app = $ecesproInterview->application;
+                if ($app && $user = $app->user) {
+                    $user->notify(new EcesproApplicationStatusNotification($app, $newStatus));
+                }
+            }
+        }
 
         return $ecesproInterview;
     }

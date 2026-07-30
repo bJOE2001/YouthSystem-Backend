@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EcesproApplication;
 use App\Models\EcesproExamBatch;
+use App\Models\EcesproExamination;
+use App\Notifications\EcesproApplicationStatusNotification;
 use Illuminate\Http\Request;
 
 class EcesproExamBatchController extends Controller
@@ -12,7 +15,7 @@ class EcesproExamBatchController extends Controller
      */
     public function index()
     {
-        return EcesproExamBatch::with('examinations.application')->get();
+        return EcesproExamBatch::with('examinations.application.user')->get();
     }
 
     /**
@@ -27,7 +30,7 @@ class EcesproExamBatchController extends Controller
             'venue' => 'nullable|string',
             'status' => 'nullable|string',
             'applicants' => 'nullable|array',
-            'applicants.*.applicantId' => 'required|exists:ecespro_applications,id'
+            'applicants.*.applicantId' => 'required|exists:ecespro_applications,id',
         ]);
 
         $batch = EcesproExamBatch::create([
@@ -40,11 +43,20 @@ class EcesproExamBatchController extends Controller
 
         if (isset($validated['applicants'])) {
             foreach ($validated['applicants'] as $applicant) {
-                \App\Models\EcesproExamination::create([
+                EcesproExamination::create([
                     'ecespro_exam_batch_id' => $batch->id,
                     'ecespro_application_id' => $applicant['applicantId'],
-                    'status' => 'Pending'
+                    'status' => 'Pending',
                 ]);
+
+                $app = EcesproApplication::find($applicant['applicantId']);
+                if ($app) {
+                    $app->update(['application_status' => 'Exam Scheduled']);
+                    if ($user = $app->user) {
+                        $msg = "Your ECESPRO Qualifying Examination has been scheduled! Date: {$batch->exam_date}, Time: {$batch->time}, Venue: {$batch->venue} (Batch: {$batch->batch_name}).";
+                        $user->notify(new EcesproApplicationStatusNotification($app, 'Exam Scheduled', $msg));
+                    }
+                }
             }
         }
 
@@ -56,7 +68,7 @@ class EcesproExamBatchController extends Controller
      */
     public function show(EcesproExamBatch $ecesproExamBatch)
     {
-        return $ecesproExamBatch->load('examinations.application');
+        return $ecesproExamBatch->load('examinations.application.user');
     }
 
     /**
@@ -82,6 +94,7 @@ class EcesproExamBatchController extends Controller
      */
     public function destroy(EcesproExamBatch $ecesproExamBatch)
     {
+        $ecesproExamBatch->examinations()->delete();
         $ecesproExamBatch->delete();
 
         return response()->noContent();

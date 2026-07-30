@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\EcesproExamination;
+use App\Notifications\EcesproApplicationStatusNotification;
 use Illuminate\Http\Request;
 
 class EcesproExaminationController extends Controller
@@ -51,6 +52,19 @@ class EcesproExaminationController extends Controller
         ]);
 
         $ecesproExamination->update($validated);
+
+        if (isset($validated['status'])) {
+            $newStatus = $validated['status'] === 'Passed' ? 'Qualified for Interview' : ($validated['status'] === 'Failed' ? 'Failed Exam' : null);
+            if ($newStatus) {
+                $ecesproExamination->application()->update([
+                    'application_status' => $newStatus,
+                ]);
+                $app = $ecesproExamination->application;
+                if ($app && $user = $app->user) {
+                    $user->notify(new EcesproApplicationStatusNotification($app, $newStatus));
+                }
+            }
+        }
 
         return $ecesproExamination;
     }
