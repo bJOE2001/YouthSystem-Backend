@@ -143,20 +143,6 @@ class EcesproApplicationController extends Controller
         }
 
         if (isset($updateData['application_status']) && $updateData['application_status'] === 'Approved') {
-            $initialReqs = array_map(function ($req) use ($ecesproApplication) {
-                return [
-                    'id' => $req['id'] ?? uniqid(),
-                    'dateSubmitted' => isset($ecesproApplication->created_at) ? $ecesproApplication->created_at->format('Y-m-d') : now()->format('Y-m-d'),
-                    'schoolYear' => $ecesproApplication->school_year ?? '2025-2026',
-                    'semester' => '1st Semester',
-                    'documentType' => $req['name'] ?? 'Initial Requirement Document',
-                    'fileName' => isset($req['path']) ? basename($req['path']) : 'document.pdf',
-                    'filePath' => $req['path'] ?? '',
-                    'status' => 'Validated',
-                    'remarks' => 'Initial Application Requirement',
-                ];
-            }, $ecesproApplication->submitted_requirements ?? []);
-
             $scholar = EcesproScholar::firstOrCreate(
                 ['ecespro_application_id' => $ecesproApplication->id],
                 [
@@ -166,7 +152,7 @@ class EcesproApplicationController extends Controller
                     'course' => $ecesproApplication->course_intended_to_enroll ?? $ecesproApplication->course ?? 'N/A',
                     'status' => 'Active',
                     'compliance_status' => 'Compliant',
-                    'requirements_history' => $initialReqs,
+                    'requirements_history' => [],
                 ]
             );
 
