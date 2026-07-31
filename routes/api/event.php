@@ -12,6 +12,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Accessible by youth and sk_admin
     Route::middleware('role:youth,sk_admin')->group(function () {
         Route::get('/my-events', [EventController::class, 'myEvents'])->name('events.my');
+        Route::get('/my-activities', [EventController::class, 'myEvents'])->name('activities.my');
+        Route::get('/events/{event}/certificate', [EventController::class, 'downloadCertificate'])->name('events.certificate');
         Route::post('/events/{event}/join', [EventController::class, 'join'])->name('events.join');
     });
 

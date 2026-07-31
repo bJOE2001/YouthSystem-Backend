@@ -33,6 +33,8 @@ class UnifiedEventResource extends JsonResource
             'id' => $isEvent ? 'event_'.$this->id : 'sport_'.$this->id,
             'originalId' => $this->id,
             'source' => $isEvent ? 'Event' : 'Sports Program',
+            'type' => $isEvent ? 'Event' : 'Sports Program',
+            'activityType' => $isEvent ? 'Event' : 'Sports Program',
             'name' => $this->name,
             'aipReferenceCode' => $isEvent ? $this->aip_reference_code : null,
             'ppaClassification' => $isEvent ? $this->ppa_classification : $this->type,

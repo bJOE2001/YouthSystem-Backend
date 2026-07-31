@@ -300,6 +300,25 @@ class EventController extends Controller
         return EventParticipantResource::collection($query->paginate($perPage));
     }
 
+    public function downloadCertificate($id)
+    {
+        $user = auth()->user();
+        if (Str::startsWith($id, 'sport_')) {
+            $sportId = str_replace('sport_', '', $id);
+            $event = SportsProgram::findOrFail($sportId);
+        } else {
+            $eventId = str_replace('event_', '', $id);
+            $event = Event::findOrFail($eventId);
+        }
+
+        $pdfContent = "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<</Font<</F1 4 0 R>>>>/Contents 5 0 R>>endobj 4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj 5 0 obj<</Length 140>>stream\nBT /F1 18 Tf 50 700 Td (CERTIFICATE OF PARTICIPATION) Tj /F1 12 Tf 0 -30 Td (This certifies that {$user->name} has completed the activity: {$event->name}.) Tj ET\nendstream\nendobj\nxref\n0 6\n0000000000 65535 f \n0000000009 00000 n \n0000000056 00000 n \n0000000111 00000 n \n0000000238 00000 n \n0000000305 00000 n \ntrailer<</Size 6/Root 1 0 R>>\nstartxref\n497\n%%EOF";
+
+        return response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="Certificate-'.Str::slug($event->name).'.pdf"',
+        ]);
+    }
+
     private function mapToSnakeCase(array $data): array
     {
         $mapped = [];
