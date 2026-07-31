@@ -16,5 +16,7 @@ Route::middleware([
         Route::get('/my-application', [SkEcesproController::class, 'myApplication']);
         Route::post('/apply', [SkEcesproController::class, 'apply']);
         Route::get('/my-requirements', [SkEcesproController::class, 'myRequirements']);
+        Route::get('/compliance-schedules', [SkEcesproController::class, 'complianceSchedules']);
         Route::post('/submit-requirements', [SkEcesproController::class, 'submitRequirements']);
+        Route::delete('/requirements-history/{index}', [SkEcesproController::class, 'deleteRequirement']);
     });

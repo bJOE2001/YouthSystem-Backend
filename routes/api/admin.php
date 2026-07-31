@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Admin\LydcMemberController;
 use App\Http\Controllers\Api\Admin\ResidentYouthController;
 use App\Http\Controllers\Api\Admin\SkOfficialController;
 use App\Http\Controllers\EcesproApplicationController;
+use App\Http\Controllers\EcesproComplianceScheduleController;
 use App\Http\Controllers\EcesproContractController;
 use App\Http\Controllers\EcesproExamBatchController;
 use App\Http\Controllers\EcesproExaminationController;
@@ -20,7 +21,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware([
     'auth:sanctum',
     'active',
-    'role:admin',
+    'role:admin,sk_admin',
 ])
     ->prefix('admin')
     ->name('admin.')
@@ -76,6 +77,10 @@ Route::middleware([
         Route::apiResource('ecespro-scholars', EcesproScholarController::class);
         Route::get('ecespro-compliance-validations', [EcesproScholarController::class, 'complianceValidations'])->name('ecespro-compliance-validations.index');
         Route::post('ecespro-compliance-validations/{ecesproScholar}/review', [EcesproScholarController::class, 'reviewCompliance'])->name('ecespro-compliance-validations.review');
+
+        Route::apiResource('ecespro-compliance-schedules', EcesproComplianceScheduleController::class);
+        Route::post('ecespro-compliance-schedules/{schedule}/status', [EcesproComplianceScheduleController::class, 'updateStatus'])->name('ecespro-compliance-schedules.update-status');
+        Route::get('ecespro-compliance-schedules/{schedule}/submissions', [EcesproComplianceScheduleController::class, 'submissions'])->name('ecespro-compliance-schedules.submissions');
 
         Route::get('ecespro-settings', [EcesproSettingController::class, 'index'])->name('ecespro-settings.index');
         Route::post('ecespro-settings/{key}', [EcesproSettingController::class, 'store'])->name('ecespro-settings.store');

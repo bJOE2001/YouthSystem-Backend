@@ -133,23 +133,30 @@ class EcesproScholarController extends Controller
     public function reviewCompliance(Request $request, EcesproScholar $ecesproScholar)
     {
         $request->validate([
-            'historyIndex' => 'required|integer',
-            'status' => 'required|string|in:Approved,For Resubmission,Disapproved,Pending,Verified',
+            'historyIndex' => 'nullable|integer',
+            'history_index' => 'nullable|integer',
+            'historyIndexes' => 'nullable|array',
+            'status' => 'required|string|in:Pending,Validated,Approved,For Revision,For Resubmission,Disapproved',
             'remarks' => 'nullable|string',
         ]);
 
-        $index = $request->input('historyIndex');
         $status = $request->input('status');
         $remarks = $request->input('remarks', '');
 
-        $history = $ecesproScholar->requirements_history ?? [];
-        if (! isset($history[$index])) {
-            return response()->json(['message' => 'Submission record not found.'], 404);
+        $indexes = $request->input('historyIndexes');
+        if (empty($indexes)) {
+            $singleIndex = $request->input('historyIndex', $request->input('history_index'));
+            $indexes = $singleIndex !== null ? [$singleIndex] : [];
         }
 
-        $history[$index]['status'] = $status;
-        $history[$index]['remarks'] = $remarks;
-        $history[$index]['reviewed_at'] = now()->toIso8601String();
+        $history = $ecesproScholar->requirements_history ?? [];
+        foreach ($indexes as $index) {
+            if (isset($history[$index])) {
+                $history[$index]['status'] = $status;
+                $history[$index]['remarks'] = $remarks;
+                $history[$index]['reviewed_at'] = now()->toIso8601String();
+            }
+        }
 
         $ecesproScholar->requirements_history = $history;
         $ecesproScholar->compliance_status = $status;

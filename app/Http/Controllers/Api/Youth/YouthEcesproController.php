@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Youth;
 
 use App\Http\Controllers\Controller;
 use App\Models\EcesproApplication;
+use App\Models\EcesproComplianceSchedule;
 use App\Models\EcesproProgram;
 use App\Models\EcesproRequirement;
 use App\Models\EcesproScholar;
@@ -239,20 +240,6 @@ class YouthEcesproController extends Controller
         if (! $scholar) {
             $app = EcesproApplication::where('user_id', $request->user()->id)->first();
             if ($app && in_array($app->application_status, ['Approved', 'Qualified for Contract', 'Contract Scheduled'])) {
-                $initialReqs = array_map(function ($req) use ($app) {
-                    return [
-                        'id' => $req['id'] ?? uniqid(),
-                        'dateSubmitted' => isset($app->created_at) ? $app->created_at->format('Y-m-d') : now()->format('Y-m-d'),
-                        'schoolYear' => $app->school_year ?? '2025-2026',
-                        'semester' => '1st Semester',
-                        'documentType' => $req['name'] ?? 'Initial Requirement Document',
-                        'fileName' => isset($req['path']) ? basename($req['path']) : 'document.pdf',
-                        'filePath' => $req['path'] ?? '',
-                        'status' => 'Validated',
-                        'remarks' => 'Initial Application Requirement',
-                    ];
-                }, $app->submitted_requirements ?? []);
-
                 $scholar = EcesproScholar::firstOrCreate(
                     ['user_id' => $request->user()->id],
                     [
@@ -262,7 +249,7 @@ class YouthEcesproController extends Controller
                         'course' => $app->course_intended_to_enroll ?? $app->course ?? 'N/A',
                         'status' => 'Active',
                         'compliance_status' => 'Compliant',
-                        'requirements_history' => $initialReqs,
+                        'requirements_history' => [],
                     ]
                 );
             }
@@ -271,6 +258,56 @@ class YouthEcesproController extends Controller
         return response()->json([
             'requirements_history' => $scholar ? ($scholar->requirements_history ?? []) : [],
         ]);
+    }
+
+    /**
+     * Delete a specific requirement history submission by index.
+     */
+    public function deleteRequirement(Request $request, $index)
+    {
+        $scholar = EcesproScholar::where('user_id', $request->user()->id)->first();
+        if (! $scholar) {
+            return response()->json(['message' => 'Scholar record not found.'], 404);
+        }
+
+        $history = $scholar->requirements_history ?? [];
+        if (! is_array($history) || ! isset($history[$index])) {
+            return response()->json(['message' => 'Requirement submission record not found.'], 404);
+        }
+
+        array_splice($history, (int) $index, 1);
+
+        $scholar->requirements_history = array_values($history);
+        $scholar->save();
+
+        return response()->json([
+            'message' => 'Requirement submission deleted successfully.',
+            'requirements_history' => $scholar->requirements_history,
+        ]);
+    }
+
+    /**
+     * Get available compliance schedules for scholars.
+     */
+    public function complianceSchedules()
+    {
+        $schedules = EcesproComplianceSchedule::latest()->get()->map(function ($s) {
+            $isClosed = strtolower($s->status) !== 'open' || ($s->end_date && now()->startOfDay()->gt($s->end_date));
+
+            return [
+                'id' => $s->id,
+                'title' => $s->title,
+                'schoolYear' => $s->school_year,
+                'semester' => $s->semester,
+                'startDate' => $s->start_date ? $s->start_date->format('Y-m-d') : null,
+                'endDate' => $s->end_date ? $s->end_date->format('Y-m-d') : null,
+                'status' => $s->status,
+                'isClosed' => $isClosed,
+                'instructions' => $s->instructions,
+            ];
+        });
+
+        return response()->json(['data' => $schedules]);
     }
 
     /**
@@ -311,6 +348,21 @@ class YouthEcesproController extends Controller
             'uploadCertificateOfRegistration' => 'nullable|file',
             'uploadOtherSupportingDocuments' => 'nullable|file',
         ]);
+
+        // Check if compliance schedule for this schoolYear & semester is Open
+        $schedule = EcesproComplianceSchedule::where('school_year', $validated['schoolYear'])
+            ->where('semester', $validated['semester'])
+            ->latest()
+            ->first();
+
+        if ($schedule) {
+            $isClosed = strtolower($schedule->status) !== 'open' || ($schedule->end_date && now()->startOfDay()->gt($schedule->end_date));
+            if ($isClosed) {
+                return response()->json([
+                    'message' => 'Submissions for "'.$schedule->title.'" are currently closed.',
+                ], 403);
+            }
+        }
 
         $documents = [
             'uploadGrades' => 'Grades',

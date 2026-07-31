@@ -34,7 +34,7 @@ class EcesproApplicationController extends Controller
         if ($request->has('sort_by') && in_array($request->sort_by, $allowedSortColumns)) {
             $query->orderBy($request->sort_by, $request->input('sort_order', 'asc'));
         } else {
-            $query->latest();
+            $query->oldest();
         }
 
         return response()->json($query->paginate($request->input('per_page', 15)));
@@ -157,11 +157,11 @@ class EcesproApplicationController extends Controller
                 ];
             }, $ecesproApplication->submitted_requirements ?? []);
 
-            EcesproScholar::firstOrCreate(
+            $scholar = EcesproScholar::firstOrCreate(
                 ['ecespro_application_id' => $ecesproApplication->id],
                 [
                     'user_id' => $ecesproApplication->user_id,
-                    'scholar_no' => 'SCH-'.str_pad($ecesproApplication->id, 4, '0', STR_PAD_LEFT),
+                    'scholar_no' => 'PENDING',
                     'school' => $ecesproApplication->school_intended_to_enroll ?? $ecesproApplication->school_attended_to_enroll ?? 'N/A',
                     'course' => $ecesproApplication->course_intended_to_enroll ?? $ecesproApplication->course ?? 'N/A',
                     'status' => 'Active',
@@ -169,6 +169,11 @@ class EcesproApplicationController extends Controller
                     'requirements_history' => $initialReqs,
                 ]
             );
+
+            if ($scholar->wasRecentlyCreated || $scholar->scholar_no === 'PENDING' || empty($scholar->scholar_no)) {
+                $scholar->scholar_no = 'SCH-'.str_pad($scholar->id, 4, '0', STR_PAD_LEFT);
+                $scholar->save();
+            }
         }
 
         return response()->json($ecesproApplication->load('user', 'program'));

@@ -16,5 +16,7 @@ Route::middleware([
         Route::get('/my-application', [YouthEcesproController::class, 'myApplication']);
         Route::post('/apply', [YouthEcesproController::class, 'apply']);
         Route::get('/my-requirements', [YouthEcesproController::class, 'myRequirements']);
+        Route::get('/compliance-schedules', [YouthEcesproController::class, 'complianceSchedules']);
         Route::post('/submit-requirements', [YouthEcesproController::class, 'submitRequirements']);
+        Route::delete('/requirements-history/{index}', [YouthEcesproController::class, 'deleteRequirement']);
     });
