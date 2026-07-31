@@ -44,9 +44,10 @@ class EcesproApplicationStatusNotification extends Notification
             'Contract Scheduled' => 'Your ECESPRO Contract Signing & Orientation schedule has been posted.',
             'Approved' => '🎉 Congratulations! Your ECESPRO Scholarship application is APPROVED! Your scholar account is now active.',
             'Rejected' => 'Update on your ECESPRO application: Your application was not approved.',
+            'For Revision' => 'Your uploaded requirement document requires revision. Please check your application and reupload.',
         ];
 
-        $title = 'ECESPRO Application Update';
+        $title = $this->status === 'For Revision' ? 'ECESPRO Document Revision Required' : 'ECESPRO Application Update';
         $message = $this->customMessage ?? ($messages[$this->status] ?? "Your ECESPRO application status is updated to {$this->status}.");
 
         return [

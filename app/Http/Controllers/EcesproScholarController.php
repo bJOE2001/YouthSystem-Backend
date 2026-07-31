@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\EcesproScholar;
+use App\Notifications\EcesproApplicationStatusNotification;
 use Illuminate\Http\Request;
 
 class EcesproScholarController extends Controller
@@ -161,6 +162,17 @@ class EcesproScholarController extends Controller
         $ecesproScholar->requirements_history = $history;
         $ecesproScholar->compliance_status = $status;
         $ecesproScholar->save();
+
+        if (in_array($status, ['For Revision', 'For Resubmission'])) {
+            if ($user = $ecesproScholar->user) {
+                $reasonText = ! empty($remarks) ? " Reason: {$remarks}" : '';
+                $customMsg = "Your semester compliance submission requires revision.{$reasonText}";
+
+                if ($ecesproScholar->application) {
+                    $user->notify(new EcesproApplicationStatusNotification($ecesproScholar->application, 'For Revision', $customMsg));
+                }
+            }
+        }
 
         return response()->json([
             'message' => 'Compliance requirement updated successfully.',

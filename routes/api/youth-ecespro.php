@@ -19,4 +19,5 @@ Route::middleware([
         Route::get('/compliance-schedules', [YouthEcesproController::class, 'complianceSchedules']);
         Route::post('/submit-requirements', [YouthEcesproController::class, 'submitRequirements']);
         Route::delete('/requirements-history/{index}', [YouthEcesproController::class, 'deleteRequirement']);
+        Route::post('/reupload-application-document', [YouthEcesproController::class, 'reuploadApplicationDocument']);
     });

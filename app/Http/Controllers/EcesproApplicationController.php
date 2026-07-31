@@ -201,6 +201,16 @@ class EcesproApplicationController extends Controller
 
         $ecesproApplication->update(['submitted_requirements' => $requirements]);
 
+        if ($validated['status'] === 'For Revision') {
+            if ($user = $ecesproApplication->user) {
+                $docName = $updatedDoc['name'] ?? 'Requirement Document';
+                $remarksText = ! empty($validated['remarks']) ? " Reason: {$validated['remarks']}" : '';
+                $customMsg = "Your uploaded requirement document '{$docName}' requires revision.{$remarksText}";
+
+                $user->notify(new EcesproApplicationStatusNotification($ecesproApplication, 'For Revision', $customMsg));
+            }
+        }
+
         return response()->json($updatedDoc);
     }
 }

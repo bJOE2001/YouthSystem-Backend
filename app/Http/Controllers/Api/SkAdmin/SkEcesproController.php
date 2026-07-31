@@ -255,8 +255,33 @@ class SkEcesproController extends Controller
             }
         }
 
+        $history = $scholar ? ($scholar->requirements_history ?? []) : [];
+        if (! empty($history) && is_array($history)) {
+            $dedupedHistory = [];
+            $seenKeys = [];
+
+            for ($i = count($history) - 1; $i >= 0; $i--) {
+                $item = $history[$i];
+                $sy = strtolower(trim($item['schoolYear'] ?? $item['school_year'] ?? ''));
+                $sem = strtolower(trim($item['semester'] ?? ''));
+                $doc = strtolower(trim($item['documentType'] ?? $item['document_type'] ?? ''));
+                $key = "{$sy}|{$sem}|{$doc}";
+
+                if (! isset($seenKeys[$key])) {
+                    $seenKeys[$key] = true;
+                    array_unshift($dedupedHistory, $item);
+                }
+            }
+
+            if (count($dedupedHistory) !== count($history)) {
+                $scholar->update(['requirements_history' => $dedupedHistory]);
+                $history = $dedupedHistory;
+            }
+        }
+
         return response()->json([
-            'requirements_history' => $scholar ? ($scholar->requirements_history ?? []) : [],
+            'data' => $history,
+            'requirements_history' => $history,
         ]);
     }
 
@@ -304,6 +329,8 @@ class SkEcesproController extends Controller
                 'status' => $s->status,
                 'isClosed' => $isClosed,
                 'instructions' => $s->instructions,
+                'requiredDocuments' => $s->required_documents ?? [],
+                'required_documents' => $s->required_documents ?? [],
             ];
         });
 
@@ -373,30 +400,147 @@ class SkEcesproController extends Controller
 
         $history = $scholar->requirements_history ?? [];
 
-        foreach ($documents as $fileKey => $documentType) {
-            if ($request->hasFile($fileKey)) {
-                $path = $request->file($fileKey)->store('ecespro/requirements', 'public');
+        $saveItem = function (&$historyArr, $schoolYear, $semester, $gpa, $docLabel, $fileName, $filePath) {
+            $matchedIdx = null;
+            $syTarget = strtolower(trim($schoolYear));
+            $semTarget = strtolower(trim($semester));
+            $docTarget = strtolower(trim($docLabel));
 
-                $history[] = [
+            foreach ($historyArr as $idx => $item) {
+                $itemSy = strtolower(trim($item['schoolYear'] ?? $item['school_year'] ?? ''));
+                $itemSem = strtolower(trim($item['semester'] ?? ''));
+                $itemDoc = strtolower(trim($item['documentType'] ?? $item['document_type'] ?? ''));
+
+                if ($itemSy === $syTarget && $itemSem === $semTarget && $itemDoc === $docTarget) {
+                    $matchedIdx = $idx;
+                    break;
+                }
+            }
+
+            if ($matchedIdx !== null) {
+                $historyArr[$matchedIdx]['dateSubmitted'] = now()->format('Y-m-d');
+                $historyArr[$matchedIdx]['generalAverage'] = $gpa ?? $historyArr[$matchedIdx]['generalAverage'] ?? null;
+                $historyArr[$matchedIdx]['fileName'] = $fileName;
+                $historyArr[$matchedIdx]['filePath'] = $filePath;
+                $historyArr[$matchedIdx]['status'] = 'Pending';
+                $historyArr[$matchedIdx]['remarks'] = '';
+            } else {
+                $historyArr[] = [
                     'id' => uniqid(),
                     'dateSubmitted' => now()->format('Y-m-d'),
-                    'schoolYear' => $validated['schoolYear'],
-                    'semester' => $validated['semester'],
-                    'generalAverage' => $validated['generalAverage'] ?? null,
-                    'documentType' => $documentType,
-                    'fileName' => $request->file($fileKey)->getClientOriginalName(),
-                    'filePath' => $path,
+                    'schoolYear' => $schoolYear,
+                    'semester' => $semester,
+                    'generalAverage' => $gpa,
+                    'documentType' => $docLabel,
+                    'fileName' => $fileName,
+                    'filePath' => $filePath,
                     'status' => 'Pending',
                     'remarks' => '',
                 ];
             }
+        };
+
+        foreach ($documents as $fileKey => $documentType) {
+            if ($request->hasFile($fileKey)) {
+                $path = $request->file($fileKey)->store('ecespro/requirements', 'public');
+                $saveItem(
+                    $history,
+                    $validated['schoolYear'],
+                    $validated['semester'],
+                    $validated['generalAverage'] ?? null,
+                    $documentType,
+                    $request->file($fileKey)->getClientOriginalName(),
+                    $path
+                );
+            }
         }
 
-        $scholar->update(['requirements_history' => $history]);
+        $labels = $request->input('requirementLabels', $request->input('requirement_labels', []));
+        $reqFiles = $request->file('requirementFiles', $request->file('requirement_files', []));
+
+        if (is_array($reqFiles)) {
+            foreach ($reqFiles as $idx => $uploadedFile) {
+                if ($uploadedFile && $uploadedFile->isValid()) {
+                    $docLabel = $labels[$idx] ?? ('Requirement Document #'.($idx + 1));
+                    $path = $uploadedFile->store('ecespro/requirements', 'public');
+                    $saveItem(
+                        $history,
+                        $validated['schoolYear'],
+                        $validated['semester'],
+                        $validated['generalAverage'] ?? null,
+                        $docLabel,
+                        $uploadedFile->getClientOriginalName(),
+                        $path
+                    );
+                }
+            }
+        }
+
+        // Deduplicate history by schoolYear + semester + documentType keeping newest
+        $dedupedHistory = [];
+        $seenKeys = [];
+
+        for ($i = count($history) - 1; $i >= 0; $i--) {
+            $item = $history[$i];
+            $sy = strtolower(trim($item['schoolYear'] ?? $item['school_year'] ?? ''));
+            $sem = strtolower(trim($item['semester'] ?? ''));
+            $doc = strtolower(trim($item['documentType'] ?? $item['document_type'] ?? ''));
+            $key = "{$sy}|{$sem}|{$doc}";
+
+            if (! isset($seenKeys[$key])) {
+                $seenKeys[$key] = true;
+                array_unshift($dedupedHistory, $item);
+            }
+        }
+
+        $scholar->update(['requirements_history' => $dedupedHistory]);
 
         return response()->json([
             'message' => 'Requirements submitted successfully.',
-            'requirements_history' => $history,
+            'requirements_history' => $dedupedHistory,
+        ]);
+    }
+
+    /**
+     * Reupload a specific application requirement document marked for revision.
+     */
+    public function reuploadApplicationDocument(Request $request)
+    {
+        $validated = $request->validate([
+            'document_id' => 'required',
+            'file' => 'required|file',
+        ]);
+
+        $application = EcesproApplication::where('user_id', $request->user()->id)
+            ->latest()
+            ->firstOrFail();
+
+        $requirements = $application->submitted_requirements ?? [];
+        $found = false;
+
+        foreach ($requirements as &$req) {
+            if ($req['id'] == $validated['document_id']) {
+                $path = $request->file('file')->store('ecespro/applications', 'public');
+                $req['path'] = $path;
+                $req['status'] = 'Pending';
+                $req['remarks'] = '';
+                $found = true;
+                break;
+            }
+        }
+
+        if (! $found) {
+            return response()->json(['message' => 'Document not found in application.'], 404);
+        }
+
+        $application->update([
+            'submitted_requirements' => $requirements,
+            'application_status' => 'Under Review',
+        ]);
+
+        return response()->json([
+            'message' => 'Document reuploaded successfully and submitted for re-validation.',
+            'application' => $application->load(['examination.batch', 'interview.batch', 'contract']),
         ]);
     }
 }

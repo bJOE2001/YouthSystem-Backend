@@ -46,6 +46,7 @@ class EcesproComplianceScheduleController extends Controller
                 'endDate' => $schedule->end_date ? $schedule->end_date->format('Y-m-d') : null,
                 'status' => $schedule->status,
                 'instructions' => $schedule->instructions,
+                'requiredDocuments' => $schedule->required_documents ?? [],
                 'submittedCount' => $submittedCount,
                 'createdAt' => $schedule->created_at,
             ];
@@ -67,10 +68,16 @@ class EcesproComplianceScheduleController extends Controller
             'end_date' => 'nullable|date',
             'status' => 'nullable|string|in:Open,Closed,Completed',
             'instructions' => 'nullable|string',
+            'required_documents' => 'nullable|array',
+            'requiredDocuments' => 'nullable|array',
         ]);
 
         if (empty($validated['status'])) {
             $validated['status'] = 'Open';
+        }
+
+        if (isset($validated['requiredDocuments']) && ! isset($validated['required_documents'])) {
+            $validated['required_documents'] = $validated['requiredDocuments'];
         }
 
         $schedule = EcesproComplianceSchedule::create($validated);
@@ -106,7 +113,13 @@ class EcesproComplianceScheduleController extends Controller
             'end_date' => 'nullable|date',
             'status' => 'nullable|string|in:Open,Closed,Completed',
             'instructions' => 'nullable|string',
+            'required_documents' => 'nullable|array',
+            'requiredDocuments' => 'nullable|array',
         ]);
+
+        if (isset($validated['requiredDocuments']) && ! isset($validated['required_documents'])) {
+            $validated['required_documents'] = $validated['requiredDocuments'];
+        }
 
         $schedule->update($validated);
 
@@ -229,25 +242,28 @@ class EcesproComplianceScheduleController extends Controller
 
                 $remarksList = array_filter(array_map(fn ($i) => $i['remarks'] ?? '', $scholarItems));
                 $overallRemarks = ! empty($remarksList) ? implode('; ', array_unique($remarksList)) : '';
-
-                $submissions[] = [
-                    'scholarId' => $scholar->id,
-                    'scholarNo' => $scholar->scholar_no,
-                    'scholarName' => $scholar->user?->name ?? $scholar->application?->full_name ?? ('Scholar #'.$scholar->id),
-                    'email' => $scholar->user?->email ?? $scholar->application?->email ?? '',
-                    'school' => $scholar->school ?? $scholar->application?->school_name ?? '',
-                    'course' => $scholar->course ?? $scholar->application?->course ?? '',
-                    'historyIndex' => $historyIndexes[0] ?? 0,
-                    'historyIndexes' => $historyIndexes,
-                    'submittedAt' => $submittedAt,
-                    'schoolYear' => $schedule->school_year,
-                    'semester' => $schedule->semester,
-                    'generalAverage' => $gpa,
-                    'status' => $overallStatus,
-                    'remarks' => $overallRemarks,
-                    'files' => $allFiles,
-                ];
+            } else {
+                $overallStatus = 'Not Yet Submitted';
+                $overallRemarks = '';
             }
+
+            $submissions[] = [
+                'scholarId' => $scholar->id,
+                'scholarNo' => $scholar->scholar_no,
+                'scholarName' => $scholar->user?->name ?? $scholar->application?->full_name ?? ('Scholar #'.$scholar->id),
+                'email' => $scholar->user?->email ?? $scholar->application?->email ?? '',
+                'school' => $scholar->school ?? $scholar->application?->school_name ?? '',
+                'course' => $scholar->course ?? $scholar->application?->course ?? '',
+                'historyIndex' => $historyIndexes[0] ?? null,
+                'historyIndexes' => $historyIndexes,
+                'submittedAt' => $submittedAt,
+                'schoolYear' => $schedule->school_year,
+                'semester' => $schedule->semester,
+                'generalAverage' => $gpa,
+                'status' => $overallStatus,
+                'remarks' => $overallRemarks,
+                'files' => $allFiles,
+            ];
         }
 
         // Sort latest submitted first
@@ -265,6 +281,7 @@ class EcesproComplianceScheduleController extends Controller
                 'endDate' => $schedule->end_date ? $schedule->end_date->format('Y-m-d') : null,
                 'status' => $schedule->status,
                 'instructions' => $schedule->instructions,
+                'requiredDocuments' => $schedule->required_documents ?? [],
             ],
             'data' => $submissions,
         ]);

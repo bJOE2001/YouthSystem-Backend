@@ -17,6 +17,7 @@ class EcesproComplianceSchedule extends Model
         'end_date',
         'status',
         'instructions',
+        'required_documents',
     ];
 
     protected function casts(): array
@@ -24,6 +25,7 @@ class EcesproComplianceSchedule extends Model
         return [
             'start_date' => 'date',
             'end_date' => 'date',
+            'required_documents' => 'array',
         ];
     }
 }
