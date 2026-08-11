@@ -14,7 +14,6 @@ use App\Http\Controllers\EcesproExaminationController;
 use App\Http\Controllers\EcesproInterviewBatchController;
 use App\Http\Controllers\EcesproInterviewController;
 use App\Http\Controllers\EcesproProgramController;
-use App\Http\Controllers\EcesproRequirementController;
 use App\Http\Controllers\EcesproScholarController;
 use Illuminate\Support\Facades\Route;
 
@@ -66,7 +65,7 @@ Route::middleware([
 
         // ECESPRO Routes
         Route::apiResource('ecespro-programs', EcesproProgramController::class);
-        Route::apiResource('ecespro-requirements', EcesproRequirementController::class);
+
         Route::apiResource('ecespro-applications', EcesproApplicationController::class);
         Route::put('ecespro-applications/{ecespro_application}/documents/{document_id}', [EcesproApplicationController::class, 'updateDocumentStatus'])->name('ecespro-applications.documents.update');
         Route::apiResource('ecespro-exam-batches', EcesproExamBatchController::class);

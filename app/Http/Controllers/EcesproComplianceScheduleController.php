@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\EcesproComplianceSchedule;
 use App\Models\EcesproScholar;
+use App\Notifications\NewComplianceScheduleNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 
 class EcesproComplianceScheduleController extends Controller
 {
@@ -81,6 +83,13 @@ class EcesproComplianceScheduleController extends Controller
         }
 
         $schedule = EcesproComplianceSchedule::create($validated);
+
+        // Notify active scholars
+        $scholars = EcesproScholar::with('user')->where('status', 'Active')->get();
+        $users = $scholars->pluck('user')->filter();
+        if ($users->isNotEmpty()) {
+            Notification::send($users, new NewComplianceScheduleNotification($schedule));
+        }
 
         return response()->json([
             'message' => 'Compliance schedule created successfully.',

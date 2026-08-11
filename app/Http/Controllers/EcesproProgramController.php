@@ -28,9 +28,29 @@ class EcesproProgramController extends Controller
             'slots' => 'required|integer|min:1',
             'status' => 'required|string',
             'description' => 'nullable|string',
+            'benefits' => 'nullable|array',
+            'benefits.*' => 'string',
+            'eligibility' => 'nullable|array',
+            'eligibility.*' => 'string',
+            'requirements' => 'nullable|array',
+            'requirements.*' => 'string',
         ]);
 
-        return EcesproProgram::create($validated);
+        $data = $validated;
+        if (array_key_exists('benefits', $data)) {
+            $data['scholarship_benefits'] = $data['benefits'];
+            unset($data['benefits']);
+        }
+        if (array_key_exists('eligibility', $data)) {
+            $data['program_eligibility'] = $data['eligibility'];
+            unset($data['eligibility']);
+        }
+        if (array_key_exists('requirements', $data)) {
+            $data['application_requirements'] = $data['requirements'];
+            unset($data['requirements']);
+        }
+
+        return EcesproProgram::create($data);
     }
 
     /**
@@ -54,9 +74,35 @@ class EcesproProgramController extends Controller
             'slots' => 'sometimes|integer|min:1',
             'status' => 'sometimes|string',
             'description' => 'nullable|string',
+            'benefits' => 'nullable|array',
+            'benefits.*' => 'string',
+            'eligibility' => 'nullable|array',
+            'eligibility.*' => 'string',
+            'requirements' => 'nullable|array',
+            'requirements.*' => 'string',
         ]);
 
-        $ecesproProgram->update($validated);
+        $data = $validated;
+        if (array_key_exists('benefits', $data)) {
+            $data['scholarship_benefits'] = $data['benefits'];
+            unset($data['benefits']);
+        }
+        if (array_key_exists('eligibility', $data)) {
+            $data['program_eligibility'] = $data['eligibility'];
+            unset($data['eligibility']);
+        }
+        if (array_key_exists('requirements', $data)) {
+            $data['application_requirements'] = $data['requirements'];
+            unset($data['requirements']);
+        }
+
+        $ecesproProgram->update($data);
+
+        if (isset($data['status']) && $data['status'] === 'Open') {
+            EcesproProgram::where('id', '!=', $ecesproProgram->id)
+                ->where('status', 'Open')
+                ->update(['status' => 'Closed']);
+        }
 
         return $ecesproProgram;
     }

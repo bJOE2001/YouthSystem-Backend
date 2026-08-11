@@ -17,7 +17,19 @@ class EcesproProgram extends Model
         'slots',
         'status',
         'description',
+        'scholarship_benefits',
+        'program_eligibility',
+        'application_requirements',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'scholarship_benefits' => 'array',
+            'program_eligibility' => 'array',
+            'application_requirements' => 'array',
+        ];
+    }
 
     public function applications()
     {

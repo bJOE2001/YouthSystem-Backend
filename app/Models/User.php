@@ -32,6 +32,11 @@ class User extends Authenticatable
         return $this->hasOne(YouthProfile::class);
     }
 
+    public function ecesproScholar(): HasOne
+    {
+        return $this->hasOne(EcesproScholar::class)->latest();
+    }
+
     public function joinedEvents()
     {
         return $this->belongsToMany(Event::class)->withPivot('attended_at')->withTimestamps();

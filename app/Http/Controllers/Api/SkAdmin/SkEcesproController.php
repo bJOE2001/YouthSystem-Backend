@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\EcesproApplication;
 use App\Models\EcesproComplianceSchedule;
 use App\Models\EcesproProgram;
-use App\Models\EcesproRequirement;
 use App\Models\EcesproScholar;
 use App\Models\EcesproSetting;
 use App\Notifications\EcesproApplicationStatusNotification;
@@ -17,13 +16,11 @@ class SkEcesproController extends Controller
     public function getSettings()
     {
         $settings = EcesproSetting::all()->pluck('value', 'key');
-        $requirements = EcesproRequirement::where('status', 'Active')->get();
 
         return response()->json([
             'data' => [
                 'benefits' => $settings->get('benefits', []),
                 'eligibility' => $settings->get('eligibility', []),
-                'requirements' => $requirements,
             ],
         ]);
     }
@@ -142,25 +139,27 @@ class SkEcesproController extends Controller
             'parents_marital_status' => 'nullable|string',
         ]);
 
-        $activeRequirements = EcesproRequirement::where('status', 'Active')->get();
+        $activeRequirements = $program->application_requirements ?? [];
         $requirementRules = [];
 
-        foreach ($activeRequirements as $req) {
-            $rule = $req->required_status === 'Required' ? 'required|file' : 'nullable|file';
-            $requirementRules['requirement_'.$req->id] = $rule;
+        foreach ($activeRequirements as $idx => $reqName) {
+            $reqId = $idx + 1;
+            // Assuming all requirements from the program are required by default
+            $requirementRules['requirement_'.$reqId] = 'required|file';
         }
 
         $validatedRequirements = $request->validate($requirementRules);
 
         $submittedRequirements = [];
 
-        foreach ($activeRequirements as $req) {
-            $fileKey = 'requirement_'.$req->id;
+        foreach ($activeRequirements as $idx => $reqName) {
+            $reqId = $idx + 1;
+            $fileKey = 'requirement_'.$reqId;
             if ($request->hasFile($fileKey)) {
                 $path = $request->file($fileKey)->store('ecespro/applications', 'public');
                 $submittedRequirements[] = [
-                    'id' => $req->id,
-                    'name' => $req->name,
+                    'id' => 'requirement_'.$reqId,
+                    'name' => $reqName,
                     'path' => $path,
                 ];
             }
