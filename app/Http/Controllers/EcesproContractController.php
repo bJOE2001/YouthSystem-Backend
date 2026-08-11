@@ -16,6 +16,51 @@ class EcesproContractController extends Controller
     }
 
     /**
+     * Mark the contract as signed and activate the scholar directly from application.
+     */
+    public function signApplication(Request $request, $applicationId)
+    {
+        $application = \App\Models\EcesproApplication::findOrFail($applicationId);
+        
+        $contract = EcesproContract::create([
+            'ecespro_application_id' => $application->id,
+            'schedule' => null,
+            'guardian' => null,
+            'status' => 'Signed',
+            'documents_status' => 'Submitted'
+        ]);
+
+        $application->update(['application_status' => 'Approved']);
+
+        if ($user = $application->user) {
+            $user->notify(new \App\Notifications\EcesproApplicationStatusNotification($application, 'Approved', "Your contract has been signed and you are now an official scholar."));
+        }
+
+        $scholar = \App\Models\EcesproScholar::firstOrCreate(
+            ['ecespro_application_id' => $application->id],
+            [
+                'user_id' => $application->user_id,
+                'scholar_no' => 'PENDING',
+                'school' => $application->school_intended_to_enroll ?? $application->school_attended_to_enroll ?? 'N/A',
+                'course' => $application->course_intended_to_enroll ?? $application->course ?? 'N/A',
+                'status' => 'Active',
+                'compliance_status' => 'Compliant',
+                'requirements_history' => [],
+            ]
+        );
+
+        if ($scholar->wasRecentlyCreated || $scholar->scholar_no === 'PENDING' || empty($scholar->scholar_no)) {
+            $scholar->scholar_no = 'SCH-'.str_pad($scholar->id, 4, '0', STR_PAD_LEFT);
+            $scholar->save();
+        }
+
+        return response()->json([
+            'message' => 'Contract signed successfully',
+            'contract' => $contract->load('application')
+        ]);
+    }
+
+    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
