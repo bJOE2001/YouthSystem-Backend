@@ -69,6 +69,7 @@ Route::middleware([
         Route::apiResource('ecespro-applications', EcesproApplicationController::class);
         Route::put('ecespro-applications/{ecespro_application}/documents/{document_id}', [EcesproApplicationController::class, 'updateDocumentStatus'])->name('ecespro-applications.documents.update');
         Route::apiResource('ecespro-exam-batches', EcesproExamBatchController::class);
+        Route::put('ecespro-examinations/bulk', [EcesproExaminationController::class, 'bulkUpdate'])->name('ecespro-examinations.bulk');
         Route::apiResource('ecespro-examinations', EcesproExaminationController::class);
         Route::apiResource('ecespro-interview-batches', EcesproInterviewBatchController::class);
         Route::apiResource('ecespro-interviews', EcesproInterviewController::class);

@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Api\Youth;
 
+use App\Models\User;
+use App\Notifications\NewEcesproApplicationNotification;
+use Illuminate\Support\Facades\Notification;
 use App\Http\Controllers\Controller;
 use App\Models\EcesproApplication;
 use App\Models\EcesproComplianceSchedule;
@@ -222,7 +225,9 @@ class YouthEcesproController extends Controller
         $application = EcesproApplication::create($mappedData);
 
         $request->user()->notify(new EcesproApplicationStatusNotification($application, 'Submitted'));
-
+        // Notify admins of the new application
+        $admins = User::where('role', 'admin')->get();
+        Notification::send($admins, new NewEcesproApplicationNotification($application));
         return response()->json([
             'message' => 'Application submitted successfully',
             'application' => $application,

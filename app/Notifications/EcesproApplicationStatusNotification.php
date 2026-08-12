@@ -59,3 +59,4 @@ class EcesproApplicationStatusNotification extends Notification
         ];
     }
 }
+
