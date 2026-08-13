@@ -49,9 +49,10 @@ class NewBookingRequestNotification extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            'title' => 'New Booking Request',
-            'message' => "A new booking request has been submitted for {$this->booking->facility->name}.",
-            'booking_id' => $this->booking->id,
+            'title' => 'Facility Booked',
+            // 'message' => "A new booking request has been submitted for {$this->booking->facility->name}.",
+            'message' => "{$this->booking->facility->name} Booked by " . ($this->booking->user->name ?? 'Unknown') . ".",
+                'booking_id' => $this->booking->id,
             'facility_id' => $this->booking->facility_id,
             'url' => '/admin/booking-requests', // or sk equivalent
         ];

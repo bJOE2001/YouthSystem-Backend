@@ -221,7 +221,7 @@ class FacilityController extends Controller
             'start_time' => $validated['start_time'],
             'end_time' => $validated['end_time'],
             'purpose' => $validated['purpose'],
-            'status' => 'Pending',
+            'status' => 'Approved',
         ]);
 
         $admins = User::where('role', 'admin')->get();

@@ -21,7 +21,7 @@ return [
 
     'allowed_origins' => explode(',', env(
         'FRONTEND_URLS',
-        'http://localhost:9000,http://127.0.0.1:9000',
+        'http://localhost:9000,http://127.0.0.1:9000,http://192.168.8.66:9000'
     )),
 
     'allowed_origins_patterns' => [],
