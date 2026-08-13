@@ -16,7 +16,9 @@ class Facility extends Model
         'type',
         'location',
         'available_time',
+        'time_limit',
         'status',
+        'status_reason',
         'image',
     ];
 

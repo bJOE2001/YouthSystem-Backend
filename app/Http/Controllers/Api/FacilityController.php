@@ -65,6 +65,7 @@ class FacilityController extends Controller
             'type' => 'required|string|max:255',
             'location' => 'required|string|max:255',
             'available_time' => 'required|string|max:255',
+            'time_limit' => 'nullable|string|max:100',
             'image' => 'nullable|image|max:10240',
         ]);
 
@@ -84,6 +85,7 @@ class FacilityController extends Controller
             'type' => 'required|string|max:255',
             'location' => 'required|string|max:255',
             'available_time' => 'required|string|max:255',
+            'time_limit' => 'nullable|string|max:100',
             'image' => 'nullable|image|max:10240',
         ]);
 
@@ -103,9 +105,13 @@ class FacilityController extends Controller
     {
         $validated = $request->validate([
             'status' => 'required|string|in:Active,Inactive,Under Construction',
+            'reason' => 'nullable|required_if:status,Inactive,Under Construction|string|max:1000',
         ]);
 
-        $facility->update(['status' => $validated['status']]);
+        $facility->update([
+        'status' => $validated['status'],
+        'status_reason' => $validated['reason'] ?? null,
+        ]);
 
         return response()->json(['message' => 'Status updated successfully']);
     }
