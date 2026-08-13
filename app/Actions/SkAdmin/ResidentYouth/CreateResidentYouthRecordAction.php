@@ -6,11 +6,15 @@ use App\Actions\YouthProfile\CreateYouthProfileAction;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Enums\YouthProfileStatus;
+use App\Mail\YouthValidatedEmail;
 use App\Models\User;
 use App\Models\YouthProfile;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Throwable;
 
 class CreateResidentYouthRecordAction
@@ -32,13 +36,18 @@ class CreateResidentYouthRecordAction
                 $data['suffix'] ?? null,
             ])));
 
+            $plainPassword = Carbon::parse($data['birthdate'])->format('mdy');
+
             $user = User::create([
                 'name' => $name,
                 'email' => $data['email'],
-                'password' => Hash::make('password'),
+                'password' => Hash::make($plainPassword),
                 'role' => UserRole::Youth->value,
                 'status' => UserStatus::Active->value,
+                'email_verified_at' => now(),
             ]);
+
+            Mail::to($user->email)->send(new YouthValidatedEmail($user, $plainPassword));
 
             $mappedProfileData = [
                 'first_name' => $data['firstName'],
@@ -78,7 +87,7 @@ class CreateResidentYouthRecordAction
                 'province' => $data['province'],
                 'postal_code' => $data['zipcode'],
                 'status' => YouthProfileStatus::Approved->value,
-                'reviewed_by' => auth()->id(),
+                'reviewed_by' => Auth::id(),
                 'reviewed_at' => now(),
             ];
 
