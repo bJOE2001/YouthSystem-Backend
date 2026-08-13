@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -72,9 +73,9 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $name,
             'email' => $data['email'],
-            'password' => Hash::make('password'),
+            'password' => Hash::make(Str::random(32)),
             'role' => UserRole::Youth->value,
-            'status' => UserStatus::Active->value,
+            'status' => UserStatus::Pending->value,
         ]);
 
         $mappedProfileData = [
