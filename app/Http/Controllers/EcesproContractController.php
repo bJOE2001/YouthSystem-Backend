@@ -21,14 +21,18 @@ class EcesproContractController extends Controller
     public function signApplication(Request $request, $applicationId)
     {
         $application = \App\Models\EcesproApplication::findOrFail($applicationId);
-        
-        $contract = EcesproContract::create([
-            'ecespro_application_id' => $application->id,
-            'schedule' => null,
-            'guardian' => null,
-            'status' => 'Signed',
-            'documents_status' => 'Submitted'
-        ]);
+
+        // The contract row already exists (created when the applicant was assigned to a
+        // signing batch) — update it to Signed instead of creating a duplicate.
+        $contract = EcesproContract::updateOrCreate(
+            ['ecespro_application_id' => $application->id],
+            [
+                'schedule' => null,
+                'guardian' => null,
+                'status' => 'Signed',
+                'documents_status' => 'Submitted',
+            ]
+        );
 
         $application->update(['application_status' => 'Approved']);
 
@@ -58,6 +62,22 @@ class EcesproContractController extends Controller
             'message' => 'Contract signed successfully',
             'contract' => $contract->load('application')
         ]);
+    }
+
+    /**
+     * Remove an applicant from a contract signing batch.
+     */
+    public function removeFromBatch(EcesproContract $ecesproContract)
+    {
+        if ($ecesproContract->status === 'Signed') {
+            return response()->json(['message' => 'Cannot remove a signed contract from the batch.'], 422);
+        }
+
+        // Put the applicant back in the qualified pool so they can be re-assigned.
+        $ecesproContract->application()->update(['application_status' => 'Qualified for Contract']);
+        $ecesproContract->delete();
+
+        return response()->noContent();
     }
 
     /**

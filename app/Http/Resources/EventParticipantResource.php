@@ -42,6 +42,7 @@ class EventParticipantResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $name,
+            'profile_picture' => $this->youthProfile?->profile_picture ?? '',
             'contact' => $contact,
             'email' => $this->email,
             'purok' => $purok,

@@ -59,4 +59,51 @@ class ProfileController extends Controller
 
         return new YouthProfileResource($updatedProfile);
     }
+
+    /**
+     * Upload the authenticated user's profile picture.
+     */
+    public function uploadPicture(Request $request): JsonResponse|YouthProfileResource
+    {
+        $request->validate([
+            'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+        ]);
+
+        $user = $request->user();
+        $profile = $user->youthProfile;
+
+        if (! $profile) {
+            return response()->json(['message' => 'Profile not found.'], 404);
+        }
+
+        if ($profile->profile_picture) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($profile->profile_picture);
+        }
+
+        $path = $request->file('profile_picture')->store('profile-pictures', 'public');
+
+        $profile->update(['profile_picture' => $path]);
+
+        return new YouthProfileResource($profile->fresh());
+    }
+
+    /**
+     * Remove the authenticated user's profile picture.
+     */
+    public function removePicture(Request $request): JsonResponse|YouthProfileResource
+    {
+        $user = $request->user();
+        $profile = $user->youthProfile;
+
+        if (! $profile) {
+            return response()->json(['message' => 'Profile not found.'], 404);
+        }
+
+        if ($profile->profile_picture) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($profile->profile_picture);
+            $profile->update(['profile_picture' => null]);
+        }
+
+        return new YouthProfileResource($profile->fresh());
+    }
 }

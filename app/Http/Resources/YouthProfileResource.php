@@ -19,6 +19,7 @@ class YouthProfileResource extends JsonResource
             'id' => $this->id,
             'user_id' => $this->user_id,
             'email' => $this->whenLoaded('user', fn (): ?string => $this->user?->email),
+            'profile_picture' => $this->profile_picture,
             'first_name' => $this->first_name,
             'middle_name' => $this->middle_name,
             'last_name' => $this->last_name,

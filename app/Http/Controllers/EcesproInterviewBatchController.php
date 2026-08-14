@@ -15,7 +15,7 @@ class EcesproInterviewBatchController extends Controller
      */
     public function index()
     {
-        return EcesproInterviewBatch::with('interviews.application.user')->get();
+        return EcesproInterviewBatch::with('interviews.application.user')->latest('created_at')->get();
     }
 
     /**

@@ -18,6 +18,6 @@ Route::middleware([
         Route::get('/my-requirements', [YouthEcesproController::class, 'myRequirements']);
         Route::get('/compliance-schedules', [YouthEcesproController::class, 'complianceSchedules']);
         Route::post('/submit-requirements', [YouthEcesproController::class, 'submitRequirements']);
-        Route::delete('/requirements-history/{index}', [YouthEcesproController::class, 'deleteRequirement']);
+        Route::post('/requirements-history/{index}', [YouthEcesproController::class, 'deleteRequirement']);
         Route::post('/reupload-application-document', [YouthEcesproController::class, 'reuploadApplicationDocument']);
     });

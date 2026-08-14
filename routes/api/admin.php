@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Admin\ResidentYouthController;
 use App\Http\Controllers\Api\Admin\SkOfficialController;
 use App\Http\Controllers\EcesproApplicationController;
 use App\Http\Controllers\EcesproComplianceScheduleController;
+use App\Http\Controllers\EcesproContractBatchController;
 use App\Http\Controllers\EcesproContractController;
 use App\Http\Controllers\EcesproExamBatchController;
 use App\Http\Controllers\EcesproExaminationController;
@@ -64,24 +65,67 @@ Route::middleware([
         });
 
         // ECESPRO Routes
-        Route::apiResource('ecespro-programs', EcesproProgramController::class);
+        Route::get('ecespro-programs', [EcesproProgramController::class, 'index']);
+        Route::post('ecespro-programs', [EcesproProgramController::class, 'store']);
+        Route::get('ecespro-programs/{ecespro_program}', [EcesproProgramController::class, 'show']);
+        Route::post('ecespro-programs/{ecespro_program}', [EcesproProgramController::class, 'update']);
 
-        Route::apiResource('ecespro-applications', EcesproApplicationController::class);
-        Route::put('ecespro-applications/{ecespro_application}/documents/{document_id}', [EcesproApplicationController::class, 'updateDocumentStatus'])->name('ecespro-applications.documents.update');
-        Route::apiResource('ecespro-exam-batches', EcesproExamBatchController::class);
-        Route::put('ecespro-examinations/bulk', [EcesproExaminationController::class, 'bulkUpdate'])->name('ecespro-examinations.bulk');
-        Route::apiResource('ecespro-examinations', EcesproExaminationController::class);
-        Route::apiResource('ecespro-interview-batches', EcesproInterviewBatchController::class);
-        Route::apiResource('ecespro-interviews', EcesproInterviewController::class);
-        Route::apiResource('ecespro-contracts', EcesproContractController::class);
+        Route::get('ecespro-applications', [EcesproApplicationController::class, 'index']);
+        Route::post('ecespro-applications', [EcesproApplicationController::class, 'store']);
+        Route::get('ecespro-applications/{ecespro_application}', [EcesproApplicationController::class, 'show']);
+        Route::post('ecespro-applications/{ecespro_application}', [EcesproApplicationController::class, 'update']);
+        Route::post('ecespro-applications/{ecespro_application}/documents/{document_id}', [EcesproApplicationController::class, 'updateDocumentStatus'])->name('ecespro-applications.documents.update');
+
+        Route::get('ecespro-exam-batches', [EcesproExamBatchController::class, 'index']);
+        Route::post('ecespro-exam-batches', [EcesproExamBatchController::class, 'store']);
+        Route::get('ecespro-exam-batches/{ecespro_exam_batch}', [EcesproExamBatchController::class, 'show']);
+        Route::post('ecespro-exam-batches/{ecespro_exam_batch}/delete', [EcesproExamBatchController::class, 'destroy']);
+
+        Route::post('ecespro-examinations/bulk', [EcesproExaminationController::class, 'bulkUpdate'])->name('ecespro-examinations.bulk');
+        Route::get('ecespro-examinations', [EcesproExaminationController::class, 'index']);
+        Route::post('ecespro-examinations', [EcesproExaminationController::class, 'store']);
+        Route::get('ecespro-examinations/{ecespro_examination}', [EcesproExaminationController::class, 'show']);
+        Route::post('ecespro-examinations/{ecespro_examination}', [EcesproExaminationController::class, 'update']);
+        Route::post('ecespro-examinations/{ecespro_examination}/remove', [EcesproExaminationController::class, 'destroy']);
+
+        Route::get('ecespro-interview-batches', [EcesproInterviewBatchController::class, 'index']);
+        Route::post('ecespro-interview-batches', [EcesproInterviewBatchController::class, 'store']);
+        Route::get('ecespro-interview-batches/{ecespro_interview_batch}', [EcesproInterviewBatchController::class, 'show']);
+        Route::post('ecespro-interview-batches/{ecespro_interview_batch}/delete', [EcesproInterviewBatchController::class, 'destroy']);
+
+        Route::get('ecespro-interviews', [EcesproInterviewController::class, 'index']);
+        Route::post('ecespro-interviews', [EcesproInterviewController::class, 'store']);
+        Route::get('ecespro-interviews/{ecespro_interview}', [EcesproInterviewController::class, 'show']);
+        Route::post('ecespro-interviews/{ecespro_interview}', [EcesproInterviewController::class, 'update']);
+        Route::post('ecespro-interviews/{ecespro_interview}/remove', [EcesproInterviewController::class, 'destroy']);
+
         Route::post('ecespro-contracts/sign-application/{application}', [EcesproContractController::class, 'signApplication']);
-        Route::apiResource('ecespro-scholars', EcesproScholarController::class);
+        Route::post('ecespro-contracts/{ecespro_contract}/remove-from-batch', [EcesproContractController::class, 'removeFromBatch']);
+        Route::get('ecespro-contracts', [EcesproContractController::class, 'index']);
+        Route::post('ecespro-contracts', [EcesproContractController::class, 'store']);
+        Route::get('ecespro-contracts/{ecespro_contract}', [EcesproContractController::class, 'show']);
+        Route::post('ecespro-contracts/{ecespro_contract}', [EcesproContractController::class, 'update']);
+
+        Route::get('ecespro-contract-signing-batches', [EcesproContractBatchController::class, 'index']);
+        Route::post('ecespro-contract-signing-batches', [EcesproContractBatchController::class, 'store']);
+        Route::get('ecespro-contract-signing-batches/{ecespro_contract_batch}', [EcesproContractBatchController::class, 'show']);
+        Route::post('ecespro-contract-signing-batches/{ecespro_contract_batch}/delete', [EcesproContractBatchController::class, 'destroy']);
+
+        Route::get('ecespro-scholars', [EcesproScholarController::class, 'index']);
+        Route::post('ecespro-scholars', [EcesproScholarController::class, 'store']);
+        Route::get('ecespro-scholars/{ecespro_scholar}', [EcesproScholarController::class, 'show']);
+        Route::post('ecespro-scholars/{ecespro_scholar}/delete', [EcesproScholarController::class, 'destroy']);
+
         Route::get('ecespro-compliance-validations', [EcesproScholarController::class, 'complianceValidations'])->name('ecespro-compliance-validations.index');
         Route::post('ecespro-compliance-validations/{ecesproScholar}/review', [EcesproScholarController::class, 'reviewCompliance'])->name('ecespro-compliance-validations.review');
 
-        Route::apiResource('ecespro-compliance-schedules', EcesproComplianceScheduleController::class);
+        Route::get('ecespro-compliance-schedules', [EcesproComplianceScheduleController::class, 'index']);
+        Route::post('ecespro-compliance-schedules', [EcesproComplianceScheduleController::class, 'store']);
+        Route::get('ecespro-compliance-schedules/{schedule}', [EcesproComplianceScheduleController::class, 'show']);
+        Route::post('ecespro-compliance-schedules/{schedule}', [EcesproComplianceScheduleController::class, 'update']);
         Route::post('ecespro-compliance-schedules/{schedule}/status', [EcesproComplianceScheduleController::class, 'updateStatus'])->name('ecespro-compliance-schedules.update-status');
         Route::get('ecespro-compliance-schedules/{schedule}/submissions', [EcesproComplianceScheduleController::class, 'submissions'])->name('ecespro-compliance-schedules.submissions');
+        Route::post('ecespro-compliance-schedules/{schedule}/delete', [EcesproComplianceScheduleController::class, 'destroy']);
 
         Route::get('ecespro-settings', [EcesproSettingController::class, 'index'])->name('ecespro-settings.index');
         Route::post('ecespro-settings/{key}', [EcesproSettingController::class, 'store'])->name('ecespro-settings.store');

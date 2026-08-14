@@ -22,6 +22,7 @@ class ResidentYouthListResource extends JsonResource
                 $this->last_name,
                 $this->suffix,
             ]))),
+            'profile_picture' => $this->profile_picture,
             'contact' => $this->mobile_number,
             'email' => $this->user ? $this->user->email : 'No Email',
             'barangay' => $this->barangay,

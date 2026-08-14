@@ -64,6 +64,7 @@ class YouthProfile extends Model
         'sinag_member',
         'reviewed_by',
         'reviewed_at',
+        'profile_picture',
     ];
 
     /**
