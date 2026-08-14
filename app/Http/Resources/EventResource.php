@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Auth;
 
 class EventResource extends JsonResource
 {
@@ -25,6 +26,22 @@ class EventResource extends JsonResource
         }
 
         $dateTime = trim($dateFormatted.' '.$timeFormatted);
+
+        $user = Auth::guard('sanctum')->user() ?? Auth::user();
+        $attended = false;
+        if ($user) {
+            if ($this->pivot) {
+                $attended = ! empty($this->pivot->attended_at);
+            } else {
+                $pivot = $this->participants()->where('user_id', $user->id)->first()?->pivot;
+                $attended = $pivot ? ! empty($pivot->attended_at) : false;
+            }
+        }
+
+        $certificatePath = $this->certificate_template_path ?? ($this->pivot?->certificate_path ?? null);
+        $hasCertificate = ! empty($certificatePath);
+        $isCompleted = strtolower((string) $this->status) === 'completed';
+        $canDownloadCertificate = (bool) ($attended && $hasCertificate && $isCompleted);
 
         return [
             'id' => $this->id,
@@ -50,8 +67,33 @@ class EventResource extends JsonResource
             'primaryObjective1' => $this->primary_objective_1,
             'primaryObjective2' => $this->primary_objective_2,
             'primaryObjective3' => $this->primary_objective_3,
-            'status' => $this->status,
-            'joined' => auth('sanctum')->check() ? $this->participants()->where('user_id', auth('sanctum')->id())->exists() : false,
+            'status' => ucfirst(strtolower($this->status)),
+            'rawStatus' => $this->status,
+            'raw_status' => $this->status,
+            'joined' => $user ? ($this->pivot ? true : $this->participants()->where('user_id', $user->id)->exists()) : false,
+            'attended' => $attended,
+            'isAttended' => $attended,
+            'is_attended' => $attended,
+            'attendanceStatus' => $attended ? 'Attended' : 'Not Attended',
+            'attendance_status' => $attended ? 'Attended' : 'Not Attended',
+            'hasCertificate' => $hasCertificate,
+            'has_certificate' => $hasCertificate,
+            'certificate' => $certificatePath ?: ($hasCertificate ? true : null),
+            'certificates' => $hasCertificate,
+            'certificatePath' => $certificatePath,
+            'certificate_path' => $certificatePath,
+            'certificateTemplatePath' => $this->certificate_template_path,
+            'certificate_template_path' => $this->certificate_template_path,
+            'certificateTemplateUrl' => $this->certificate_template_path ? url('storage/'.$this->certificate_template_path) : null,
+            'certificate_template_url' => $this->certificate_template_path ? url('storage/'.$this->certificate_template_path) : null,
+            'certificateSettings' => $this->certificate_settings,
+            'certificate_settings' => $this->certificate_settings,
+            'canDownloadCertificate' => $canDownloadCertificate,
+            'can_download_certificate' => $canDownloadCertificate,
+            'canDownload' => $canDownloadCertificate,
+            'can_download' => $canDownloadCertificate,
+            'certificateUrl' => $canDownloadCertificate ? url("/api/events/event_{$this->id}/certificate") : null,
+            'certificate_url' => $canDownloadCertificate ? url("/api/events/event_{$this->id}/certificate") : null,
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
         ];

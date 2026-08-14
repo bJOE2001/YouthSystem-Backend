@@ -31,6 +31,8 @@ class Event extends Model
         'primary_objective_2',
         'primary_objective_3',
         'status',
+        'certificate_template_path',
+        'certificate_settings',
         'user_id',
     ];
 
@@ -42,6 +44,7 @@ class Event extends Model
             'has_no_allocated_budget' => 'boolean',
             'budget_allocated' => 'decimal:2',
             'budget_utilized' => 'decimal:2',
+            'certificate_settings' => 'array',
         ];
     }
 
