@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Admin\ResidentYouthController;
 use App\Http\Controllers\Api\Admin\SkOfficialController;
 use App\Http\Controllers\EcesproApplicationController;
 use App\Http\Controllers\EcesproComplianceScheduleController;
+use App\Http\Controllers\EcesproContractBatchController;
 use App\Http\Controllers\EcesproContractController;
 use App\Http\Controllers\EcesproExamBatchController;
 use App\Http\Controllers\EcesproExaminationController;
@@ -132,6 +133,7 @@ Route::middleware([
         Route::post('ecespro-compliance-schedules/{schedule}/delete', [EcesproComplianceScheduleController::class, 'destroy'])->name('ecespro-compliance-schedules.destroy');
         Route::post('ecespro-compliance-schedules/{schedule}/status', [EcesproComplianceScheduleController::class, 'updateStatus'])->name('ecespro-compliance-schedules.update-status');
         Route::get('ecespro-compliance-schedules/{schedule}/submissions', [EcesproComplianceScheduleController::class, 'submissions'])->name('ecespro-compliance-schedules.submissions');
+        Route::post('ecespro-compliance-schedules/{schedule}/delete', [EcesproComplianceScheduleController::class, 'destroy']);
 
         // ECESPRO Settings
         Route::get('ecespro-settings', [EcesproSettingController::class, 'index'])->name('ecespro-settings.index');

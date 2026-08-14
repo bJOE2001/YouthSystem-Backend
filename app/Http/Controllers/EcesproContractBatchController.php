@@ -3,19 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Models\EcesproApplication;
-use App\Models\EcesproExamBatch;
-use App\Models\EcesproExamination;
+use App\Models\EcesproContract;
+use App\Models\EcesproContractBatch;
 use App\Notifications\EcesproApplicationStatusNotification;
 use Illuminate\Http\Request;
 
-class EcesproExamBatchController extends Controller
+class EcesproContractBatchController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        return EcesproExamBatch::with('examinations.application.user')->latest('created_at')->get();
+        return EcesproContractBatch::with('contracts.application.user')->latest('created_at')->get();
     }
 
     /**
@@ -25,7 +25,7 @@ class EcesproExamBatchController extends Controller
     {
         $validated = $request->validate([
             'batch_name' => 'required|string|max:255',
-            'exam_date' => 'required|date',
+            'signing_date' => 'required|date',
             'time' => 'nullable|string',
             'venue' => 'nullable|string',
             'status' => 'nullable|string',
@@ -33,75 +33,69 @@ class EcesproExamBatchController extends Controller
             'applicants.*.applicantId' => 'required|exists:ecespro_applications,id',
         ]);
 
-        $batch = EcesproExamBatch::create([
+        $batch = EcesproContractBatch::create([
             'batch_name' => $validated['batch_name'],
-            'exam_date' => $validated['exam_date'],
+            'signing_date' => $validated['signing_date'],
             'time' => $validated['time'] ?? null,
             'venue' => $validated['venue'] ?? null,
-            'status' => $validated['status'] ?? 'Scheduled',
+            'status' => $validated['status'] ?? null,
         ]);
 
         if (isset($validated['applicants'])) {
             foreach ($validated['applicants'] as $applicant) {
-                EcesproExamination::create([
-                    'ecespro_exam_batch_id' => $batch->id,
+                EcesproContract::create([
+                    'ecespro_contract_batch_id' => $batch->id,
                     'ecespro_application_id' => $applicant['applicantId'],
                     'status' => 'Pending',
                 ]);
 
                 $app = EcesproApplication::find($applicant['applicantId']);
                 if ($app) {
-                    $app->update(['application_status' => 'Exam Scheduled']);
+                    $app->update(['application_status' => 'Contract Scheduled']);
                     if ($user = $app->user) {
-                        $msg = "Your ECESPRO Qualifying Examination has been scheduled! Date: {$batch->exam_date}, Time: {$batch->time}, Venue: {$batch->venue} (Batch: {$batch->batch_name}).";
-                        $metadata = [
-                            'batch_name' => $batch->batch_name,
-                            'exam_date' => $batch->exam_date,
-                            'time' => $batch->time,
-                            'venue' => $batch->venue,
-                        ];
-                        $user->notify(new EcesproApplicationStatusNotification($app, 'Exam Scheduled', $msg, $metadata));
+                        $msg = "Your ECESPRO Contract Signing & Orientation has been scheduled! Date: {$batch->signing_date}, Time: {$batch->time}, Venue: {$batch->venue} (Batch: {$batch->batch_name}).";
+                        $user->notify(new EcesproApplicationStatusNotification($app, 'Contract Scheduled', $msg));
                     }
                 }
             }
         }
 
-        return $batch;
+        return $batch->load(['contracts.application.user']);
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(EcesproExamBatch $ecesproExamBatch)
+    public function show(EcesproContractBatch $ecesproContractBatch)
     {
-        return $ecesproExamBatch->load('examinations.application.user');
+        return $ecesproContractBatch->load('contracts.application.user');
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, EcesproExamBatch $ecesproExamBatch)
+    public function update(Request $request, EcesproContractBatch $ecesproContractBatch)
     {
         $validated = $request->validate([
             'batch_name' => 'sometimes|string|max:255',
-            'exam_date' => 'sometimes|date',
+            'signing_date' => 'sometimes|date',
             'time' => 'nullable|string',
             'venue' => 'nullable|string',
             'status' => 'nullable|string',
         ]);
 
-        $ecesproExamBatch->update($validated);
+        $ecesproContractBatch->update($validated);
 
-        return $ecesproExamBatch;
+        return $ecesproContractBatch;
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(EcesproExamBatch $ecesproExamBatch)
+    public function destroy(EcesproContractBatch $ecesproContractBatch)
     {
-        $ecesproExamBatch->examinations()->delete();
-        $ecesproExamBatch->delete();
+        $ecesproContractBatch->contracts()->delete();
+        $ecesproContractBatch->delete();
 
         return response()->noContent();
     }
