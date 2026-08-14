@@ -61,7 +61,11 @@ class EcesproInterviewController extends Controller
                 ]);
                 $app = $ecesproInterview->application;
                 if ($app && $user = $app->user) {
-                    $user->notify(new EcesproApplicationStatusNotification($app, $newStatus));
+                    $metadata = [
+                        'interview_status' => $validated['status'],
+                        'remarks' => $validated['remarks'] ?? null,
+                    ];
+                    $user->notify(new EcesproApplicationStatusNotification($app, $newStatus, null, $metadata));
                 }
             }
         }

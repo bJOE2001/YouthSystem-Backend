@@ -6,6 +6,7 @@ use App\Models\Event;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Auth;
 
 class UnifiedEventResource extends JsonResource
 {
@@ -29,8 +30,35 @@ class UnifiedEventResource extends JsonResource
 
         $dateTime = trim($dateFormatted.' '.$timeFormatted);
 
+        $user = Auth::guard('sanctum')->user() ?? Auth::user();
+        $joined = false;
+        $attended = false;
+        $attendedAt = null;
+
+        if ($user) {
+            if ($this->pivot) {
+                $joined = true;
+                $attended = ! empty($this->pivot->attended_at);
+                $attendedAt = $this->pivot->attended_at ? Carbon::parse($this->pivot->attended_at)->toISOString() : null;
+            } else {
+                $pivot = $this->participants()->where('user_id', $user->id)->first()?->pivot;
+                if ($pivot) {
+                    $joined = true;
+                    $attended = ! empty($pivot->attended_at);
+                    $attendedAt = $pivot->attended_at ? Carbon::parse($pivot->attended_at)->toISOString() : null;
+                }
+            }
+        }
+
+        $certificatePath = $this->certificate_template_path ?? ($this->pivot?->certificate_path ?? null);
+        $hasCertificate = ! empty($certificatePath);
+        $isCompleted = strtolower((string) $this->status) === 'completed';
+        $canDownloadCertificate = (bool) ($attended && $hasCertificate && $isCompleted);
+        $unifiedId = $isEvent ? 'event_'.$this->id : 'sport_'.$this->id;
+        $certDownloadUrl = $canDownloadCertificate ? url("/api/events/{$unifiedId}/certificate") : null;
+
         return [
-            'id' => $isEvent ? 'event_'.$this->id : 'sport_'.$this->id,
+            'id' => $unifiedId,
             'originalId' => $this->id,
             'source' => $isEvent ? 'Event' : 'Sports Program',
             'type' => $isEvent ? 'Event' : 'Sports Program',
@@ -60,8 +88,35 @@ class UnifiedEventResource extends JsonResource
             'objective1' => $isEvent ? $this->primary_objective_1 : $this->objective_1,
             'objective2' => $isEvent ? $this->primary_objective_2 : $this->objective_2,
             'objective3' => $isEvent ? $this->primary_objective_3 : $this->objective_3,
-            'status' => $this->status,
-            'joined' => auth('sanctum')->check() ? $this->participants()->where('user_id', auth('sanctum')->id())->exists() : false,
+            'status' => ucfirst(strtolower($this->status)),
+            'rawStatus' => $this->status,
+            'raw_status' => $this->status,
+            'joined' => $joined,
+            'attended' => $attended,
+            'isAttended' => $attended,
+            'is_attended' => $attended,
+            'attendanceStatus' => $attended ? 'Attended' : 'Not Attended',
+            'attendance_status' => $attended ? 'Attended' : 'Not Attended',
+            'attendedAt' => $attendedAt,
+            'attended_at' => $attendedAt,
+            'hasCertificate' => $hasCertificate,
+            'has_certificate' => $hasCertificate,
+            'certificate' => $certificatePath ?: ($hasCertificate ? true : null),
+            'certificates' => $hasCertificate,
+            'certificatePath' => $certificatePath,
+            'certificate_path' => $certificatePath,
+            'certificateTemplatePath' => $this->certificate_template_path,
+            'certificate_template_path' => $this->certificate_template_path,
+            'certificateTemplateUrl' => $this->certificate_template_path ? url('storage/'.$this->certificate_template_path) : null,
+            'certificate_template_url' => $this->certificate_template_path ? url('storage/'.$this->certificate_template_path) : null,
+            'certificateSettings' => $this->certificate_settings,
+            'certificate_settings' => $this->certificate_settings,
+            'canDownloadCertificate' => $canDownloadCertificate,
+            'can_download_certificate' => $canDownloadCertificate,
+            'canDownload' => $canDownloadCertificate,
+            'can_download' => $canDownloadCertificate,
+            'certificateUrl' => $certDownloadUrl,
+            'certificate_url' => $certDownloadUrl,
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
         ];

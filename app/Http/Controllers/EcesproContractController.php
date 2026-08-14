@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EcesproApplication;
 use App\Models\EcesproContract;
+use App\Models\EcesproScholar;
+use App\Notifications\EcesproApplicationStatusNotification;
 use Illuminate\Http\Request;
 
 class EcesproContractController extends Controller
@@ -36,11 +39,7 @@ class EcesproContractController extends Controller
 
         $application->update(['application_status' => 'Approved']);
 
-        if ($user = $application->user) {
-            $user->notify(new \App\Notifications\EcesproApplicationStatusNotification($application, 'Approved', "Your contract has been signed and you are now an official scholar."));
-        }
-
-        $scholar = \App\Models\EcesproScholar::firstOrCreate(
+        $scholar = EcesproScholar::firstOrCreate(
             ['ecespro_application_id' => $application->id],
             [
                 'user_id' => $application->user_id,
@@ -58,9 +57,23 @@ class EcesproContractController extends Controller
             $scholar->save();
         }
 
+        if ($user = $application->user) {
+            $metadata = [
+                'scholar_no' => $scholar->scholar_no,
+                'school' => $scholar->school,
+                'course' => $scholar->course,
+            ];
+            $user->notify(new EcesproApplicationStatusNotification(
+                $application,
+                'Approved',
+                'Your contract has been signed and you are now an official scholar.',
+                $metadata
+            ));
+        }
+
         return response()->json([
             'message' => 'Contract signed successfully',
-            'contract' => $contract->load('application')
+            'contract' => $contract->load('application'),
         ]);
     }
 

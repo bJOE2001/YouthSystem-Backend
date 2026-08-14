@@ -38,7 +38,7 @@ class EcesproExamBatchController extends Controller
             'exam_date' => $validated['exam_date'],
             'time' => $validated['time'] ?? null,
             'venue' => $validated['venue'] ?? null,
-            'status' => $validated['status'] ?? null,
+            'status' => $validated['status'] ?? 'Scheduled',
         ]);
 
         if (isset($validated['applicants'])) {
@@ -54,7 +54,13 @@ class EcesproExamBatchController extends Controller
                     $app->update(['application_status' => 'Exam Scheduled']);
                     if ($user = $app->user) {
                         $msg = "Your ECESPRO Qualifying Examination has been scheduled! Date: {$batch->exam_date}, Time: {$batch->time}, Venue: {$batch->venue} (Batch: {$batch->batch_name}).";
-                        $user->notify(new EcesproApplicationStatusNotification($app, 'Exam Scheduled', $msg));
+                        $metadata = [
+                            'batch_name' => $batch->batch_name,
+                            'exam_date' => $batch->exam_date,
+                            'time' => $batch->time,
+                            'venue' => $batch->venue,
+                        ];
+                        $user->notify(new EcesproApplicationStatusNotification($app, 'Exam Scheduled', $msg, $metadata));
                     }
                 }
             }

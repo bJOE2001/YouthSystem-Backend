@@ -14,16 +14,23 @@ use App\Models\SkOfficial;
 use App\Models\SportsProgram;
 use App\Models\User;
 use App\Notifications\NewEventNotification;
+use App\Services\CertificateService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class EventController extends Controller
 {
+    public function __construct(protected CertificateService $certificateService) {}
+
     public function index(Request $request)
     {
-        $user = auth('sanctum')->user();
+        /** @var User|null $user */
+        $user = Auth::guard('sanctum')->user() ?? Auth::user();
         $isOwnerRequest = $request->input('owner') === 'me';
 
         if ($isOwnerRequest && $user && ($user->role === UserRole::Admin || $user->role === UserRole::SkAdmin)) {
@@ -106,7 +113,7 @@ class EventController extends Controller
     public function store(StoreEventRequest $request)
     {
         $data = $this->mapToSnakeCase($request->validated());
-        $data['user_id'] = auth()->id();
+        $data['user_id'] = Auth::id() ?? $request->user()?->id;
         $event = Event::create($data);
 
         $youthUsers = User::where('role', 'youth')->get();
@@ -144,7 +151,9 @@ class EventController extends Controller
             'status' => 'required|string|in:draft,upcoming,ongoing,completed,cancelled',
         ]);
 
-        $event->update(['status' => $request->status]);
+        $event->update([
+            'status' => $request->status,
+        ]);
 
         return new EventResource($event);
     }
@@ -153,12 +162,13 @@ class EventController extends Controller
     {
         $event->delete();
 
-        return response()->noContent();
+        return response()->json(['message' => 'Event deleted successfully.']);
     }
 
     public function join($id)
     {
-        $user = auth()->user();
+        /** @var User $user */
+        $user = Auth::guard('sanctum')->user() ?? Auth::user();
 
         if (Str::startsWith($id, 'sport_')) {
             $sportId = str_replace('sport_', '', $id);
@@ -194,7 +204,8 @@ class EventController extends Controller
 
     public function myEvents(Request $request)
     {
-        $user = auth()->user();
+        /** @var User $user */
+        $user = Auth::guard('sanctum')->user() ?? Auth::user() ?? $request->user();
 
         $events = $user->joinedEvents();
         $sports = $user->joinedSportsPrograms();
@@ -256,13 +267,7 @@ class EventController extends Controller
 
     public function markAttendance(Request $request, $id, User $user)
     {
-        if (Str::startsWith($id, 'sport_')) {
-            $sportId = str_replace('sport_', '', $id);
-            $model = SportsProgram::findOrFail($sportId);
-        } else {
-            $eventId = str_replace('event_', '', $id);
-            $model = Event::findOrFail($eventId);
-        }
+        $model = $this->resolveActivityModel($id, $request);
 
         // Check if the user is a participant
         if (! $model->participants()->where('user_id', $user->id)->exists()) {
@@ -270,24 +275,25 @@ class EventController extends Controller
         }
 
         // Update the pivot table with current timestamp
-        $model->participants()->updateExistingPivot($user->id, [
+        $pivotData = [
             'attended_at' => now(),
-        ]);
+        ];
+        if (! empty($model->certificate_template_path)) {
+            $pivotTable = $model instanceof SportsProgram ? 'sports_program_user' : 'event_user';
+            if (Schema::hasColumn($pivotTable, 'certificate_path')) {
+                $pivotData['certificate_path'] = $model->certificate_template_path;
+            }
+        }
+
+        $model->participants()->updateExistingPivot($user->id, $pivotData);
 
         return response()->json(['message' => 'Attendance marked successfully.']);
     }
 
     public function attendanceLogs(Request $request, $id)
     {
-        if (Str::startsWith($id, 'sport_')) {
-            $sportId = str_replace('sport_', '', $id);
-            $model = SportsProgram::findOrFail($sportId);
-            $pivotColumn = 'sports_program_user.attended_at';
-        } else {
-            $eventId = str_replace('event_', '', $id);
-            $model = Event::findOrFail($eventId);
-            $pivotColumn = 'event_user.attended_at';
-        }
+        $model = $this->resolveActivityModel($id, $request);
+        $pivotColumn = $model instanceof SportsProgram ? 'sports_program_user.attended_at' : 'event_user.attended_at';
 
         // Only get participants who have attended, ordered by attendance time
         $query = $model->participants()
@@ -300,23 +306,209 @@ class EventController extends Controller
         return EventParticipantResource::collection($query->paginate($perPage));
     }
 
-    public function downloadCertificate($id)
+    public function uploadCertificate(Request $request, $id = null)
     {
-        $user = auth()->user();
-        if (Str::startsWith($id, 'sport_')) {
-            $sportId = str_replace('sport_', '', $id);
-            $event = SportsProgram::findOrFail($sportId);
-        } else {
-            $eventId = str_replace('event_', '', $id);
-            $event = Event::findOrFail($eventId);
+        $model = $this->resolveActivityModel($id, $request);
+
+        $fileKey = null;
+        foreach (['certificate', 'certificates', 'file', 'template', 'image'] as $key) {
+            if ($request->hasFile($key)) {
+                $fileKey = $key;
+                break;
+            }
         }
 
-        $pdfContent = "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<</Font<</F1 4 0 R>>>>/Contents 5 0 R>>endobj 4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj 5 0 obj<</Length 140>>stream\nBT /F1 18 Tf 50 700 Td (CERTIFICATE OF PARTICIPATION) Tj /F1 12 Tf 0 -30 Td (This certifies that {$user->name} has completed the activity: {$event->name}.) Tj ET\nendstream\nendobj\nxref\n0 6\n0000000000 65535 f \n0000000009 00000 n \n0000000056 00000 n \n0000000111 00000 n \n0000000238 00000 n \n0000000305 00000 n \ntrailer<</Size 6/Root 1 0 R>>\nstartxref\n497\n%%EOF";
+        if (! $fileKey && empty($model->certificate_template_path)) {
+            return response()->json([
+                'message' => 'The certificate file is required.',
+                'errors' => ['certificate' => ['The certificate file is required.']],
+            ], 422);
+        }
 
-        return response($pdfContent, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="Certificate-'.Str::slug($event->name).'.pdf"',
+        if ($fileKey) {
+            $request->validate([
+                $fileKey => 'required|file|mimes:pdf,png,jpg,jpeg,webp|max:10240',
+            ]);
+        }
+
+        // Parse custom settings
+        $settings = [];
+        if ($request->has('certificate_settings') || $request->has('certificateSettings')) {
+            $rawSettings = $request->input('certificate_settings') ?? $request->input('certificateSettings');
+            $settings = is_string($rawSettings) ? (json_decode($rawSettings, true) ?: []) : (array) $rawSettings;
+        }
+
+        if ($request->filled('name_x')) {
+            $settings['name_x'] = (float) $request->input('name_x');
+        }
+        if ($request->filled('name_y')) {
+            $settings['name_y'] = (float) $request->input('name_y');
+        }
+        if ($request->filled('font_size')) {
+            $settings['font_size'] = (int) $request->input('font_size');
+        }
+        if ($request->filled('font_color')) {
+            $settings['font_color'] = $request->input('font_color');
+        }
+        if ($request->filled('text_align')) {
+            $settings['text_align'] = $request->input('text_align');
+        }
+
+        if ($fileKey) {
+            $path = $this->certificateService->uploadTemplate($model, $request->file($fileKey), $settings);
+
+            // Also sync certificate_path in pivot table if column exists
+            try {
+                $pivotTable = $model instanceof SportsProgram ? 'sports_program_user' : 'event_user';
+                $foreignKey = $model instanceof SportsProgram ? 'sports_program_id' : 'event_id';
+                if (Schema::hasColumn($pivotTable, 'certificate_path')) {
+                    DB::table($pivotTable)->where($foreignKey, $model->id)->update(['certificate_path' => $path]);
+                }
+            } catch (\Throwable $e) {
+                // Ignore if pivot update fails
+            }
+        } else {
+            $this->certificateService->updateSettings($model, $settings);
+            $path = $model->certificate_template_path;
+        }
+
+        $model->refresh();
+
+        return response()->json([
+            'message' => 'Certificate template uploaded successfully.',
+            'certificate_template_path' => $path,
+            'certificate_path' => $path,
+            'certificate_settings' => $model->certificate_settings,
+            'has_certificate' => true,
         ]);
+    }
+
+    public function certificatePreview(Request $request, $id = null)
+    {
+        $model = $this->resolveActivityModel($id, $request);
+
+        if (empty($model->certificate_template_path)) {
+            return response()->json(['message' => 'No certificate template has been uploaded for this activity.'], 404);
+        }
+
+        $customSettings = [];
+        if ($request->has('certificate_settings') || $request->has('certificateSettings')) {
+            $rawSettings = $request->input('certificate_settings') ?? $request->input('certificateSettings');
+            $customSettings = is_string($rawSettings) ? (json_decode($rawSettings, true) ?: []) : (array) $rawSettings;
+        }
+
+        if ($request->filled('name_x')) {
+            $customSettings['name_x'] = (float) $request->input('name_x');
+        }
+        if ($request->filled('name_y')) {
+            $customSettings['name_y'] = (float) $request->input('name_y');
+        }
+        if ($request->filled('font_size')) {
+            $customSettings['font_size'] = (int) $request->input('font_size');
+        }
+        if ($request->filled('font_color')) {
+            $customSettings['font_color'] = $request->input('font_color');
+        }
+        if ($request->filled('text_align')) {
+            $customSettings['text_align'] = $request->input('text_align');
+        }
+
+        $sampleName = $request->input('sample_name', 'JUAN DELA CRUZ');
+
+        $preview = $this->certificateService->generatePreview($model, $customSettings, $sampleName);
+
+        return response($preview['content'], 200, [
+            'Content-Type' => $preview['mime'],
+            'Content-Disposition' => 'inline; filename="'.$preview['filename'].'"',
+        ]);
+    }
+
+    public function downloadCertificate(Request $request, $id = null)
+    {
+        /** @var User $user */
+        $user = Auth::guard('sanctum')->user() ?? Auth::user() ?? $request->user();
+        $model = $this->resolveActivityModel($id, $request);
+
+        // Verify participant
+        $participant = $model->participants()->where('user_id', $user->id)->first();
+        if (! $participant && $user->role !== UserRole::Admin && $user->role !== UserRole::SkAdmin) {
+            return response()->json(['message' => 'You are not a participant of this activity.'], 403);
+        }
+
+        // Verify attendance if regular participant
+        if ($participant && (! $participant->pivot || empty($participant->pivot->attended_at))) {
+            return response()->json(['message' => 'Certificate is only available for participants who attended this activity.'], 403);
+        }
+
+        // Verify activity is Completed (only Completed activities allow certificate downloads)
+        $isCompleted = strtolower((string) $model->status) === 'completed';
+        if (! $isCompleted && $user->role !== UserRole::Admin && $user->role !== UserRole::SkAdmin) {
+            return response()->json(['message' => 'Certificate is only available once the activity is marked as Completed.'], 403);
+        }
+
+        // Verify certificate template existence
+        if (empty($model->certificate_template_path)) {
+            return response()->json(['message' => 'No certificate template has been uploaded for this activity.'], 404);
+        }
+
+        $certificate = $this->certificateService->generateCertificate($model, $user);
+
+        // If JSON or base64 format requested, return base64 payload to prevent IDM XHR interception
+        if ($request->input('format') === 'base64' || $request->input('format') === 'json' || $request->wantsJson()) {
+            return response()->json([
+                'filename' => $certificate['filename'],
+                'mime' => $certificate['mime'],
+                'data' => base64_encode($certificate['content']),
+            ]);
+        }
+
+        return response($certificate['content'], 200, [
+            'Content-Type' => $certificate['mime'],
+            'Content-Disposition' => 'attachment; filename="'.$certificate['filename'].'"',
+            'Access-Control-Expose-Headers' => 'Content-Disposition',
+        ]);
+    }
+
+    /**
+     * Resolve Event or SportsProgram model from ID or request route parameters.
+     */
+    protected function resolveActivityModel($id, ?Request $request = null): Event|SportsProgram
+    {
+        $target = $id;
+
+        if (! $target && $request) {
+            $target = $request->route('sportsProgram')
+                ?? $request->route('sport')
+                ?? $request->route('event')
+                ?? $request->route('id');
+        }
+
+        if ($target instanceof SportsProgram || $target instanceof Event) {
+            return $target;
+        }
+
+        if (is_string($target) && Str::startsWith($target, 'sport_')) {
+            $sportId = str_replace('sport_', '', $target);
+
+            return SportsProgram::findOrFail($sportId);
+        }
+
+        if (is_string($target) && Str::startsWith($target, 'event_')) {
+            $eventId = str_replace('event_', '', $target);
+
+            return Event::findOrFail($eventId);
+        }
+
+        if ($request && ($request->route('sportsProgram') || $request->is('*sports*'))) {
+            return SportsProgram::findOrFail($target);
+        }
+
+        $event = Event::find($target);
+        if ($event) {
+            return $event;
+        }
+
+        return SportsProgram::findOrFail($target);
     }
 
     private function mapToSnakeCase(array $data): array

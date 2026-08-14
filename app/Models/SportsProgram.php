@@ -26,6 +26,8 @@ class SportsProgram extends Model
         'objective_2',
         'objective_3',
         'status',
+        'certificate_template_path',
+        'certificate_settings',
         'open_to_all_barangays',
         'barangay',
     ];
@@ -38,6 +40,7 @@ class SportsProgram extends Model
             'budget_allocated' => 'decimal:2',
             'budget_utilized' => 'decimal:2',
             'open_to_all_barangays' => 'boolean',
+            'certificate_settings' => 'array',
         ];
     }
 

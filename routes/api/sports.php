@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\SportsProgramController;
 use Illuminate\Support\Facades\Route;
 
@@ -11,6 +12,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Accessible by youth and sk_admin
     Route::middleware('role:youth,sk_admin')->group(function () {
         Route::post('/sports/{sportsProgram}/join', [SportsProgramController::class, 'join'])->name('sports.join');
+        Route::get('/sports/{sportsProgram}/certificate', [EventController::class, 'downloadCertificate'])->name('sports.certificate');
+        Route::get('/sports/{sportsProgram}/certificates', [EventController::class, 'downloadCertificate'])->name('sports.certificates');
     });
 
     // Accessible by admin and sk_admin
@@ -20,5 +23,9 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/sports/{sportsProgram}/status', [SportsProgramController::class, 'updateStatus'])->name('sports.update-status');
         Route::post('/sports/{sportsProgram}/delete', [SportsProgramController::class, 'destroy'])->name('sports.destroy');
         Route::get('/sports/{sportsProgram}/participants-by-barangay', [SportsProgramController::class, 'participantsByBarangay'])->name('sports.participants-by-barangay');
+        Route::post('/sports/{sportsProgram}/certificate', [EventController::class, 'uploadCertificate'])->name('sports.certificate.upload');
+        Route::post('/sports/{sportsProgram}/certificates', [EventController::class, 'uploadCertificate'])->name('sports.certificates.upload');
+        Route::get('/sports/{sportsProgram}/certificate-preview', [EventController::class, 'certificatePreview'])->name('sports.certificate.preview');
+        Route::post('/sports/{sportsProgram}/certificate-preview', [EventController::class, 'certificatePreview'])->name('sports.certificate.preview.post');
     });
 });

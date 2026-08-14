@@ -56,7 +56,14 @@ class EcesproInterviewBatchController extends Controller
                     $app->update(['application_status' => 'Interview Scheduled']);
                     if ($user = $app->user) {
                         $msg = "Your ECESPRO Panel Interview has been scheduled! Date: {$batch->interview_date}, Time: {$batch->time}, Panel: {$batch->panel}, Mode: {$batch->mode} (Batch: {$batch->batch_name}).";
-                        $user->notify(new EcesproApplicationStatusNotification($app, 'Interview Scheduled', $msg));
+                        $metadata = [
+                            'batch_name' => $batch->batch_name,
+                            'interview_date' => $batch->interview_date,
+                            'time' => $batch->time,
+                            'panel' => $batch->panel,
+                            'mode' => $batch->mode,
+                        ];
+                        $user->notify(new EcesproApplicationStatusNotification($app, 'Interview Scheduled', $msg, $metadata));
                     }
                 }
             }

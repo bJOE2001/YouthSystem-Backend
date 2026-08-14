@@ -136,12 +136,7 @@ class EcesproApplicationController extends Controller
 
         $ecesproApplication->update($updateData);
 
-        if (isset($updateData['application_status'])) {
-            if ($user = $ecesproApplication->user) {
-                $user->notify(new EcesproApplicationStatusNotification($ecesproApplication, $updateData['application_status']));
-            }
-        }
-
+        $metadata = [];
         if (isset($updateData['application_status']) && $updateData['application_status'] === 'Approved') {
             $scholar = EcesproScholar::firstOrCreate(
                 ['ecespro_application_id' => $ecesproApplication->id],
@@ -159,6 +154,14 @@ class EcesproApplicationController extends Controller
             if ($scholar->wasRecentlyCreated || $scholar->scholar_no === 'PENDING' || empty($scholar->scholar_no)) {
                 $scholar->scholar_no = 'SCH-'.str_pad($scholar->id, 4, '0', STR_PAD_LEFT);
                 $scholar->save();
+            }
+
+            $metadata['scholar_no'] = $scholar->scholar_no;
+        }
+
+        if (isset($updateData['application_status'])) {
+            if ($user = $ecesproApplication->user) {
+                $user->notify(new EcesproApplicationStatusNotification($ecesproApplication, $updateData['application_status'], null, $metadata));
             }
         }
 
@@ -206,8 +209,12 @@ class EcesproApplicationController extends Controller
                 $docName = $updatedDoc['name'] ?? 'Requirement Document';
                 $remarksText = ! empty($validated['remarks']) ? " Reason: {$validated['remarks']}" : '';
                 $customMsg = "Your uploaded requirement document '{$docName}' requires revision.{$remarksText}";
+                $metadata = [
+                    'document_name' => $docName,
+                    'remarks' => $validated['remarks'] ?? null,
+                ];
 
-                $user->notify(new EcesproApplicationStatusNotification($ecesproApplication, 'For Revision', $customMsg));
+                $user->notify(new EcesproApplicationStatusNotification($ecesproApplication, 'For Revision', $customMsg, $metadata));
             }
         }
 
