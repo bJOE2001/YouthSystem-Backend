@@ -15,7 +15,7 @@ class EcesproExamBatchController extends Controller
      */
     public function index()
     {
-        return EcesproExamBatch::with('examinations.application.user')->latest('created_at')->get();
+        return EcesproExamBatch::with('examinations.application.user.youthProfile')->latest('created_at')->get();
     }
 
     /**
@@ -68,7 +68,7 @@ class EcesproExamBatchController extends Controller
      */
     public function show(EcesproExamBatch $ecesproExamBatch)
     {
-        return $ecesproExamBatch->load('examinations.application.user');
+        return $ecesproExamBatch->load('examinations.application.user.youthProfile');
     }
 
     /**

@@ -13,7 +13,7 @@ class EcesproScholarController extends Controller
      */
     public function index()
     {
-        return EcesproScholar::with(['user', 'application'])->get();
+        return EcesproScholar::with(['user.youthProfile', 'application'])->get();
     }
 
     /**
@@ -41,7 +41,7 @@ class EcesproScholarController extends Controller
      */
     public function show(EcesproScholar $ecesproScholar)
     {
-        return $ecesproScholar->load(['user', 'application']);
+        return $ecesproScholar->load(['user.youthProfile', 'application']);
     }
 
     /**

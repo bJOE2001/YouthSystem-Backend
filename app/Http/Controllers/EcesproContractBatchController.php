@@ -15,7 +15,7 @@ class EcesproContractBatchController extends Controller
      */
     public function index()
     {
-        return EcesproContractBatch::with('contracts.application.user')->latest('created_at')->get();
+        return EcesproContractBatch::with('contracts.application.user.youthProfile')->latest('created_at')->get();
     }
 
     /**
@@ -68,7 +68,7 @@ class EcesproContractBatchController extends Controller
      */
     public function show(EcesproContractBatch $ecesproContractBatch)
     {
-        return $ecesproContractBatch->load('contracts.application.user');
+        return $ecesproContractBatch->load('contracts.application.user.youthProfile');
     }
 
     /**

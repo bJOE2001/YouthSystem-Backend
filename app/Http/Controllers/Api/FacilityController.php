@@ -203,6 +203,25 @@ class FacilityController extends Controller
             }
         }
 
+        // 5.5 Per-Booking Time Limit Enforcement
+        if (! empty($facility->time_limit)) {
+            $limitMinutes = $this->parseTimeLimitToMinutes($facility->time_limit);
+
+            if ($limitMinutes !== null) {
+                $start = Carbon::parse($validated['start_time']);
+                $end = Carbon::parse($validated['end_time']);
+                $durationMinutes = $start->diffInMinutes($end);
+
+                if ($durationMinutes > $limitMinutes) {
+                    $limitLabel = trim((string) $facility->time_limit);
+
+                    throw ValidationException::withMessages([
+                        'end_time' => ["The booking duration cannot exceed the facility's time limit of {$limitLabel} hour(s) per booking."],
+                    ]);
+                }
+            }
+        }
+
         // 6. Overlapping Booking Conflict Guard
         $existingBooking = $facility->bookingRequests()
             ->where('date', $validated['date'])
@@ -237,6 +256,30 @@ class FacilityController extends Controller
             'message' => 'Booking request submitted successfully',
             'data' => $booking,
         ], 201);
+    }
+
+    private function parseTimeLimitToMinutes(string $timeLimit): ?int
+    {
+        $timeLimit = strtolower(trim($timeLimit));
+
+        if (preg_match('/^(\d+(?:\.\d+)?)\s*hours?$/', $timeLimit, $m)) {
+            return (int) round((float) $m[1] * 60);
+        }
+
+        if (preg_match('/^(\d+(?:\.\d+)?)\s*h\b/', $timeLimit, $m)) {
+            return (int) round((float) $m[1] * 60);
+        }
+
+        if (preg_match('/^(\d+)\s*minutes?$/', $timeLimit, $m)) {
+            return (int) $m[1];
+        }
+
+        if (is_numeric($timeLimit)) {
+            // Plain numbers are treated as hours
+            return (int) round((float) $timeLimit * 60);
+        }
+
+        return null;
     }
 
     private function parseFacilityTimeRange(string $availableTime): ?array

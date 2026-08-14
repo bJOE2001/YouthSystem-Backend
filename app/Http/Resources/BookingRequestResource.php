@@ -18,6 +18,7 @@ class BookingRequestResource extends JsonResource
         return [
             'id' => $this->id,
             'requestedBy' => $this->user->name ?? 'Unknown',
+            'profile_picture' => $this->user?->youthProfile?->profile_picture ?? '',
             'email' => $this->user->email ?? 'Unknown',
             'facility' => $this->facility->name ?? 'Unknown',
             'location' => $this->facility->location ?? 'Unknown',
