@@ -115,6 +115,14 @@ Route::middleware([
         Route::post('ecespro-contracts/{ecespro_contract}', [EcesproContractController::class, 'update'])->name('ecespro-contracts.update');
         Route::post('ecespro-contracts/{ecespro_contract}/delete', [EcesproContractController::class, 'destroy'])->name('ecespro-contracts.destroy');
         Route::post('ecespro-contracts/sign-application/{application}', [EcesproContractController::class, 'signApplication']);
+        Route::post('ecespro-contracts/{ecespro_contract}/remove-from-batch', [EcesproContractController::class, 'removeFromBatch']);
+
+        // ECESPRO Contract Signing Batches
+        Route::get('ecespro-contract-signing-batches', [EcesproContractBatchController::class, 'index'])->name('ecespro-contract-signing-batches.index');
+        Route::post('ecespro-contract-signing-batches', [EcesproContractBatchController::class, 'store'])->name('ecespro-contract-signing-batches.store');
+        Route::get('ecespro-contract-signing-batches/{ecespro_contract_batch}', [EcesproContractBatchController::class, 'show'])->name('ecespro-contract-signing-batches.show');
+        Route::post('ecespro-contract-signing-batches/{ecespro_contract_batch}', [EcesproContractBatchController::class, 'update'])->name('ecespro-contract-signing-batches.update');
+        Route::post('ecespro-contract-signing-batches/{ecespro_contract_batch}/delete', [EcesproContractBatchController::class, 'destroy'])->name('ecespro-contract-signing-batches.destroy');
 
         // ECESPRO Scholars
         Route::get('ecespro-scholars', [EcesproScholarController::class, 'index'])->name('ecespro-scholars.index');
@@ -139,4 +147,14 @@ Route::middleware([
         Route::get('ecespro-settings', [EcesproSettingController::class, 'index'])->name('ecespro-settings.index');
         Route::post('ecespro-settings/{key}', [EcesproSettingController::class, 'store'])->name('ecespro-settings.store');
 
+    
+        // System Settings
+        Route::get('system-settings/landing-hero', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'getLandingHero'])->name('system-settings.landing-hero.get');
+                Route::get('system-settings/auth-hero', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'getAuthHero'])->name('system-settings.auth-hero.get');
+                Route::get('system-settings/contact', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'getContactSettings'])->name('system-settings.contact.get');
+        Route::post('system-settings/contact', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'updateContactSettings'])->name('system-settings.contact.update');
+        Route::post('system-settings/auth-hero', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'updateAuthHero'])->name('system-settings.auth-hero.update');
+        Route::post('system-settings/landing-hero', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'updateLandingHero'])->name('system-settings.landing-hero.update');
+        Route::post('change-password', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'changePassword'])->name('change-password');
     });
+

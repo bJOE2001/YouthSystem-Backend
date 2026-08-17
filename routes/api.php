@@ -37,3 +37,9 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/notifications/{id}/mark-read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/{id}/delete', [NotificationController::class, 'destroy']);
 });
+
+Route::get('/system-settings/landing-hero', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'getLandingHero']);
+
+Route::get('/system-settings/auth-hero', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'getAuthHero']);
+
+Route::get('/system-settings/contact', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'getContactSettings']);

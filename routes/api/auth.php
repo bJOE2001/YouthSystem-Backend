@@ -33,4 +33,8 @@ Route::middleware([
     Route::post('/logout', [AuthController::class, 'logout'])
         ->name('auth.logout');
 
+
+    Route::post('/change-password', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'changePassword'])
+        ->name('auth.change-password');
 });
+
