@@ -470,6 +470,58 @@ class EventController extends Controller
     }
 
     /**
+     * Email personalized certificates to all attended participants of an activity.
+     */
+    public function sendCertificates(Request $request, $id = null)
+    {
+        $model = $this->resolveActivityModel($id, $request);
+
+        if (empty($model->certificate_template_path)) {
+            return response()->json(['message' => 'No certificate template has been uploaded for this activity.'], 422);
+        }
+
+        $isCompleted = strtolower((string) $model->status) === 'completed';
+        if (! $isCompleted) {
+            return response()->json(['message' => 'Certificates can only be emailed once the activity is marked as Completed.'], 422);
+        }
+
+        $result = $this->certificateService->sendCertificatesToAttendedParticipants($model);
+
+        return response()->json([
+            'message' => "Certificates successfully emailed to {$result['sent']} participant(s).",
+            'result' => $result,
+        ]);
+    }
+
+    /**
+     * Email personalized certificate to a single attended participant.
+     */
+    public function sendParticipantCertificate(Request $request, $id, User $user)
+    {
+        $model = $this->resolveActivityModel($id, $request);
+
+        if (empty($model->certificate_template_path)) {
+            return response()->json(['message' => 'No certificate template has been uploaded for this activity.'], 422);
+        }
+
+        $isCompleted = strtolower((string) $model->status) === 'completed';
+        if (! $isCompleted) {
+            return response()->json(['message' => 'Certificates can only be emailed once the activity is marked as Completed.'], 422);
+        }
+
+        $participant = $model->participants()->where('user_id', $user->id)->first();
+        if (! $participant || ! $participant->pivot || empty($participant->pivot->attended_at)) {
+            return response()->json(['message' => 'Participant must be marked as attended to receive a certificate.'], 422);
+        }
+
+        $this->certificateService->sendCertificateToUser($model, $user);
+
+        return response()->json([
+            'message' => "Certificate successfully emailed to {$user->name}.",
+        ]);
+    }
+
+    /**
      * Resolve Event or SportsProgram model from ID or request route parameters.
      */
     protected function resolveActivityModel($id, ?Request $request = null): Event|SportsProgram

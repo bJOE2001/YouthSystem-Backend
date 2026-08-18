@@ -2,8 +2,11 @@
 
 namespace App\Notifications;
 
+use App\Mail\NewEventEmail;
+use App\Models\Event;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Mail\Mailable;
 use Illuminate\Notifications\Notification;
 
 class NewEventNotification extends Notification
@@ -15,7 +18,7 @@ class NewEventNotification extends Notification
      */
     public $event;
 
-    public function __construct($event)
+    public function __construct(Event $event)
     {
         $this->event = $event;
     }
@@ -27,18 +30,17 @@ class NewEventNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', 'mail'];
     }
 
     /**
      * Get the mail representation of the notification.
      */
-    public function toMail(object $notifiable): MailMessage
+    public function toMail(object $notifiable): Mailable
     {
-        return (new MailMessage)
-            ->line('The introduction to the notification.')
-            ->action('Notification Action', url('/'))
-            ->line('Thank you for using our application!');
+        /** @var User $notifiable */
+        return (new NewEventEmail($notifiable, $this->event))
+            ->to($notifiable->email);
     }
 
     /**
@@ -48,9 +50,11 @@ class NewEventNotification extends Notification
      */
     public function toArray(object $notifiable): array
     {
+        $schedule = $this->event->start_date ? $this->event->start_date->format('M d, Y') : '';
+
         return [
             'title' => 'New Event Posted',
-            'message' => "A new event '{$this->event->title}' has been scheduled for {$this->event->date_time}.",
+            'message' => "A new event '{$this->event->name}' has been scheduled".($schedule ? " for {$schedule}." : '.'),
             'event_id' => $this->event->id,
             'url' => '/youth/events',
         ];

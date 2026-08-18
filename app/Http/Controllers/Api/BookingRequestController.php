@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\BookingRequestResource;
 use App\Models\BookingRequest;
-use App\Notifications\BookingApprovedNotification;
-use App\Notifications\BookingRejectedNotification;
+use App\Notifications\BookingCancelledNotification;
+use App\Notifications\BookingConfirmedNotification;
 use Illuminate\Http\Request;
 
 class BookingRequestController extends Controller
@@ -55,24 +55,27 @@ class BookingRequestController extends Controller
     public function approve(BookingRequest $bookingRequest)
     {
         $bookingRequest->update(['status' => 'Approved']);
-        $bookingRequest->user->notify(new BookingApprovedNotification($bookingRequest));
+        $bookingRequest->user->notify(new BookingConfirmedNotification($bookingRequest));
 
-        return response()->json(['message' => 'Booking request approved']);
+        return response()->json(['message' => 'Facility booking confirmed']);
     }
 
-    public function reject(BookingRequest $bookingRequest)
+    public function reject(Request $request, BookingRequest $bookingRequest)
     {
-        $bookingRequest->update(['status' => 'Declined']);
-        $bookingRequest->user->notify(new BookingRejectedNotification($bookingRequest));
-
-        return response()->json(['message' => 'Booking request rejected']);
-    }
-
-    public function cancel(BookingRequest $bookingRequest)
-    {
+        $remarks = $request->input('remarks') ?? $request->input('reason');
         $bookingRequest->update(['status' => 'Cancelled']);
+        $bookingRequest->user->notify(new BookingCancelledNotification($bookingRequest, $remarks));
 
-        return response()->json(['message' => 'Booking request cancelled']);
+        return response()->json(['message' => 'Booking cancelled successfully']);
+    }
+
+    public function cancel(Request $request, BookingRequest $bookingRequest)
+    {
+        $remarks = $request->input('remarks') ?? $request->input('reason');
+        $bookingRequest->update(['status' => 'Cancelled']);
+        $bookingRequest->user->notify(new BookingCancelledNotification($bookingRequest, $remarks));
+
+        return response()->json(['message' => 'Booking cancelled successfully']);
     }
 
     public function myBookings(Request $request)

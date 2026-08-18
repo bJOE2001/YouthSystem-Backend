@@ -2,25 +2,25 @@
 
 namespace App\Notifications;
 
-use App\Mail\NewBookingRequestEmail;
+use App\Mail\BookingCancelledEmail;
 use App\Models\BookingRequest;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Notifications\Notification;
 
-class NewBookingRequestNotification extends Notification
+class BookingCancelledNotification extends Notification
 {
     use Queueable;
 
-    /**
-     * Create a new notification instance.
-     */
     public $booking;
 
-    public function __construct(BookingRequest $booking)
+    public ?string $remarks;
+
+    public function __construct(BookingRequest $booking, ?string $remarks = null)
     {
         $this->booking = $booking;
+        $this->remarks = $remarks;
     }
 
     /**
@@ -39,7 +39,7 @@ class NewBookingRequestNotification extends Notification
     public function toMail(object $notifiable): Mailable
     {
         /** @var User $notifiable */
-        return (new NewBookingRequestEmail($notifiable, $this->booking))
+        return (new BookingCancelledEmail($notifiable, $this->booking, $this->remarks))
             ->to($notifiable->email);
     }
 
@@ -50,14 +50,15 @@ class NewBookingRequestNotification extends Notification
      */
     public function toArray(object $notifiable): array
     {
-        $requesterName = $this->booking->user->name ?? 'Unknown';
+        $reasonText = $this->remarks ? " Reason: {$this->remarks}" : '';
 
         return [
-            'title' => 'Facility Booked',
-            'message' => "{$this->booking->facility->name} Booked by {$requesterName}.",
+            'title' => 'Booking Cancelled',
+            'message' => "Your booking for {$this->booking->facility->name} on {$this->booking->date} was cancelled by administrator.{$reasonText}",
             'booking_id' => $this->booking->id,
             'facility_id' => $this->booking->facility_id,
-            'url' => '/admin/booking-requests',
+            'remarks' => $this->remarks,
+            'url' => '/youth/facilities',
         ];
     }
 }

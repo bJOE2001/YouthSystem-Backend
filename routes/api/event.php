@@ -30,6 +30,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/events/{event}/certificates', [EventController::class, 'uploadCertificate'])->name('events.certificates.upload');
         Route::get('/events/{event}/certificate-preview', [EventController::class, 'certificatePreview'])->name('events.certificate.preview');
         Route::post('/events/{event}/certificate-preview', [EventController::class, 'certificatePreview'])->name('events.certificate.preview.post');
+        Route::post('/events/{event}/send-certificates', [EventController::class, 'sendCertificates'])->name('events.certificates.send');
+        Route::post('/events/{event}/participants/{user}/send-certificate', [EventController::class, 'sendParticipantCertificate'])->name('events.participants.send-certificate');
         Route::get('/events/{event}/attendance-logs', [EventController::class, 'attendanceLogs'])->name('events.attendance-logs');
     });
 });

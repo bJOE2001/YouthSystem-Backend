@@ -2,8 +2,11 @@
 
 namespace App\Notifications;
 
+use App\Mail\NewAnnouncementEmail;
+use App\Models\Announcement;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Mail\Mailable;
 use Illuminate\Notifications\Notification;
 
 class NewAnnouncementNotification extends Notification
@@ -15,7 +18,7 @@ class NewAnnouncementNotification extends Notification
      */
     public $announcement;
 
-    public function __construct($announcement)
+    public function __construct(Announcement $announcement)
     {
         $this->announcement = $announcement;
     }
@@ -27,18 +30,17 @@ class NewAnnouncementNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', 'mail'];
     }
 
     /**
      * Get the mail representation of the notification.
      */
-    public function toMail(object $notifiable): MailMessage
+    public function toMail(object $notifiable): Mailable
     {
-        return (new MailMessage)
-            ->line('The introduction to the notification.')
-            ->action('Notification Action', url('/'))
-            ->line('Thank you for using our application!');
+        /** @var User $notifiable */
+        return (new NewAnnouncementEmail($notifiable, $this->announcement))
+            ->to($notifiable->email);
     }
 
     /**

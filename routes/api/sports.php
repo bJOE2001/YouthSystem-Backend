@@ -27,5 +27,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/sports/{sportsProgram}/certificates', [EventController::class, 'uploadCertificate'])->name('sports.certificates.upload');
         Route::get('/sports/{sportsProgram}/certificate-preview', [EventController::class, 'certificatePreview'])->name('sports.certificate.preview');
         Route::post('/sports/{sportsProgram}/certificate-preview', [EventController::class, 'certificatePreview'])->name('sports.certificate.preview.post');
+        Route::post('/sports/{sportsProgram}/send-certificates', [EventController::class, 'sendCertificates'])->name('sports.certificates.send');
+        Route::post('/sports/{sportsProgram}/participants/{user}/send-certificate', [EventController::class, 'sendParticipantCertificate'])->name('sports.participants.send-certificate');
     });
 });

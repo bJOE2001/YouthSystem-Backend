@@ -7,6 +7,7 @@ use App\Http\Resources\FacilityResource;
 use App\Models\Facility;
 use App\Models\FacilityBlackoutDate;
 use App\Models\User;
+use App\Notifications\BookingConfirmedNotification;
 use App\Notifications\NewBookingRequestNotification;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -109,8 +110,8 @@ class FacilityController extends Controller
         ]);
 
         $facility->update([
-        'status' => $validated['status'],
-        'status_reason' => $validated['reason'] ?? null,
+            'status' => $validated['status'],
+            'status_reason' => $validated['reason'] ?? null,
         ]);
 
         return response()->json(['message' => 'Status updated successfully']);
@@ -249,11 +250,15 @@ class FacilityController extends Controller
             'status' => 'Approved',
         ]);
 
+        // Notify the user of immediate booking confirmation
+        $request->user()->notify(new BookingConfirmedNotification($booking));
+
+        // Notify admins of new booking
         $admins = User::where('role', 'admin')->get();
         Notification::send($admins, new NewBookingRequestNotification($booking));
 
         return response()->json([
-            'message' => 'Booking request submitted successfully',
+            'message' => 'Facility successfully booked and confirmed',
             'data' => $booking,
         ], 201);
     }

@@ -3,16 +3,86 @@
 namespace App\Services;
 
 use App\Enums\UserRole;
+use App\Mail\CertificateIssuedEmail;
 use App\Models\Event;
 use App\Models\SkOfficial;
 use App\Models\SportsProgram;
 use App\Models\User;
+use App\Notifications\CertificateIssuedNotification;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class CertificateService
 {
+    /**
+     * Send personalized certificate email to a participant.
+     */
+    public function sendCertificateToUser(Event|SportsProgram $model, User $user): bool
+    {
+        if (empty($user->email)) {
+            return false;
+        }
+
+        $certificate = $this->generateCertificate($model, $user);
+
+        Mail::to($user->email)->send(new CertificateIssuedEmail(
+            $user,
+            $model,
+            $certificate['content'],
+            $certificate['filename']
+        ));
+
+        // Create database notification record
+        try {
+            $user->notify(new CertificateIssuedNotification(
+                $model,
+                $certificate['content'],
+                $certificate['filename']
+            ));
+        } catch (\Throwable) {
+            // Ignore database notification failures if table is missing or optional
+        }
+
+        return true;
+    }
+
+    /**
+     * Send certificates to all attended participants of an activity.
+     *
+     * @return array{total: int, sent: int, failed: int}
+     */
+    public function sendCertificatesToAttendedParticipants(Event|SportsProgram $model): array
+    {
+        $participants = $model->participants()
+            ->wherePivotNotNull('attended_at')
+            ->get();
+
+        $total = $participants->count();
+        $sent = 0;
+        $failed = 0;
+
+        foreach ($participants as $participant) {
+            try {
+                $success = $this->sendCertificateToUser($model, $participant);
+                if ($success) {
+                    $sent++;
+                } else {
+                    $failed++;
+                }
+            } catch (\Throwable) {
+                $failed++;
+            }
+        }
+
+        return [
+            'total' => $total,
+            'sent' => $sent,
+            'failed' => $failed,
+        ];
+    }
+
     /**
      * Resolve the full name of a participant for certificate display.
      */
