@@ -20,8 +20,8 @@ class SportsProgram extends Model
         'end_date',
         'start_time',
         'location',
-        'budget_allocated',
-        'budget_utilized',
+        // 'budget_allocated',
+        // 'budget_utilized',
         'objective_1',
         'objective_2',
         'objective_3',
@@ -37,8 +37,8 @@ class SportsProgram extends Model
         return [
             'start_date' => 'date',
             'end_date' => 'date',
-            'budget_allocated' => 'decimal:2',
-            'budget_utilized' => 'decimal:2',
+            // 'budget_allocated' => 'decimal:2',
+            // 'budget_utilized' => 'decimal:2',
             'open_to_all_barangays' => 'boolean',
             'certificate_settings' => 'array',
         ];

@@ -106,7 +106,7 @@ class FacilityController extends Controller
     {
         $validated = $request->validate([
             'status' => 'required|string|in:Active,Inactive,Under Construction',
-            'reason' => 'nullable|required_if:status,Inactive,Under Construction|string|max:1000',
+            'reason' => 'nullable|required_if:status,Inactive|string|max:1000',
         ]);
 
         $facility->update([
@@ -319,8 +319,8 @@ class FacilityController extends Controller
             return [
                 'id' => $booking->id,
                 'title' => 'Booked',
-                'start' => $booking->date.'T'.$booking->start_time,
-                'end' => $booking->date.'T'.$booking->end_time,
+                'start' => $booking->date . 'T' . $booking->start_time,
+                'end' => $booking->date . 'T' . $booking->end_time,
                 'extendedProps' => [
                     'requestedBy' => $booking->user->name ?? 'Unknown',
                     'status' => $booking->status,
