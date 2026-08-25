@@ -14,19 +14,18 @@ class EcesproProgram extends Model
         'school_year',
         'start_date',
         'end_date',
-        'slots',
         'status',
         'description',
-        'scholarship_benefits',
-        'program_eligibility',
+        // 'scholarship_benefits',
+        // 'program_eligibility',
         'application_requirements',
     ];
 
     protected function casts(): array
     {
         return [
-            'scholarship_benefits' => 'array',
-            'program_eligibility' => 'array',
+            // 'scholarship_benefits' => 'array',
+            // 'program_eligibility' => 'array',
             'application_requirements' => 'array',
         ];
     }

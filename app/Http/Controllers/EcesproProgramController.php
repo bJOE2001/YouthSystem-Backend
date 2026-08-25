@@ -25,26 +25,26 @@ class EcesproProgramController extends Controller
             'school_year' => 'required|string|max:255',
             'start_date' => 'required|date',
             'end_date' => 'required|date',
-            'slots' => 'required|integer|min:1',
+            // 'slots' => 'required|integer|min:1',
             'status' => 'required|string',
             'description' => 'nullable|string',
-            'benefits' => 'nullable|array',
-            'benefits.*' => 'string',
-            'eligibility' => 'nullable|array',
-            'eligibility.*' => 'string',
+            // 'benefits' => 'nullable|array',
+            // 'benefits.*' => 'string',
+            // 'eligibility' => 'nullable|array',
+            // 'eligibility.*' => 'string',
             'requirements' => 'nullable|array',
             'requirements.*' => 'string',
         ]);
 
         $data = $validated;
-        if (array_key_exists('benefits', $data)) {
-            $data['scholarship_benefits'] = $data['benefits'];
-            unset($data['benefits']);
-        }
-        if (array_key_exists('eligibility', $data)) {
-            $data['program_eligibility'] = $data['eligibility'];
-            unset($data['eligibility']);
-        }
+        // if (array_key_exists('benefits', $data)) {
+        //     $data['scholarship_benefits'] = $data['benefits'];
+        //     unset($data['benefits']);
+        // }
+        // if (array_key_exists('eligibility', $data)) {
+        //     $data['program_eligibility'] = $data['eligibility'];
+        //     unset($data['eligibility']);
+        // }
         if (array_key_exists('requirements', $data)) {
             $data['application_requirements'] = $data['requirements'];
             unset($data['requirements']);
@@ -71,26 +71,26 @@ class EcesproProgramController extends Controller
             'school_year' => 'sometimes|string|max:255',
             'start_date' => 'sometimes|date',
             'end_date' => 'sometimes|date',
-            'slots' => 'sometimes|integer|min:1',
+            // 'slots' => 'sometimes|integer|min:1',
             'status' => 'sometimes|string',
             'description' => 'nullable|string',
-            'benefits' => 'nullable|array',
-            'benefits.*' => 'string',
-            'eligibility' => 'nullable|array',
-            'eligibility.*' => 'string',
+            // 'benefits' => 'nullable|array',
+            // 'benefits.*' => 'string',
+            // 'eligibility' => 'nullable|array',
+            // 'eligibility.*' => 'string',
             'requirements' => 'nullable|array',
             'requirements.*' => 'string',
         ]);
 
         $data = $validated;
-        if (array_key_exists('benefits', $data)) {
-            $data['scholarship_benefits'] = $data['benefits'];
-            unset($data['benefits']);
-        }
-        if (array_key_exists('eligibility', $data)) {
-            $data['program_eligibility'] = $data['eligibility'];
-            unset($data['eligibility']);
-        }
+        // if (array_key_exists('benefits', $data)) {
+        //     $data['scholarship_benefits'] = $data['benefits'];
+        //     unset($data['benefits']);
+        // }
+        // if (array_key_exists('eligibility', $data)) {
+        //     $data['program_eligibility'] = $data['eligibility'];
+        //     unset($data['eligibility']);
+        // }
         if (array_key_exists('requirements', $data)) {
             $data['application_requirements'] = $data['requirements'];
             unset($data['requirements']);

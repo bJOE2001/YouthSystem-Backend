@@ -21,6 +21,10 @@ class FacilityController extends Controller
     {
         $query = Facility::query();
 
+        $query->withCount(['bookingRequests as bookings_count' => function ($query) {
+            $query->whereIn('status', ['Approved', 'Pending', 'Completed']);
+        }]);
+
         if (auth('sanctum')->check()) {
             $userId = auth('sanctum')->id();
             $query->withCount(['bookingRequests as already_booked' => function ($query) use ($userId) {
@@ -31,14 +35,21 @@ class FacilityController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where('name', 'like', "%{$search}%")
-                ->orWhere('type', 'like', "%{$search}%")
-                ->orWhere('location', 'like', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('type', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%");
+            });
         }
 
-        $sortBy = $request->input('sort_by', 'created_at');
+        $sortBy = $request->input('sort_by');
         $sortOrder = $request->input('sort_order', 'desc');
-        $query->orderBy($sortBy, $sortOrder);
+
+        if ($sortBy === 'most_booked' || $sortBy === 'popular' || $sortBy === 'bookings_count' || empty($sortBy)) {
+            $query->orderBy('bookings_count', $sortOrder)->orderBy('created_at', 'desc');
+        } else {
+            $query->orderBy($sortBy, $sortOrder);
+        }
 
         $perPage = $request->input('per_page', 10);
         $facilities = $perPage > 0 ? $query->paginate($perPage) : $query->get();
@@ -48,6 +59,10 @@ class FacilityController extends Controller
 
     public function show(Facility $facility)
     {
+        $facility->loadCount(['bookingRequests as bookings_count' => function ($query) {
+            $query->whereIn('status', ['Approved', 'Pending', 'Completed']);
+        }]);
+
         if (auth('sanctum')->check()) {
             $userId = auth('sanctum')->id();
             $facility->loadCount(['bookingRequests as already_booked' => function ($query) use ($userId) {

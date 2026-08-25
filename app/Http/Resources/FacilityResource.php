@@ -26,6 +26,8 @@ class FacilityResource extends JsonResource
             'image' => $this->image ? url('storage/'.$this->image) : null,
             'imageName' => $this->image ? url('storage/'.$this->image) : null,
             'alreadyBooked' => (bool) $this->already_booked,
+            'bookingsCount' => (int) ($this->bookings_count ?? $this->booking_requests_count ?? 0),
+            'bookingRequestsCount' => (int) ($this->bookings_count ?? $this->booking_requests_count ?? 0),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
