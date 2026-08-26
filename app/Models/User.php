@@ -44,7 +44,7 @@ class User extends Authenticatable
 
     public function joinedSportsPrograms()
     {
-        return $this->belongsToMany(SportsProgram::class)->withPivot('attended_at')->withTimestamps();
+        return $this->belongsToMany(SportsProgram::class, 'sports_program_user')->withPivot(['id', 'attended_at', 'team_name', 'teammates'])->withTimestamps();
     }
 
     public function bookingRequests()
@@ -101,3 +101,4 @@ class User extends Authenticatable
         ];
     }
 }
+

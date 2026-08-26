@@ -11,6 +11,7 @@ use App\Http\Resources\SportsProgramResource;
 use App\Http\Resources\UnifiedEventResource;
 use App\Models\SkOfficial;
 use App\Models\SportsProgram;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -45,9 +46,9 @@ class SportsProgramController extends Controller
 
         if ($request->has('search') && ! empty($request->search)) {
             $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', '%'.$request->search.'%')
-                    ->orWhere('location', 'like', '%'.$request->search.'%')
-                    ->orWhere('type', 'like', '%'.$request->search.'%');
+                $q->where('name', 'like', '%' . $request->search . '%')
+                    ->orWhere('location', 'like', '%' . $request->search . '%')
+                    ->orWhere('type', 'like', '%' . $request->search . '%');
             });
         }
 
@@ -137,8 +138,50 @@ class SportsProgramController extends Controller
         // Convert to resource array
         $resourceCollection = EventParticipantResource::collection($participants)->resolve($request);
 
+        $expandedParticipants = [];
+        $registeredUserIds = $participants->pluck('id')->toArray();
+
+        foreach ($resourceCollection as $p) {
+            $expandedParticipants[] = $p;
+
+            // If this participant has offline teammates in roster who don't have separate user accounts in the list
+            $teammates = $p['teammates'] ?? [];
+            if (! empty($teammates) && is_array($teammates)) {
+                foreach ($teammates as $tm) {
+                    $tmUserId = $tm['user_id'] ?? null;
+                    $tmName = $tm['name'] ?? '';
+                    $tmRole = $tm['role'] ?? 'Member';
+
+                    // Skip the leader itself (already in list)
+                    if ($tmRole === 'Team Leader' || ($tmUserId && $tmUserId == $p['id']) || $tmName === $p['name']) {
+                        continue;
+                    }
+
+                    // If teammate is already registered as an independent user in this sports program, skip duplicate
+                    if ($tmUserId && in_array($tmUserId, $registeredUserIds)) {
+                        continue;
+                    }
+
+                    $expandedParticipants[] = [
+                        'id'              => 'tm_' . md5($p['id'] . '_' . $tmName),
+                        'user_id'         => $tmUserId,
+                        'name'            => $tmName,
+                        'profile_picture' => null,
+                        'contact'         => $tm['contact'] ?? '—',
+                        'email'           => $tm['email'] ?? '—',
+                        'purok'           => $p['purok'] ?? '—',
+                        'barangay'        => $p['barangay'] ?? 'Unknown',
+                        'team_name'       => $p['team_name'],
+                        'position'        => $tmRole ?: 'Member',
+                        'teammates'       => [],
+                        'status'          => 'Not Attended',
+                    ];
+                }
+            }
+        }
+
         // Group by barangay
-        $grouped = collect($resourceCollection)->groupBy(function ($participant) {
+        $grouped = collect($expandedParticipants)->groupBy(function ($participant) {
             return ! empty($participant['barangay']) ? $participant['barangay'] : 'Unknown';
         });
 
@@ -146,8 +189,8 @@ class SportsProgramController extends Controller
         $result = [];
         foreach ($grouped as $barangay => $items) {
             $result[] = [
-                'barangay' => $barangay,
-                'participants' => $items,
+                'barangay'     => $barangay,
+                'participants' => $items->values()->all(),
             ];
         }
 
@@ -166,14 +209,24 @@ class SportsProgramController extends Controller
         return response()->json(['data' => $result]);
     }
 
-    public function join(SportsProgram $sportsProgram)
+    public function join(Request $request, SportsProgram $sportsProgram)
     {
+        $validated = $request->validate([
+            'team_name' => 'nullable|string|max:255',
+            'teammates' => 'nullable|array',
+            'teammates.*.user_id' => 'nullable',
+            'teammates.*.name' => 'nullable|string',
+            'teammates.*.email' => 'nullable|string',
+            'teammates.*.contact' => 'nullable|string',
+            'teammates.*.role' => 'nullable|string',
+        ]);
+
         $user = auth()->user();
 
         if (! $sportsProgram->open_to_all_barangays) {
             $userBarangay = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
             if (! $userBarangay || strtolower(trim($userBarangay)) !== strtolower(trim($sportsProgram->barangay))) {
-                return response()->json(['message' => 'This sports program is exclusive to residents of Barangay '.$sportsProgram->barangay.'.'], 403);
+                return response()->json(['message' => 'This sports program is exclusive to residents of Barangay ' . $sportsProgram->barangay . '.'], 403);
             }
         }
 
@@ -181,7 +234,58 @@ class SportsProgramController extends Controller
             return response()->json(['message' => 'Already joined this program.'], 400);
         }
 
-        $user->joinedSportsPrograms()->attach($sportsProgram->id);
+        $teamName = $validated['team_name'] ?? null;
+        $rawTeammates = $validated['teammates'] ?? [];
+
+        // Build roster info including Team Leader (Captain)
+        $captainInfo = [
+            'user_id' => $user->id,
+            'name'    => $user->name ?? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
+            'email'   => $user->email,
+            'contact' => $user->youthProfile?->mobile_number ?? $user->contact_number ?? '',
+            'role'    => 'Team Leader',
+        ];
+
+        $formattedTeammates = array_map(function ($t) {
+            return [
+                'user_id' => $t['user_id'] ?? null,
+                'name'    => $t['name'] ?? '',
+                'email'   => $t['email'] ?? '',
+                'contact' => $t['contact'] ?? '',
+                'role'    => $t['role'] ?? 'Member',
+            ];
+        }, $rawTeammates);
+
+        $allRoster = array_merge([$captainInfo], $formattedTeammates);
+        $encodedRoster = json_encode($allRoster);
+
+        // 1. Attach Team Leader (Captain)
+        $user->joinedSportsPrograms()->syncWithoutDetaching([
+            $sportsProgram->id => [
+                'team_name' => $teamName,
+                'teammates' => $encodedRoster,
+            ],
+        ]);
+
+        // 2. Automatically register / attach all added teammates who have an account
+        foreach ($formattedTeammates as $member) {
+            $memberUserId = $member['user_id'] ?? null;
+            if (! $memberUserId && ! empty($member['email'])) {
+                $memberUserId = User::where('email', $member['email'])->value('id');
+            }
+
+            if ($memberUserId && $memberUserId != $user->id) {
+                $memberUser = User::find($memberUserId);
+                if ($memberUser) {
+                    $memberUser->joinedSportsPrograms()->syncWithoutDetaching([
+                        $sportsProgram->id => [
+                            'team_name' => $teamName,
+                            'teammates' => $encodedRoster,
+                        ],
+                    ]);
+                }
+            }
+        }
 
         return new UnifiedEventResource($sportsProgram);
     }
@@ -198,7 +302,7 @@ class SportsProgramController extends Controller
 
             // Fix for objective1 -> objective_1
             if (preg_match('/^objective(\d+)$/', $snakeKey, $matches)) {
-                $snakeKey = 'objective_'.$matches[1];
+                $snakeKey = 'objective_' . $matches[1];
             }
 
             $mapped[$snakeKey] = $value;
