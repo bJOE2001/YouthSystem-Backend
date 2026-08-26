@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -37,6 +38,16 @@ class User extends Authenticatable
         return $this->hasOne(EcesproScholar::class)->latest();
     }
 
+    public function scholar(): HasOne
+    {
+        return $this->hasOne(EcesproScholar::class)->latest();
+    }
+
+    public function eventAttendances()
+    {
+        return $this->hasMany(EventAttendance::class);
+    }
+
     public function joinedEvents()
     {
         return $this->belongsToMany(Event::class)->withPivot('attended_at')->withTimestamps();
@@ -50,6 +61,15 @@ class User extends Authenticatable
     public function bookingRequests()
     {
         return $this->hasMany(BookingRequest::class);
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function ($user) {
+            if (empty($user->qr_code_token)) {
+                $user->qr_code_token = (string) Str::uuid();
+            }
+        });
     }
 
     /**
@@ -73,6 +93,7 @@ class User extends Authenticatable
         'password',
         'role',
         'status',
+        'qr_code_token',
         'email_verified_at',
     ];
 

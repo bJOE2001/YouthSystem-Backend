@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Services\EmailTemplateService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -43,10 +44,18 @@ class EcesproApplicationStatusEmail extends Mailable
             'For Revision' => 'Action Required: ECESPRO Document Revision Requested',
         ];
 
-        $subject = $subjects[$this->status] ?? "ECESPRO Application Update - {$this->status}";
+        $defaultSubject = $subjects[$this->status] ?? "ECESPRO Application Update - {$this->status}";
+        $recipientName = $this->user->name ?? ($this->application->first_name ?? 'Applicant');
+
+        $rendered = app(EmailTemplateService::class)->render('ecespro_status', [
+            'recipient_name' => $recipientName,
+            'status' => $this->status,
+            'status_message' => $this->customMessage ?? $defaultSubject,
+            'portal_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/youth/scholarship/ecespro',
+        ]);
 
         return new Envelope(
-            subject: $subject,
+            subject: $rendered['subject'] ?: $defaultSubject,
         );
     }
 

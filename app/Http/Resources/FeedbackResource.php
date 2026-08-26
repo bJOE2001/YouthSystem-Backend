@@ -22,15 +22,16 @@ class FeedbackResource extends JsonResource
             'eventId' => $this->event_id,
             'event_name' => $this->event?->name ?? $this->event?->title,
             'eventName' => $this->event?->name ?? $this->event?->title,
-            'user' => $this->when(!$this->is_anonymous && $this->user, function () {
+            'user' => $this->when(! $this->is_anonymous && $this->user, function () {
                 $profile = $this->user->youthProfile;
+
                 return [
                     'id' => $this->user->id,
                     'name' => $this->user->name,
                     'first_name' => $profile?->first_name,
                     'last_name' => $profile?->last_name,
                     'email' => $this->user->email,
-                    'profile_picture' => $profile?->profile_picture ? url('storage/' . $profile->profile_picture) : null,
+                    'profile_picture' => $profile?->profile_picture ? url('storage/'.$profile->profile_picture) : null,
                 ];
             }),
             'created_at' => $this->created_at,

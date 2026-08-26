@@ -1,24 +1,26 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\SystemSettingController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PublicBarangayController;
 use App\Http\Controllers\Api\PublicLydcMemberController;
 use App\Http\Controllers\Api\PublicSkOfficialController;
 use Illuminate\Support\Facades\Route;
 
-require __DIR__ . '/api/auth.php';
-require __DIR__ . '/api/admin.php';
-require __DIR__ . '/api/sk-admin.php';
-require __DIR__ . '/api/youth.php';
-require __DIR__ . '/api/youth-ecespro.php';
-require __DIR__ . '/api/sk-ecespro.php';
-require __DIR__ . '/api/event.php';
-require __DIR__ . '/api/sports.php';
-require __DIR__ . '/api/announcement.php';
-require __DIR__ . '/api/facility.php';
-require __DIR__ . '/api/feedback.php';
+require __DIR__.'/api/auth.php';
+require __DIR__.'/api/admin.php';
+require __DIR__.'/api/sk-admin.php';
+require __DIR__.'/api/youth.php';
+require __DIR__.'/api/youth-ecespro.php';
+require __DIR__.'/api/sk-ecespro.php';
+require __DIR__.'/api/event.php';
+require __DIR__.'/api/sports.php';
+require __DIR__.'/api/announcement.php';
+require __DIR__.'/api/facility.php';
+require __DIR__.'/api/feedback.php';
+require __DIR__.'/api/scanner.php';
 
-Route::get('/health', fn() => response()->json([
+Route::get('/health', fn () => response()->json([
     'status' => 'ok',
 ]));
 
@@ -39,8 +41,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/notifications/{id}/delete', [NotificationController::class, 'destroy']);
 });
 
-Route::get('/system-settings/landing-hero', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'getLandingHero']);
+Route::get('/system-settings/landing-hero', [SystemSettingController::class, 'getLandingHero']);
 
-Route::get('/system-settings/auth-hero', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'getAuthHero']);
+Route::get('/system-settings/auth-hero', [SystemSettingController::class, 'getAuthHero']);
 
-Route::get('/system-settings/contact', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'getContactSettings']);
+Route::get('/system-settings/contact', [SystemSettingController::class, 'getContactSettings']);
+
+Route::get('/system-settings/email-layout', [SystemSettingController::class, 'getEmailLayout']);

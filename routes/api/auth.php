@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\SystemSettingController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,8 +34,6 @@ Route::middleware([
     Route::post('/logout', [AuthController::class, 'logout'])
         ->name('auth.logout');
 
-
-    Route::post('/change-password', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'changePassword'])
+    Route::post('/change-password', [SystemSettingController::class, 'changePassword'])
         ->name('auth.change-password');
 });
-

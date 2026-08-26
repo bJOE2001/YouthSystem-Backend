@@ -21,4 +21,6 @@ Route::middleware([
         Route::post('/requirements-history/{index}/delete', [YouthEcesproController::class, 'deleteRequirement']);
         Route::post('/requirements-history/{index}', [YouthEcesproController::class, 'deleteRequirement']);
         Route::post('/reupload-application-document', [YouthEcesproController::class, 'reuploadApplicationDocument']);
+        Route::get('/volunteer-hours', [YouthEcesproController::class, 'volunteerHours'])->name('volunteer-hours');
+        Route::get('/volunteer-logs', [YouthEcesproController::class, 'volunteerHours'])->name('volunteer-logs');
     });

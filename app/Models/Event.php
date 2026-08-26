@@ -57,4 +57,9 @@ class Event extends Model
     {
         return $this->belongsToMany(User::class, 'event_user')->withPivot('attended_at')->withTimestamps();
     }
+
+    public function attendances()
+    {
+        return $this->hasMany(EventAttendance::class);
+    }
 }

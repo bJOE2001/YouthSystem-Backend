@@ -5,6 +5,7 @@ namespace App\Mail;
 use App\Models\Event;
 use App\Models\SportsProgram;
 use App\Models\User;
+use App\Services\EmailTemplateService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -28,8 +29,15 @@ class CertificateIssuedEmail extends Mailable
      */
     public function envelope(): Envelope
     {
+        $rendered = app(EmailTemplateService::class)->render('certificate_issued', [
+            'user_name' => $this->user->name,
+            'activity_name' => $this->activity->name,
+            'category' => $this->activity instanceof Event ? ($this->activity->ppa_classification ?? 'Youth Event') : ($this->activity->type ?? 'Sports Program'),
+            'activities_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/#/youth/my-activities',
+        ]);
+
         return new Envelope(
-            subject: "Certificate of Participation - {$this->activity->name}",
+            subject: $rendered['subject'] ?: "Certificate of Participation - {$this->activity->name}",
         );
     }
 

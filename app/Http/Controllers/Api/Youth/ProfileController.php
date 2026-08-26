@@ -10,6 +10,7 @@ use App\Http\Requests\YouthProfile\UpdateYouthProfileRequest;
 use App\Http\Resources\YouthProfileResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
@@ -77,7 +78,7 @@ class ProfileController extends Controller
         }
 
         if ($profile->profile_picture) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($profile->profile_picture);
+            Storage::disk('public')->delete($profile->profile_picture);
         }
 
         $path = $request->file('profile_picture')->store('profile-pictures', 'public');
@@ -100,7 +101,7 @@ class ProfileController extends Controller
         }
 
         if ($profile->profile_picture) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($profile->profile_picture);
+            Storage::disk('public')->delete($profile->profile_picture);
             $profile->update(['profile_picture' => null]);
         }
 

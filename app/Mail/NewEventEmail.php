@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\Event;
 use App\Models\User;
+use App\Services\EmailTemplateService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -24,8 +25,18 @@ class NewEventEmail extends Mailable
      */
     public function envelope(): Envelope
     {
+        $rendered = app(EmailTemplateService::class)->render('new_event', [
+            'user_name' => $this->user->name,
+            'event_name' => $this->event->name,
+            'classification' => $this->event->ppa_classification ?? '',
+            'location' => $this->event->location ?? '',
+            'event_date' => $this->event->start_date ? $this->event->start_date->format('M d, Y') : '',
+            'event_time' => $this->event->start_time ? trim($this->event->start_time.' - '.$this->event->end_time) : '',
+            'event_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/#/youth/events',
+        ]);
+
         return new Envelope(
-            subject: "New Event: {$this->event->name}",
+            subject: $rendered['subject'] ?: "New Event: {$this->event->name}",
         );
     }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\EcesproScholar;
+use App\Models\EcesproVolunteerLog;
 use App\Notifications\EcesproApplicationStatusNotification;
 use Illuminate\Http\Request;
 
@@ -177,6 +178,73 @@ class EcesproScholarController extends Controller
         return response()->json([
             'message' => 'Compliance requirement updated successfully.',
             'scholar' => $ecesproScholar->load(['user', 'application']),
+        ]);
+    }
+
+    /**
+     * Get all volunteer logs for a specific scholar.
+     */
+    public function volunteerLogs(EcesproScholar $ecesproScholar)
+    {
+        $logs = $ecesproScholar->volunteerLogs()
+            ->with(['event', 'verifiedBy'])
+            ->latest('time_in')
+            ->get();
+
+        return response()->json([
+            'scholar_id' => $ecesproScholar->id,
+            'required_volunteer_hours' => (float) ($ecesproScholar->required_volunteer_hours ?: 30.00),
+            'total_rendered_hours' => (float) ($ecesproScholar->total_rendered_hours ?: 0.00),
+            'is_volunteer_completed' => (bool) $ecesproScholar->is_volunteer_completed,
+            'logs' => $logs,
+        ]);
+    }
+
+    /**
+     * Store/Manually log volunteer hours for a scholar.
+     */
+    public function storeVolunteerLog(Request $request, EcesproScholar $ecesproScholar)
+    {
+        $validated = $request->validate([
+            'activity_type' => 'required|string|in:event,office_duty,community_service,special_task',
+            'duty_title' => 'required|string|max:255',
+            'event_id' => 'nullable|exists:events,id',
+            'time_in' => 'nullable|date',
+            'time_out' => 'nullable|date',
+            'hours_rendered' => 'required|numeric|min:0',
+            'semester_period' => 'nullable|string|max:50',
+            'remarks' => 'nullable|string',
+        ]);
+
+        $validated['scholar_id'] = $ecesproScholar->id;
+        $validated['verified_by_user_id'] = $request->user()?->id;
+
+        $log = EcesproVolunteerLog::create($validated);
+
+        $ecesproScholar->recalculateVolunteerHours();
+        $ecesproScholar->refresh();
+
+        return response()->json([
+            'message' => 'Volunteer log added successfully.',
+            'log' => $log->load(['event', 'verifiedBy']),
+            'scholar' => $ecesproScholar,
+        ], 201);
+    }
+
+    /**
+     * Delete a volunteer log for a scholar.
+     */
+    public function deleteVolunteerLog(EcesproScholar $ecesproScholar, $logId)
+    {
+        $log = $ecesproScholar->volunteerLogs()->findOrFail($logId);
+        $log->delete();
+
+        $ecesproScholar->recalculateVolunteerHours();
+        $ecesproScholar->refresh();
+
+        return response()->json([
+            'message' => 'Volunteer log deleted successfully.',
+            'scholar' => $ecesproScholar,
         ]);
     }
 }

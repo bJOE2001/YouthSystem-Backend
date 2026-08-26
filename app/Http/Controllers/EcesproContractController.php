@@ -23,7 +23,7 @@ class EcesproContractController extends Controller
      */
     public function signApplication(Request $request, $applicationId)
     {
-        $application = \App\Models\EcesproApplication::findOrFail($applicationId);
+        $application = EcesproApplication::findOrFail($applicationId);
 
         // The contract row already exists (created when the applicant was assigned to a
         // signing batch) — update it to Signed instead of creating a duplicate.
