@@ -58,7 +58,7 @@ class EcesproScholar extends Model
     public function recalculateVolunteerHours(): void
     {
         $totalRendered = (float) $this->volunteerLogs()->sum('hours_rendered');
-        $required = (float) ($this->required_volunteer_hours ?: 30.00);
+        $required = (float) ($this->required_volunteer_hours ?: 36.00);
 
         $this->total_rendered_hours = $totalRendered;
         $this->is_volunteer_completed = $totalRendered >= $required;

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\EcesproSetting;
 use App\Models\EcesproVolunteerLog;
 use App\Models\Event;
 use App\Models\EventAttendance;
@@ -147,7 +148,7 @@ class ScannerController extends Controller
                     'duty_title' => $dutyTitle,
                     'time_in' => $newLog->time_in->toIso8601String(),
                     'total_rendered_hours' => (float) $scholar->total_rendered_hours,
-                    'required_volunteer_hours' => (float) $scholar->required_volunteer_hours,
+                    'required_volunteer_hours' => (float) ($scholar->required_volunteer_hours ?: EcesproSetting::get('required_volunteer_hours', 36.00)),
                     'is_volunteer_completed' => (bool) $scholar->is_volunteer_completed,
                     'message' => "🟢 Time-In recorded for Scholar {$attendee->name}!",
                 ]);
@@ -195,7 +196,7 @@ class ScannerController extends Controller
                 'time_out' => $now->toIso8601String(),
                 'hours_rendered' => $hours,
                 'total_rendered_hours' => (float) $scholar->total_rendered_hours,
-                'required_volunteer_hours' => (float) $scholar->required_volunteer_hours,
+                'required_volunteer_hours' => (float) ($scholar->required_volunteer_hours ?: EcesproSetting::get('required_volunteer_hours', 36.00)),
                 'is_volunteer_completed' => (bool) $scholar->is_volunteer_completed,
                 'message' => "🔴 Time-Out recorded for Scholar {$attendee->name}! ({$hours} hrs rendered)",
             ]);

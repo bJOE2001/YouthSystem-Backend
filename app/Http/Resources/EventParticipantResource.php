@@ -22,7 +22,7 @@ class EventParticipantResource extends JsonResource
         $barangay = '';
 
         if ($this->youthProfile) {
-            $fullName = trim($this->youthProfile->first_name . ' ' . $this->youthProfile->last_name);
+            $fullName = trim($this->youthProfile->first_name.' '.$this->youthProfile->last_name);
             $name = ! empty($fullName) ? $fullName : $this->name;
             $contact = $this->youthProfile->mobile_number ?? '';
             $purok = $this->youthProfile->purok_sitio ?? '';
@@ -65,18 +65,18 @@ class EventParticipantResource extends JsonResource
         }
 
         return [
-            'id'              => $this->id,
-            'name'            => $name,
+            'id' => $this->id,
+            'name' => $name,
             'profile_picture' => $this->youthProfile?->profile_picture ?? '',
-            'contact'         => $contact,
-            'email'           => $this->email,
-            'purok'           => $purok,
-            'barangay'        => $barangay,
-            'team_name'       => $teamName,
-            'position'        => $position,
-            'teammates'       => $teammates,
+            'contact' => $contact,
+            'email' => $this->email,
+            'purok' => $purok,
+            'barangay' => $barangay,
+            'team_name' => $teamName,
+            'position' => $position,
+            'teammates' => $teammates,
             // Map attended_at or status to 'Attended' or 'Not Attended' for the frontend
-            'status'          => ($this->pivot && ($this->pivot->attended_at || $this->pivot->status === 'Attended')) ? 'Attended' : 'Not Attended',
+            'status' => ($this->pivot && ($this->pivot->attended_at || $this->pivot->status === 'Attended')) ? 'Attended' : 'Not Attended',
         ];
     }
 }

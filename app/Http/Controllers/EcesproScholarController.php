@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\EcesproScholar;
+use App\Models\EcesproSetting;
 use App\Models\EcesproVolunteerLog;
 use App\Notifications\EcesproApplicationStatusNotification;
 use Illuminate\Http\Request;
@@ -186,6 +187,7 @@ class EcesproScholarController extends Controller
      */
     public function volunteerLogs(EcesproScholar $ecesproScholar)
     {
+        $defaultRequired = (float) EcesproSetting::get('required_volunteer_hours', 36.00);
         $logs = $ecesproScholar->volunteerLogs()
             ->with(['event', 'verifiedBy'])
             ->latest('time_in')
@@ -193,7 +195,7 @@ class EcesproScholarController extends Controller
 
         return response()->json([
             'scholar_id' => $ecesproScholar->id,
-            'required_volunteer_hours' => (float) ($ecesproScholar->required_volunteer_hours ?: 30.00),
+            'required_volunteer_hours' => (float) ($ecesproScholar->required_volunteer_hours ?: $defaultRequired),
             'total_rendered_hours' => (float) ($ecesproScholar->total_rendered_hours ?: 0.00),
             'is_volunteer_completed' => (bool) $ecesproScholar->is_volunteer_completed,
             'logs' => $logs,

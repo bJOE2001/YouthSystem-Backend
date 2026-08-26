@@ -46,9 +46,9 @@ class SportsProgramController extends Controller
 
         if ($request->has('search') && ! empty($request->search)) {
             $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->search . '%')
-                    ->orWhere('location', 'like', '%' . $request->search . '%')
-                    ->orWhere('type', 'like', '%' . $request->search . '%');
+                $q->where('name', 'like', '%'.$request->search.'%')
+                    ->orWhere('location', 'like', '%'.$request->search.'%')
+                    ->orWhere('type', 'like', '%'.$request->search.'%');
             });
         }
 
@@ -163,18 +163,18 @@ class SportsProgramController extends Controller
                     }
 
                     $expandedParticipants[] = [
-                        'id'              => 'tm_' . md5($p['id'] . '_' . $tmName),
-                        'user_id'         => $tmUserId,
-                        'name'            => $tmName,
+                        'id' => 'tm_'.md5($p['id'].'_'.$tmName),
+                        'user_id' => $tmUserId,
+                        'name' => $tmName,
                         'profile_picture' => null,
-                        'contact'         => $tm['contact'] ?? '—',
-                        'email'           => $tm['email'] ?? '—',
-                        'purok'           => $p['purok'] ?? '—',
-                        'barangay'        => $p['barangay'] ?? 'Unknown',
-                        'team_name'       => $p['team_name'],
-                        'position'        => $tmRole ?: 'Member',
-                        'teammates'       => [],
-                        'status'          => 'Not Attended',
+                        'contact' => $tm['contact'] ?? '—',
+                        'email' => $tm['email'] ?? '—',
+                        'purok' => $p['purok'] ?? '—',
+                        'barangay' => $p['barangay'] ?? 'Unknown',
+                        'team_name' => $p['team_name'],
+                        'position' => $tmRole ?: 'Member',
+                        'teammates' => [],
+                        'status' => 'Not Attended',
                     ];
                 }
             }
@@ -189,7 +189,7 @@ class SportsProgramController extends Controller
         $result = [];
         foreach ($grouped as $barangay => $items) {
             $result[] = [
-                'barangay'     => $barangay,
+                'barangay' => $barangay,
                 'participants' => $items->values()->all(),
             ];
         }
@@ -226,7 +226,7 @@ class SportsProgramController extends Controller
         if (! $sportsProgram->open_to_all_barangays) {
             $userBarangay = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
             if (! $userBarangay || strtolower(trim($userBarangay)) !== strtolower(trim($sportsProgram->barangay))) {
-                return response()->json(['message' => 'This sports program is exclusive to residents of Barangay ' . $sportsProgram->barangay . '.'], 403);
+                return response()->json(['message' => 'This sports program is exclusive to residents of Barangay '.$sportsProgram->barangay.'.'], 403);
             }
         }
 
@@ -240,19 +240,19 @@ class SportsProgramController extends Controller
         // Build roster info including Team Leader (Captain)
         $captainInfo = [
             'user_id' => $user->id,
-            'name'    => $user->name ?? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
-            'email'   => $user->email,
+            'name' => $user->name ?? trim(($user->first_name ?? '').' '.($user->last_name ?? '')),
+            'email' => $user->email,
             'contact' => $user->youthProfile?->mobile_number ?? $user->contact_number ?? '',
-            'role'    => 'Team Leader',
+            'role' => 'Team Leader',
         ];
 
         $formattedTeammates = array_map(function ($t) {
             return [
                 'user_id' => $t['user_id'] ?? null,
-                'name'    => $t['name'] ?? '',
-                'email'   => $t['email'] ?? '',
+                'name' => $t['name'] ?? '',
+                'email' => $t['email'] ?? '',
                 'contact' => $t['contact'] ?? '',
-                'role'    => $t['role'] ?? 'Member',
+                'role' => $t['role'] ?? 'Member',
             ];
         }, $rawTeammates);
 
@@ -302,7 +302,7 @@ class SportsProgramController extends Controller
 
             // Fix for objective1 -> objective_1
             if (preg_match('/^objective(\d+)$/', $snakeKey, $matches)) {
-                $snakeKey = 'objective_' . $matches[1];
+                $snakeKey = 'objective_'.$matches[1];
             }
 
             $mapped[$snakeKey] = $value;

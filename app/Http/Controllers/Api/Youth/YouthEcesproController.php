@@ -554,9 +554,9 @@ class YouthEcesproController extends Controller
             return response()->json([
                 'is_scholar' => false,
                 'message' => 'No active scholar record found for this user.',
-                'required_volunteer_hours' => 30.00,
+                'required_volunteer_hours' => 36.00,
                 'total_rendered_hours' => 0.00,
-                'remaining_hours' => 30.00,
+                'remaining_hours' => 36.00,
                 'progress_percentage' => 0,
                 'is_volunteer_completed' => false,
                 'active_session' => null,
@@ -564,7 +564,7 @@ class YouthEcesproController extends Controller
             ]);
         }
 
-        $required = (float) ($scholar->required_volunteer_hours ?: 30.00);
+        $required = (float) ($scholar->required_volunteer_hours ?: 36.00);
         $rendered = (float) ($scholar->total_rendered_hours ?: 0.00);
         $remaining = max(0, round($required - $rendered, 2));
         $percentage = $required > 0 ? min(100, round(($rendered / $required) * 100, 1)) : 100;

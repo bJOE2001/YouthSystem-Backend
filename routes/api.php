@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\EcesproSettingController;
 use App\Http\Controllers\Api\Admin\SystemSettingController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PublicBarangayController;
 use App\Http\Controllers\Api\PublicLydcMemberController;
 use App\Http\Controllers\Api\PublicSkOfficialController;
+use App\Http\Controllers\Api\Youth\YouthEcesproController;
 use Illuminate\Support\Facades\Route;
 
 require __DIR__.'/api/auth.php';
@@ -39,8 +41,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
     Route::post('/notifications/{id}/mark-read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/{id}/delete', [NotificationController::class, 'destroy']);
+    Route::get('/ecespro/scholar/volunteer-summary', [YouthEcesproController::class, 'volunteerHours']);
 });
 
+Route::get('/ecespro/settings', [EcesproSettingController::class, 'index']);
 Route::get('/system-settings/landing-hero', [SystemSettingController::class, 'getLandingHero']);
 
 Route::get('/system-settings/auth-hero', [SystemSettingController::class, 'getAuthHero']);
