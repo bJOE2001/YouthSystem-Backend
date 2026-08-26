@@ -51,6 +51,8 @@ class SportsProgram extends Model
 
     public function participants()
     {
-        return $this->belongsToMany(User::class)->withPivot('attended_at')->withTimestamps();
+        return $this->belongsToMany(User::class, 'sports_program_user')
+            ->withPivot(['id', 'attended_at', 'team_name', 'teammates'])
+            ->withTimestamps();
     }
 }
