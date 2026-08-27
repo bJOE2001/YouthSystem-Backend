@@ -31,6 +31,8 @@ Route::middleware([
             ->name('dashboard');
         Route::get('/dashboard/engagement-metrics', [DashboardController::class, 'engagementMetrics'])
             ->name('dashboard.engagement-metrics');
+        Route::get('/dashboard/youth-participation', [DashboardController::class, 'youthParticipation'])
+            ->name('dashboard.youth-participation');
 
         Route::prefix('barangay-library')->name('barangay-library.')->group(function () {
             Route::get('/', [BarangayLibraryController::class, 'index'])->name('index');

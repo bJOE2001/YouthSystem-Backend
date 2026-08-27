@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\SkAdmin\DashboardController;
 use App\Http\Controllers\Api\SkAdmin\ProfileController;
+use App\Http\Controllers\Api\SkAdmin\PurokLibraryController;
 use App\Http\Controllers\Api\SkAdmin\ResidentYouthController;
 use App\Http\Controllers\Api\SkAdmin\SkOfficialController;
 use App\Http\Controllers\Api\SkAdmin\SkSportsProgramController;
@@ -86,6 +87,20 @@ Route::middleware([
             Route::post('/{sportsProgram}/status', [SkSportsProgramController::class, 'updateStatus'])->name('update-status');
             Route::post('/{sportsProgram}/delete', [SkSportsProgramController::class, 'destroy'])->name('destroy');
             Route::get('/{sportsProgram}/participants-by-barangay', [SkSportsProgramController::class, 'participantsByBarangay'])->name('participants-by-barangay');
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Purok Library Management
+        |--------------------------------------------------------------------------
+        */
+
+        Route::prefix('purok-library')->name('purok-library.')->group(function () {
+            Route::get('/', [PurokLibraryController::class, 'index'])->name('index');
+            Route::post('/', [PurokLibraryController::class, 'store'])->name('store');
+            Route::get('/{purok}', [PurokLibraryController::class, 'show'])->name('show');
+            Route::post('/{purok}', [PurokLibraryController::class, 'update'])->name('update');
+            Route::post('/{purok}/delete', [PurokLibraryController::class, 'destroy'])->name('destroy');
         });
 
     });
