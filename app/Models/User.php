@@ -10,13 +10,35 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
+
+    protected static function booted(): void
+    {
+        static::deleting(function (User $user) {
+            if (Schema::hasTable('sports_program_user')) {
+                DB::table('sports_program_user')->where('user_id', $user->id)->delete();
+            }
+
+            if (Schema::hasTable('event_user')) {
+                DB::table('event_user')->where('user_id', $user->id)->delete();
+            }
+
+            if (Schema::hasTable('ecespro_scholars')) {
+                DB::table('ecespro_scholars')->where('user_id', $user->id)->delete();
+            }
+
+            if (Schema::hasTable('feedbacks')) {
+                DB::table('feedbacks')->where('user_id', $user->id)->update(['user_id' => null]);
+            }
+        });
+    }
 
     public function hasRole(UserRole ...$roles): bool
     {
@@ -122,6 +144,7 @@ class User extends Authenticatable
         'status',
         'qr_code_token',
         'email_verified_at',
+        'last_login_at',
     ];
 
     /**
@@ -143,6 +166,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
             'status' => UserStatus::class,
