@@ -31,6 +31,12 @@ Route::middleware([
     Route::get('/user', [AuthController::class, 'user'])
         ->name('auth.user');
 
+    Route::get('/user/qr-pass', [AuthController::class, 'qrPass'])
+        ->name('auth.qr-pass');
+
+    Route::post('/user/qr-pass/regenerate', [AuthController::class, 'regenerateQrPass'])
+        ->name('auth.qr-pass.regenerate');
+
     Route::post('/logout', [AuthController::class, 'logout'])
         ->name('auth.logout');
 

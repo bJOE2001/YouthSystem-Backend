@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\EcesproScholar;
 use App\Models\EcesproSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,6 +42,10 @@ class EcesproSettingController extends Controller
 
             $setting = EcesproSetting::set('required_volunteer_hours', (float) $validated['value']);
 
+            EcesproScholar::whereNull('required_volunteer_hours')->each(function (EcesproScholar $scholar) {
+                $scholar->recalculateVolunteerHours();
+            });
+
             return response()->json([
                 'message' => 'Required volunteer hours setting updated successfully.',
                 'data' => [
@@ -75,6 +80,10 @@ class EcesproSettingController extends Controller
 
         if (isset($validated['required_volunteer_hours'])) {
             EcesproSetting::set('required_volunteer_hours', (float) $validated['required_volunteer_hours']);
+
+            EcesproScholar::whereNull('required_volunteer_hours')->each(function (EcesproScholar $scholar) {
+                $scholar->recalculateVolunteerHours();
+            });
         }
         if (isset($validated['benefits'])) {
             EcesproSetting::set('benefits', $validated['benefits']);

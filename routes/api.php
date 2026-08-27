@@ -42,6 +42,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/notifications/{id}/mark-read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/{id}/delete', [NotificationController::class, 'destroy']);
     Route::get('/ecespro/scholar/volunteer-summary', [YouthEcesproController::class, 'volunteerHours']);
+    Route::get('/youth/ecespro-volunteer-hours', [YouthEcesproController::class, 'volunteerHours']);
+    Route::get('/youth/ecespro/volunteer-hours', [YouthEcesproController::class, 'volunteerHours']);
 });
 
 Route::get('/ecespro/settings', [EcesproSettingController::class, 'index']);

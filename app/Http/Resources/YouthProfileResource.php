@@ -2,7 +2,9 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\UserRole;
 use App\Enums\YouthProfileStatus;
+use App\Models\SkOfficial;
 use App\Models\YouthProfile;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -15,10 +17,20 @@ class YouthProfileResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $skOfficial = null;
+        if ($this->user && ($this->user->role === UserRole::SkAdmin || (is_string($this->user->role) && $this->user->role === 'sk_admin') || ($this->user->role instanceof \BackedEnum && $this->user->role->value === 'sk_admin'))) {
+            $skOfficial = $this->user->skOfficial ?? SkOfficial::where('email', $this->user->email)->first();
+        }
+
         return [
             'id' => $this->id,
             'user_id' => $this->user_id,
-            'email' => $this->whenLoaded('user', fn (): ?string => $this->user?->email),
+            'email' => $this->user?->email ?? $this->whenLoaded('user', fn (): ?string => $this->user?->email),
+            'qr_code_token' => $this->user?->qr_code_token ?? $this->whenLoaded('user', fn (): ?string => $this->user?->qr_code_token),
+            'user_role' => $this->user?->role?->value ?? $this->whenLoaded('user', fn (): ?string => $this->user?->role?->value),
+            'position' => $skOfficial?->position,
+            'committee' => $skOfficial?->committee,
+            'term' => $skOfficial?->term,
             'profile_picture' => $this->profile_picture,
             'first_name' => $this->first_name,
             'middle_name' => $this->middle_name,

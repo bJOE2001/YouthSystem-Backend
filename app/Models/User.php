@@ -33,6 +33,11 @@ class User extends Authenticatable
         return $this->hasOne(YouthProfile::class);
     }
 
+    public function skOfficial(): HasOne
+    {
+        return $this->hasOne(SkOfficial::class);
+    }
+
     public function ecesproScholar(): HasOne
     {
         return $this->hasOne(EcesproScholar::class)->latest();
@@ -43,9 +48,14 @@ class User extends Authenticatable
         return $this->hasOne(EcesproScholar::class)->latest();
     }
 
-    public function eventAttendances()
+    public function attendanceLogs(): HasMany
     {
-        return $this->hasMany(EventAttendance::class);
+        return $this->hasMany(AttendanceLog::class);
+    }
+
+    public function eventAttendances(): HasMany
+    {
+        return $this->hasMany(AttendanceLog::class);
     }
 
     public function joinedEvents()
@@ -70,6 +80,23 @@ class User extends Authenticatable
                 $user->qr_code_token = (string) Str::uuid();
             }
         });
+    }
+
+    public function regenerateQrToken(): string
+    {
+        $this->qr_code_token = (string) Str::uuid();
+        $this->save();
+
+        return $this->qr_code_token;
+    }
+
+    public function ensureQrToken(): string
+    {
+        if (empty($this->qr_code_token)) {
+            return $this->regenerateQrToken();
+        }
+
+        return $this->qr_code_token;
     }
 
     /**

@@ -40,8 +40,8 @@ Route::middleware([
         });
 
         Route::prefix('sk-officials')->name('sk-officials.')->group(function () {
-
             Route::get('/', [SkOfficialController::class, 'index'])->name('index');
+            Route::get('/eligible-youths', [SkOfficialController::class, 'eligibleYouths'])->name('eligible-youths');
             Route::get('/{skOfficial}', [SkOfficialController::class, 'show'])->name('show');
             Route::post('/', [SkOfficialController::class, 'store'])->name('store');
             Route::post('/{skOfficial}/delete', [SkOfficialController::class, 'destroy'])->name('destroy');
@@ -149,6 +149,7 @@ Route::middleware([
 
         // ECESPRO Settings
         Route::get('ecespro-settings', [EcesproSettingController::class, 'index'])->name('ecespro-settings.index');
+        Route::post('ecespro-settings', [EcesproSettingController::class, 'store'])->name('ecespro-settings.store-batch');
         Route::post('ecespro-settings/{key}', [EcesproSettingController::class, 'store'])->name('ecespro-settings.store');
 
         // System Settings

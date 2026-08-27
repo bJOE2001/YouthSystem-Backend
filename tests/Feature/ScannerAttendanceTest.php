@@ -8,6 +8,8 @@ use App\Models\EcesproScholar;
 use App\Models\EcesproVolunteerLog;
 use App\Models\Event;
 use App\Models\EventAttendance;
+use App\Models\SkOfficial;
+use App\Models\SportsProgram;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -56,10 +58,11 @@ class ScannerAttendanceTest extends TestCase
                 'message' => '✅ Attendance recorded for Juan Dela Cruz!',
             ]);
 
-        $this->assertDatabaseHas('event_attendances', [
+        $this->assertDatabaseHas('attendance_logs', [
             'user_id' => $youth->id,
             'event_id' => $event->id,
             'status' => 'attended',
+            'activity_type' => 'event',
             'scanned_by_user_id' => $admin->id,
         ]);
 
@@ -138,10 +141,11 @@ class ScannerAttendanceTest extends TestCase
             'hours_rendered' => 0.00,
         ]);
 
-        $this->assertDatabaseHas('event_attendances', [
+        $this->assertDatabaseHas('attendance_logs', [
             'user_id' => $scholarUser->id,
             'event_id' => $event->id,
             'status' => 'timed_in',
+            'activity_type' => 'event',
         ]);
     }
 
@@ -464,5 +468,175 @@ class ScannerAttendanceTest extends TestCase
             ]);
 
         $this->assertDatabaseMissing('ecespro_volunteer_logs', ['id' => $logId]);
+    }
+
+    public function test_sports_program_scan_records_attendance_log(): void
+    {
+        $admin = User::factory()->admin()->active()->create();
+        $youth = User::factory()->youth()->active()->create([
+            'name' => 'Basketball Player',
+            'qr_code_token' => (string) Str::uuid(),
+        ]);
+
+        $sports = SportsProgram::create([
+            'name' => 'Inter-Barangay Summer League 2026',
+            'type' => 'Basketball',
+            'strategic_direction' => 'Sports Development',
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addDays(7)->toDateString(),
+            'start_time' => '09:00:00',
+            'location' => 'Tagum City Gymnasium',
+            'status' => 'ongoing',
+            'user_id' => $admin->id,
+            'open_to_all_barangays' => true,
+        ]);
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/scanner/record-scan', [
+                'qr_code_token' => $youth->qr_code_token,
+                'event_id' => "sport_{$sports->id}",
+                'activity_type' => 'sports',
+                'duty_title' => 'Inter-Barangay Summer League 2026',
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'is_scholar' => false,
+                'activity_type' => 'sports',
+                'status' => 'attended',
+            ]);
+
+        $this->assertDatabaseHas('attendance_logs', [
+            'user_id' => $youth->id,
+            'sports_program_id' => $sports->id,
+            'activity_type' => 'sports',
+            'activity_title' => 'Inter-Barangay Summer League 2026',
+            'status' => 'attended',
+        ]);
+    }
+
+    public function test_office_duty_scan_records_attendance_log(): void
+    {
+        $admin = User::factory()->admin()->active()->create();
+        $youth = User::factory()->youth()->active()->create([
+            'name' => 'Volunteer Staff',
+            'qr_code_token' => (string) Str::uuid(),
+        ]);
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/scanner/record-scan', [
+                'qr_code_token' => $youth->qr_code_token,
+                'activity_type' => 'office_duty',
+                'duty_title' => 'TCYDO Front Desk Duty',
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'is_scholar' => false,
+                'activity_type' => 'office_duty',
+                'status' => 'attended',
+            ]);
+
+        $this->assertDatabaseHas('attendance_logs', [
+            'user_id' => $youth->id,
+            'event_id' => null,
+            'sports_program_id' => null,
+            'activity_type' => 'office_duty',
+            'activity_title' => 'TCYDO Front Desk Duty',
+            'status' => 'attended',
+        ]);
+    }
+
+    public function test_admin_receives_city_level_scanner_activities(): void
+    {
+        $admin = User::factory()->admin()->active()->create();
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/scanner/activities');
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('role', 'admin')
+            ->assertJsonFragment([
+                'duty_title' => 'TCYDO In-Office Duty',
+                'group' => 'TCYDO Volunteer Duties',
+            ]);
+    }
+
+    public function test_sk_admin_receives_barangay_specific_scanner_activities(): void
+    {
+        $skUser = User::factory()->skAdmin()->active()->create();
+        SkOfficial::create([
+            'user_id' => $skUser->id,
+            'name' => 'SK Official Apokon',
+            'barangay' => 'Apokon',
+            'position' => 'SK Chairperson',
+            'committee' => 'Committee on Active Citizenship',
+            'term' => '2023 - 2025',
+            'responsibilities' => 'Council leadership',
+        ]);
+
+        $event = Event::create([
+            'name' => 'Apokon Linggo ng Kabataan 2026',
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->toDateString(),
+            'user_id' => $skUser->id,
+            'status' => 'upcoming',
+        ]);
+
+        $sports = SportsProgram::create([
+            'name' => 'Apokon Barangay Volleyball Cup',
+            'type' => 'Volleyball',
+            'strategic_direction' => 'Sports',
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addDays(3)->toDateString(),
+            'status' => 'ongoing',
+            'user_id' => $skUser->id,
+            'barangay' => 'Apokon',
+            'open_to_all_barangays' => false,
+        ]);
+
+        $cityAdmin = User::factory()->admin()->active()->create();
+        $cityEvent = Event::create([
+            'name' => 'City-Wide Youth Summit 2026',
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->toDateString(),
+            'user_id' => $cityAdmin->id,
+            'status' => 'upcoming',
+        ]);
+        $citySports = SportsProgram::create([
+            'name' => 'City-Wide Inter-Barangay Olympics',
+            'type' => 'Basketball',
+            'strategic_direction' => 'Sports',
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addDays(5)->toDateString(),
+            'status' => 'ongoing',
+            'user_id' => $cityAdmin->id,
+            'open_to_all_barangays' => true,
+        ]);
+
+        $response = $this->actingAs($skUser, 'sanctum')
+            ->getJson('/api/scanner/activities');
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('role', 'sk_admin')
+            ->assertJsonPath('barangay', 'Apokon')
+            ->assertJsonFragment([
+                'duty_title' => 'Apokon Linggo ng Kabataan 2026',
+                'group' => 'Barangay Events',
+            ])
+            ->assertJsonFragment([
+                'duty_title' => 'Apokon Barangay Volleyball Cup',
+                'group' => 'Barangay Sports Programs',
+            ]);
+
+        // Generic office duties and city-level events/sports must NOT be present for SK Admins
+        $activityTitles = collect($response->json('data'))->pluck('duty_title');
+        $this->assertFalse($activityTitles->contains('TCYDO In-Office Duty'));
+        $this->assertFalse($activityTitles->contains('City-Wide Youth Summit 2026'));
+        $this->assertFalse($activityTitles->contains('City-Wide Inter-Barangay Olympics'));
     }
 }

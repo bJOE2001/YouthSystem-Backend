@@ -26,6 +26,12 @@ class EcesproScholar extends Model
         'is_volunteer_completed',
     ];
 
+    protected $appends = [
+        'effective_required_volunteer_hours',
+        'remaining_hours',
+        'progress_percentage',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -52,13 +58,39 @@ class EcesproScholar extends Model
         return $this->hasMany(EcesproVolunteerLog::class, 'scholar_id');
     }
 
+    public function getEffectiveRequiredVolunteerHoursAttribute(): float
+    {
+        return (float) ($this->required_volunteer_hours ?: EcesproSetting::get('required_volunteer_hours', 36.00));
+    }
+
+    public function getRemainingHoursAttribute(): float
+    {
+        return max(0, round($this->effective_required_volunteer_hours - (float) ($this->total_rendered_hours ?: 0.00), 2));
+    }
+
+    public function getProgressPercentageAttribute(): float
+    {
+        $effectiveRequired = $this->effective_required_volunteer_hours;
+
+        if ($effectiveRequired <= 0) {
+            return 100.0;
+        }
+
+        return min(100.0, round(((float) ($this->total_rendered_hours ?: 0.00) / $effectiveRequired) * 100, 1));
+    }
+
     /**
      * Recalculate total rendered hours and update volunteer completion status.
      */
-    public function recalculateVolunteerHours(): void
+    public function recalculateVolunteerHours(?string $semesterPeriod = null): void
     {
-        $totalRendered = (float) $this->volunteerLogs()->sum('hours_rendered');
-        $required = (float) ($this->required_volunteer_hours ?: 36.00);
+        $query = $this->volunteerLogs();
+        if ($semesterPeriod !== null && $semesterPeriod !== '') {
+            $query->where('semester_period', $semesterPeriod);
+        }
+
+        $totalRendered = (float) $query->sum('hours_rendered');
+        $required = (float) ($this->required_volunteer_hours ?: EcesproSetting::get('required_volunteer_hours', 36.00));
 
         $this->total_rendered_hours = $totalRendered;
         $this->is_volunteer_completed = $totalRendered >= $required;

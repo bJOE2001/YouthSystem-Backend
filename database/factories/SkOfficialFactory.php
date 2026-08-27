@@ -18,13 +18,14 @@ class SkOfficialFactory extends Factory
     public function definition(): array
     {
         return [
+            'user_id' => null,
             'name' => fake()->name(),
             'initials' => strtoupper(fake()->lexify('??')),
             'barangay' => fake()->streetName(),
             'contact' => fake()->phoneNumber(),
             'email' => fake()->safeEmail(),
             'committee' => fake()->randomElement(['Sports', 'Education', 'Health', 'Environment', 'Finance']),
-            'position' => fake()->jobTitle(),
+            'position' => fake()->randomElement(['SK Chairperson', 'SK Kagawad', 'SK Secretary', 'SK Treasurer']),
             'responsibilities' => fake()->paragraph(),
             'term' => '2023 - 2025',
         ];

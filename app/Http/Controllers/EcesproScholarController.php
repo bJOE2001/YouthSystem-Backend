@@ -6,6 +6,7 @@ use App\Models\EcesproScholar;
 use App\Models\EcesproSetting;
 use App\Models\EcesproVolunteerLog;
 use App\Notifications\EcesproApplicationStatusNotification;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class EcesproScholarController extends Controller
@@ -33,9 +34,13 @@ class EcesproScholarController extends Controller
             'requirements_history' => 'nullable|array',
             'status' => 'nullable|string',
             'allowance_received_amount' => 'nullable|numeric|min:0',
+            'required_volunteer_hours' => 'nullable|numeric|min:0|max:500',
         ]);
 
-        return EcesproScholar::create($validated);
+        $scholar = EcesproScholar::create($validated);
+        $scholar->recalculateVolunteerHours();
+
+        return $scholar;
     }
 
     /**
@@ -61,11 +66,14 @@ class EcesproScholarController extends Controller
             'requirements_history' => 'nullable|array',
             'status' => 'nullable|string',
             'allowance_received_amount' => 'nullable|numeric|min:0',
+            'required_volunteer_hours' => 'nullable|numeric|min:0|max:500',
         ]);
 
         $ecesproScholar->update($validated);
+        $ecesproScholar->recalculateVolunteerHours();
+        $ecesproScholar->refresh();
 
-        return $ecesproScholar;
+        return $ecesproScholar->load(['user.youthProfile', 'application']);
     }
 
     /**
@@ -118,6 +126,11 @@ class EcesproScholarController extends Controller
                     'status' => $item['status'] ?? 'Pending',
                     'remarks' => $item['remarks'] ?? '',
                     'files' => $files,
+                    'is_volunteer_completed' => (bool) $scholar->is_volunteer_completed,
+                    'total_rendered_hours' => (float) ($scholar->total_rendered_hours ?: 0.00),
+                    'required_volunteer_hours' => (float) $scholar->effective_required_volunteer_hours,
+                    'volunteer_progress_percentage' => (float) $scholar->progress_percentage,
+                    'remaining_volunteer_hours' => (float) $scholar->remaining_hours,
                 ];
             }
         }
@@ -185,20 +198,78 @@ class EcesproScholarController extends Controller
     /**
      * Get all volunteer logs for a specific scholar.
      */
-    public function volunteerLogs(EcesproScholar $ecesproScholar)
+    public function volunteerLogs(Request $request, EcesproScholar $ecesproScholar)
     {
         $defaultRequired = (float) EcesproSetting::get('required_volunteer_hours', 36.00);
-        $logs = $ecesproScholar->volunteerLogs()
+        $effectiveRequired = (float) ($ecesproScholar->required_volunteer_hours ?: $defaultRequired);
+        $totalRendered = (float) ($ecesproScholar->total_rendered_hours ?: 0.00);
+        $remaining = max(0, round($effectiveRequired - $totalRendered, 2));
+        $percentage = $effectiveRequired > 0 ? min(100, round(($totalRendered / $effectiveRequired) * 100, 1)) : 100;
+
+        $allLogs = $ecesproScholar->volunteerLogs()
             ->with(['event', 'verifiedBy'])
             ->latest('time_in')
             ->get();
 
+        $semesterSummaries = $allLogs->groupBy(fn ($log) => $log->semester_period ?: 'Unassigned Semester')
+            ->map(function ($group, $sem) use ($effectiveRequired) {
+                $rendered = (float) $group->sum('hours_rendered');
+                $remaining = max(0, round($effectiveRequired - $rendered, 2));
+                $percent = $effectiveRequired > 0 ? min(100, round(($rendered / $effectiveRequired) * 100, 1)) : 100;
+
+                return [
+                    'semester_period' => $sem,
+                    'rendered_hours' => $rendered,
+                    'required_hours' => $effectiveRequired,
+                    'remaining_hours' => $remaining,
+                    'progress_percentage' => $percent,
+                    'is_completed' => $rendered >= $effectiveRequired,
+                    'logs_count' => $group->count(),
+                ];
+            })->values();
+
+        $filteredLogs = $allLogs;
+        if ($semFilter = $request->query('semester_period')) {
+            $filteredLogs = $allLogs->filter(fn ($l) => $l->semester_period === $semFilter)->values();
+        }
+
+        $logsData = $filteredLogs->map(function ($log) {
+            return [
+                'id' => $log->id,
+                'scholar_id' => $log->scholar_id,
+                'event_id' => $log->event_id,
+                'event_name' => $log->event?->name,
+                'activity_type' => $log->activity_type,
+                'duty_title' => $log->duty_title,
+                'time_in' => $log->time_in?->toIso8601String(),
+                'time_out' => $log->time_out?->toIso8601String(),
+                'time_in_formatted' => $log->time_in?->format('M d, Y g:i A'),
+                'time_out_formatted' => $log->time_out?->format('M d, Y g:i A'),
+                'hours_rendered' => (float) $log->hours_rendered,
+                'semester_period' => $log->semester_period,
+                'verified_by_user_id' => $log->verified_by_user_id,
+                'verified_by' => $log->verifiedBy?->name,
+                'remarks' => $log->remarks,
+                'status' => $log->time_out ? 'Completed' : 'Active (Timed In)',
+                'created_at' => $log->created_at?->toIso8601String(),
+            ];
+        });
+
         return response()->json([
             'scholar_id' => $ecesproScholar->id,
-            'required_volunteer_hours' => (float) ($ecesproScholar->required_volunteer_hours ?: $defaultRequired),
-            'total_rendered_hours' => (float) ($ecesproScholar->total_rendered_hours ?: 0.00),
+            'scholar_no' => $ecesproScholar->scholar_no,
+            'required_volunteer_hours' => $effectiveRequired,
+            'required_hours' => $effectiveRequired,
+            'total_rendered_hours' => $totalRendered,
+            'rendered_hours' => $totalRendered,
+            'remaining_hours' => $remaining,
+            'progress_percentage' => $percentage,
             'is_volunteer_completed' => (bool) $ecesproScholar->is_volunteer_completed,
-            'logs' => $logs,
+            'is_completed' => (bool) $ecesproScholar->is_volunteer_completed,
+            'has_override' => $ecesproScholar->required_volunteer_hours !== null,
+            'override_hours' => $ecesproScholar->required_volunteer_hours ? (float) $ecesproScholar->required_volunteer_hours : null,
+            'semester_summaries' => $semesterSummaries,
+            'logs' => $logsData,
         ]);
     }
 
@@ -208,17 +279,31 @@ class EcesproScholarController extends Controller
     public function storeVolunteerLog(Request $request, EcesproScholar $ecesproScholar)
     {
         $validated = $request->validate([
-            'activity_type' => 'required|string|in:event,office_duty,community_service,special_task',
+            'activity_type' => 'required|string|in:event,office_duty,community_service,special_task,event_attendance',
             'duty_title' => 'required|string|max:255',
             'event_id' => 'nullable|exists:events,id',
             'time_in' => 'nullable|date',
             'time_out' => 'nullable|date',
-            'hours_rendered' => 'required|numeric|min:0',
+            'hours_rendered' => 'nullable|numeric|min:0',
             'semester_period' => 'nullable|string|max:50',
             'remarks' => 'nullable|string',
         ]);
 
+        if ($validated['activity_type'] === 'event_attendance') {
+            $validated['activity_type'] = 'event';
+        }
+
+        $timeIn = ! empty($validated['time_in']) ? Carbon::parse($validated['time_in']) : now();
+        $timeOut = ! empty($validated['time_out']) ? Carbon::parse($validated['time_out']) : null;
+
+        $hoursRendered = isset($validated['hours_rendered']) && $validated['hours_rendered'] !== ''
+            ? (float) $validated['hours_rendered']
+            : ($timeOut ? round($timeIn->diffInMinutes($timeOut) / 60, 2) : 0.00);
+
         $validated['scholar_id'] = $ecesproScholar->id;
+        $validated['time_in'] = $timeIn;
+        $validated['time_out'] = $timeOut;
+        $validated['hours_rendered'] = $hoursRendered;
         $validated['verified_by_user_id'] = $request->user()?->id;
 
         $log = EcesproVolunteerLog::create($validated);
@@ -229,7 +314,7 @@ class EcesproScholarController extends Controller
         return response()->json([
             'message' => 'Volunteer log added successfully.',
             'log' => $log->load(['event', 'verifiedBy']),
-            'scholar' => $ecesproScholar,
+            'scholar' => $ecesproScholar->load(['user.youthProfile', 'application']),
         ], 201);
     }
 
@@ -246,7 +331,7 @@ class EcesproScholarController extends Controller
 
         return response()->json([
             'message' => 'Volunteer log deleted successfully.',
-            'scholar' => $ecesproScholar,
+            'scholar' => $ecesproScholar->load(['user.youthProfile', 'application']),
         ]);
     }
 }
