@@ -5,6 +5,7 @@ namespace App\Actions\SkAdmin\ResidentYouth;
 use App\Enums\UserRole;
 use App\Enums\YouthProfileStatus;
 use App\Models\SkOfficial;
+use App\Models\SportsProgram;
 use App\Models\YouthProfile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +30,7 @@ class GetResidentYouthRecordsAction
 
         if (! empty($filters['sports_program_id']) || ! empty($filters['sport_id'])) {
             $spId = $filters['sports_program_id'] ?? $filters['sport_id'];
-            $sportProg = \App\Models\SportsProgram::find($spId);
+            $sportProg = SportsProgram::find($spId);
             if ($sportProg) {
                 $openToAll = (bool) $sportProg->open_to_all_barangays;
                 if (! $openToAll && empty($filters['barangay'])) {
@@ -42,7 +43,7 @@ class GetResidentYouthRecordsAction
             $targetBarangay = trim($filters['barangay']);
             $query->where(function ($q) use ($targetBarangay) {
                 $q->where('barangay', $targetBarangay)
-                  ->orWhere('barangay', 'like', "%{$targetBarangay}%");
+                    ->orWhere('barangay', 'like', "%{$targetBarangay}%");
             });
         } elseif (! $openToAll) {
             if ($user && $user->role === UserRole::SkAdmin) {

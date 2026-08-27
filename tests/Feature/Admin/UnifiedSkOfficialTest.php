@@ -92,7 +92,9 @@ class UnifiedSkOfficialTest extends TestCase
         $profile = YouthProfile::factory()->create([
             'user_id' => $youthUser->id,
             'first_name' => 'Carlos',
+            'middle_name' => null,
             'last_name' => 'Yulo',
+            'suffix' => null,
             'barangay' => 'Apokon',
             'mobile_number' => '09123456789',
             'status' => YouthProfileStatus::Approved,

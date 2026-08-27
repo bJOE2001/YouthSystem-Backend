@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\ResidentYouthController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\SportsProgramController;
 use Illuminate\Support\Facades\Route;
@@ -10,7 +11,7 @@ Route::get('/sports/{sportsProgram}', [SportsProgramController::class, 'show'])-
 
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Search resident youth for sports registration
-    Route::get('/sports-search-residents', [\App\Http\Controllers\Api\Admin\ResidentYouthController::class, 'index'])->name('sports.search-residents');
+    Route::get('/sports-search-residents', [ResidentYouthController::class, 'index'])->name('sports.search-residents');
 
     // Accessible by youth, sk_admin, and admin
     Route::middleware('role:youth,sk_admin,admin')->group(function () {

@@ -4,7 +4,6 @@ namespace App\Actions\Dashboard;
 
 use App\Enums\UserRole;
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 
 class GetEngagementMetricsAction
@@ -115,8 +114,8 @@ class GetEngagementMetricsAction
                 ->count();
 
             $weeklyTrend[] = [
-                'week' => 'W' . $weekNum,
-                'label' => $startOfWeek->format('M d') . ' - ' . $endOfWeek->format('M d'),
+                'week' => 'W'.$weekNum,
+                'label' => $startOfWeek->format('M d').' - '.$endOfWeek->format('M d'),
                 'count' => $count,
             ];
         }

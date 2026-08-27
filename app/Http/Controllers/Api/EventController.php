@@ -64,6 +64,26 @@ class EventController extends Controller
         $sports = SportsProgram::whereIn('status', ['upcoming', 'ongoing', 'Upcoming', 'Ongoing']);
 
         if (! $user || $user->role !== UserRole::Admin) {
+            $events->where(function ($q) use ($userBarangay) {
+                // City-wide events created by City Admins are open to all
+                $q->whereHas('user', function ($uq) {
+                    $uq->where('role', UserRole::Admin->value)
+                        ->orWhere('role', 'admin');
+                });
+                // Barangay events created by SK Admins are exclusive to youth belonging to that barangay
+                if ($userBarangay) {
+                    $q->orWhereHas('user', function ($uq) use ($userBarangay) {
+                        $uq->where(function ($roleQ) {
+                            $roleQ->where('role', UserRole::SkAdmin->value)
+                                ->orWhere('role', 'sk_admin');
+                        })->where(function ($bq) use ($userBarangay) {
+                            $bq->whereHas('skOfficial', fn ($sq) => $sq->whereRaw('LOWER(barangay) = ?', [strtolower(trim($userBarangay))]))
+                                ->orWhereHas('youthProfile', fn ($yq) => $yq->whereRaw('LOWER(barangay) = ?', [strtolower(trim($userBarangay))]));
+                        });
+                    });
+                }
+            });
+
             $sports->where(function ($q) use ($userBarangay) {
                 $q->where('open_to_all_barangays', true);
                 if ($userBarangay) {
@@ -191,7 +211,17 @@ class EventController extends Controller
         }
 
         $eventId = str_replace('event_', '', $id);
-        $event = Event::findOrFail($eventId);
+        $event = Event::with(['user.skOfficial', 'user.youthProfile'])->findOrFail($eventId);
+
+        $creator = $event->user;
+        $isSkEvent = $creator && ($creator->role === UserRole::SkAdmin || $creator->role === 'sk_admin' || $creator->role?->value === 'sk_admin');
+        if ($isSkEvent) {
+            $eventBarangay = $creator->skOfficial?->barangay ?? $creator->youthProfile?->barangay;
+            $userBarangay = $user->youthProfile?->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
+            if ($eventBarangay && (! $userBarangay || strtolower(trim($userBarangay)) !== strtolower(trim($eventBarangay)))) {
+                return response()->json(['message' => 'This event is exclusive to residents of Barangay '.$eventBarangay.'.'], 403);
+            }
+        }
 
         if ($user->joinedEvents()->where('event_id', $event->id)->exists()) {
             return response()->json(['message' => 'Already joined this event.'], 400);

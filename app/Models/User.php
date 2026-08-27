@@ -7,11 +7,13 @@ use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -21,6 +23,12 @@ class User extends Authenticatable
 
     protected static function booted(): void
     {
+        static::creating(function (User $user) {
+            if (empty($user->qr_code_token)) {
+                $user->qr_code_token = (string) Str::uuid();
+            }
+        });
+
         static::deleting(function (User $user) {
             if (Schema::hasTable('sports_program_user')) {
                 DB::table('sports_program_user')->where('user_id', $user->id)->delete();
@@ -93,15 +101,6 @@ class User extends Authenticatable
     public function bookingRequests()
     {
         return $this->hasMany(BookingRequest::class);
-    }
-
-    protected static function booted(): void
-    {
-        static::creating(function ($user) {
-            if (empty($user->qr_code_token)) {
-                $user->qr_code_token = (string) Str::uuid();
-            }
-        });
     }
 
     public function regenerateQrToken(): string
