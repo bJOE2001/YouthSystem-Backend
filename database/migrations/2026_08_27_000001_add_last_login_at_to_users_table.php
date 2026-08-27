@@ -11,10 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('ecespro_programs', function (Blueprint $table) {
-            if (Schema::hasColumn('ecespro_programs', 'slots')) {
-                $table->dropColumn('slots');
-            }
+        Schema::table('users', function (Blueprint $table) {
+            $table->timestamp('last_login_at')->nullable()->after('password');
         });
     }
 
@@ -23,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('ecespro_programs', function (Blueprint $table) {
-            $table->integer('slots')->default(1);
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('last_login_at');
         });
     }
 };

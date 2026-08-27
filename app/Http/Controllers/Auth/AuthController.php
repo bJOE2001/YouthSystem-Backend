@@ -36,6 +36,7 @@ class AuthController extends Controller
         }
 
         $user = $request->user();
+        $user->forceFill(['last_login_at' => now()])->save();
 
         // Single Session Enforcement: Revoke previous tokens & sessions
         $user->tokens()->delete();

@@ -12,7 +12,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('sports_programs', function (Blueprint $table) {
-            $table->dropColumn(['budget_allocated', 'budget_utilized']);
+            $columnsToDrop = [];
+            if (Schema::hasColumn('sports_programs', 'budget_allocated')) {
+                $columnsToDrop[] = 'budget_allocated';
+            }
+            if (Schema::hasColumn('sports_programs', 'budget_utilized')) {
+                $columnsToDrop[] = 'budget_utilized';
+            }
+            if (! empty($columnsToDrop)) {
+                $table->dropColumn($columnsToDrop);
+            }
         });
     }
 
