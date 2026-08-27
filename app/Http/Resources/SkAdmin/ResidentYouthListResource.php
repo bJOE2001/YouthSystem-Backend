@@ -16,6 +16,7 @@ class ResidentYouthListResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'user_id' => $this->user_id,
             'name' => trim(implode(' ', array_filter([
                 $this->first_name,
                 $this->middle_name,
@@ -24,7 +25,7 @@ class ResidentYouthListResource extends JsonResource
             ]))),
             'profile_picture' => $this->profile_picture,
             'contact' => $this->mobile_number,
-            'email' => $this->user ? $this->user->email : 'No Email',
+            'email' => $this->user ? $this->user->email : '',
             'barangay' => $this->barangay,
             'purok' => $this->purok_sitio,
             'status' => $this->sinag_member ? 'Sinag' : 'Non Sinag',

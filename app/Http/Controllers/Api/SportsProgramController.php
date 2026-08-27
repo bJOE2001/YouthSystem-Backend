@@ -13,6 +13,7 @@ use App\Models\SkOfficial;
 use App\Models\SportsProgram;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class SportsProgramController extends Controller
@@ -213,6 +214,8 @@ class SportsProgramController extends Controller
     {
         $validated = $request->validate([
             'team_name' => 'nullable|string|max:255',
+            'leader_id' => 'nullable',
+            'leader'    => 'nullable|array',
             'teammates' => 'nullable|array',
             'teammates.*.user_id' => 'nullable',
             'teammates.*.name' => 'nullable|string',
@@ -221,46 +224,174 @@ class SportsProgramController extends Controller
             'teammates.*.role' => 'nullable|string',
         ]);
 
-        $user = auth()->user();
+        $user = auth('sanctum')->user() ?? auth()->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
 
-        if (! $sportsProgram->open_to_all_barangays) {
+        $userRoleStr = $user->role instanceof \BackedEnum ? $user->role->value : (string) $user->role;
+        $isAdminOrSk = in_array(strtolower($userRoleStr), ['admin', 'sk_admin', 'superadmin']);
+
+        if (! $sportsProgram->open_to_all_barangays && ! $isAdminOrSk) {
             $userBarangay = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
             if (! $userBarangay || strtolower(trim($userBarangay)) !== strtolower(trim($sportsProgram->barangay))) {
                 return response()->json(['message' => 'This sports program is exclusive to residents of Barangay ' . $sportsProgram->barangay . '.'], 403);
             }
         }
 
-        if ($user->joinedSportsPrograms()->where('sports_program_id', $sportsProgram->id)->exists()) {
-            return response()->json(['message' => 'Already joined this program.'], 400);
-        }
-
         $teamName = $validated['team_name'] ?? null;
         $rawTeammates = $validated['teammates'] ?? [];
 
-        // Build roster info including Team Leader (Captain)
-        $captainInfo = [
-            'user_id' => $user->id,
-            'name'    => $user->name ?? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
-            'email'   => $user->email,
-            'contact' => $user->youthProfile?->mobile_number ?? $user->contact_number ?? '',
-            'role'    => 'Team Leader',
-        ];
+        // Check if explicit leader was passed
+        $leaderData = $validated['leader'] ?? null;
+        if (! $leaderData && ! empty($rawTeammates)) {
+            foreach ($rawTeammates as $tm) {
+                if (($tm['role'] ?? '') === 'Team Leader' || ! empty($tm['is_captain']) || ! empty($tm['is_leader'])) {
+                    $leaderData = $tm;
+                    break;
+                }
+            }
+        }
 
-        $formattedTeammates = array_map(function ($t) {
-            return [
-                'user_id' => $t['user_id'] ?? null,
-                'name'    => $t['name'] ?? '',
-                'email'   => $t['email'] ?? '',
-                'contact' => $t['contact'] ?? '',
-                'role'    => $t['role'] ?? 'Member',
+        // Helper to check if a user is already registered in this sports program (pivot or roster JSON)
+        $existingPivots = DB::table('sports_program_user')
+            ->where('sports_program_id', $sportsProgram->id)
+            ->get();
+
+        $checkExistingRegistration = function ($userId, $email = null, $name = null) use ($existingPivots) {
+            $emailNorm = ! empty($email) && $email !== '—' && strtolower($email) !== 'no email' ? strtolower(trim($email)) : null;
+            $nameNorm = ! empty($name) && $name !== '—' ? strtolower(trim(preg_replace('/[^\w\s]/', '', $name))) : null;
+
+            foreach ($existingPivots as $pivot) {
+                $teamName = $pivot->team_name ?: 'another team';
+                if ($userId && $pivot->user_id == $userId) {
+                    return $teamName;
+                }
+
+                if (! empty($pivot->teammates)) {
+                    $roster = is_string($pivot->teammates) ? json_decode($pivot->teammates, true) : $pivot->teammates;
+                    if (is_array($roster)) {
+                        foreach ($roster as $member) {
+                            $mUserId = $member['user_id'] ?? null;
+                            $mEmail = ! empty($member['email']) && $member['email'] !== '—' && strtolower($member['email']) !== 'no email' ? strtolower(trim($member['email'])) : null;
+                            $mName = ! empty($member['name']) && $member['name'] !== '—' ? strtolower(trim(preg_replace('/[^\w\s]/', '', $member['name']))) : null;
+
+                            if ($userId && $mUserId && $userId == $mUserId) {
+                                return $teamName;
+                            }
+                            if ($emailNorm && $mEmail && $emailNorm === $mEmail) {
+                                return $teamName;
+                            }
+                            if ($nameNorm && $mName && ($nameNorm === $mName || str_contains($nameNorm, $mName) || str_contains($mName, $nameNorm))) {
+                                return $teamName;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return null;
+        };
+
+        if ($isAdminOrSk && $leaderData) {
+            $captainUserId = $leaderData['user_id'] ?? $leaderData['id'] ?? $validated['leader_id'] ?? null;
+            $leaderUser = $captainUserId ? User::find($captainUserId) : null;
+            if (! $leaderUser && $captainUserId) {
+                $leaderUser = User::whereHas('youthProfile', function ($q) use ($captainUserId) {
+                    $q->where('id', $captainUserId);
+                })->first();
+            }
+            if (! $leaderUser && ! empty($leaderData['email'])) {
+                $leaderUser = User::where('email', $leaderData['email'])->first();
+            }
+
+            if (! $leaderUser) {
+                return response()->json(['message' => 'Please select a valid resident youth as Team Leader.'], 422);
+            }
+
+            // Check if leader is already registered in this sports program
+            $leaderName = $leaderUser->name ?? ($leaderData['name'] ?? 'The selected team leader');
+            $leaderEmail = $leaderUser->email ?? ($leaderData['email'] ?? null);
+            $existingTeam = $checkExistingRegistration($leaderUser->id, $leaderEmail, $leaderName);
+            if ($existingTeam) {
+                return response()->json([
+                    'message' => $leaderName . ' is already registered in team "' . $existingTeam . '" for this sports program.'
+                ], 422);
+            }
+
+            $captainInfo = [
+                'user_id' => $leaderUser->id,
+                'name'    => $leaderName,
+                'email'   => $leaderEmail ?? '',
+                'contact' => $leaderData['contact'] ?? '',
+                'role'    => 'Team Leader',
             ];
-        }, $rawTeammates);
+        } else {
+            $existingTeam = $checkExistingRegistration($user->id, $user->email, $user->name);
+            if ($existingTeam) {
+                return response()->json([
+                    'message' => 'You are already registered in team "' . $existingTeam . '" for this sports program.'
+                ], 400);
+            }
+
+            $captainInfo = [
+                'user_id' => $user->id,
+                'name'    => $user->name ?? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
+                'email'   => $user->email,
+                'contact' => $user->youthProfile?->mobile_number ?? $user->contact_number ?? '',
+                'role'    => 'Team Leader',
+            ];
+            $leaderUser = $user;
+        }
+
+        $formattedTeammates = [];
+        foreach ($rawTeammates as $t) {
+            $tRole = $t['role'] ?? 'Member';
+            $memberUserId = $t['user_id'] ?? $t['id'] ?? null;
+
+            $memberUser = null;
+            if ($memberUserId) {
+                $memberUser = User::find($memberUserId);
+                if (! $memberUser) {
+                    $memberUser = User::whereHas('youthProfile', function ($q) use ($memberUserId) {
+                        $q->where('id', $memberUserId);
+                    })->first();
+                }
+            }
+            if (! $memberUser && ! empty($t['email'])) {
+                $memberUser = User::where('email', $t['email'])->first();
+            }
+
+            $realMemberUserId = $memberUser ? $memberUser->id : $memberUserId;
+            $memberName = $memberUser?->name ?? ($t['name'] ?? '');
+            $memberEmail = $memberUser?->email ?? ($t['email'] ?? '');
+
+            if ($tRole === 'Team Leader' || ($captainInfo['user_id'] && $realMemberUserId == $captainInfo['user_id']) || (! empty($t['name']) && $t['name'] === $captainInfo['name'])) {
+                continue;
+            }
+
+            // Check if member is already registered in this sports program
+            $existingTeam = $checkExistingRegistration($realMemberUserId, $memberEmail, $memberName);
+            if ($existingTeam) {
+                return response()->json([
+                    'message' => ($memberName ?: 'A member') . ' is already registered in team "' . $existingTeam . '" for this sports program.'
+                ], 422);
+            }
+
+            $formattedTeammates[] = [
+                'user_id' => $realMemberUserId,
+                'name'    => $memberName,
+                'email'   => $memberEmail,
+                'contact' => $t['contact'] ?? '',
+                'role'    => $tRole,
+            ];
+        }
 
         $allRoster = array_merge([$captainInfo], $formattedTeammates);
         $encodedRoster = json_encode($allRoster);
 
-        // 1. Attach Team Leader (Captain)
-        $user->joinedSportsPrograms()->syncWithoutDetaching([
+        // 1. Attach Team Leader
+        $leaderUser->joinedSportsPrograms()->syncWithoutDetaching([
             $sportsProgram->id => [
                 'team_name' => $teamName,
                 'teammates' => $encodedRoster,
@@ -270,11 +401,7 @@ class SportsProgramController extends Controller
         // 2. Automatically register / attach all added teammates who have an account
         foreach ($formattedTeammates as $member) {
             $memberUserId = $member['user_id'] ?? null;
-            if (! $memberUserId && ! empty($member['email'])) {
-                $memberUserId = User::where('email', $member['email'])->value('id');
-            }
-
-            if ($memberUserId && $memberUserId != $user->id) {
+            if ($memberUserId && $memberUserId != $leaderUser->id) {
                 $memberUser = User::find($memberUserId);
                 if ($memberUser) {
                     $memberUser->joinedSportsPrograms()->syncWithoutDetaching([
@@ -288,6 +415,22 @@ class SportsProgramController extends Controller
         }
 
         return new UnifiedEventResource($sportsProgram);
+    }
+
+    
+    /**
+     * Search resident youth for sports team roster registration (delegates to GetResidentYouthRecordsAction).
+     */
+    public function searchResidents(Request $request, \App\Actions\SkAdmin\ResidentYouth\GetResidentYouthRecordsAction $action)
+    {
+        $user = auth('sanctum')->user() ?? auth()->user();
+        if (! $user) {
+            return response()->json(['data' => []]);
+        }
+
+        $records = $action->execute($request->all());
+
+        return \App\Http\Resources\SkAdmin\ResidentYouthListResource::collection($records)->response();
     }
 
     private function mapToSnakeCase(array $data): array

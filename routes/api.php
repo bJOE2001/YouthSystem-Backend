@@ -32,6 +32,7 @@ Route::get('/public/barangays', [PublicBarangayController::class, 'index'])->nam
 Route::get('/barangays', [PublicBarangayController::class, 'index'])->name('barangays.index');
 
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
+    Route::get('/resident-youth', [\App\Http\Controllers\Api\Admin\ResidentYouthController::class, 'index'])->name('resident-youth.index');
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
