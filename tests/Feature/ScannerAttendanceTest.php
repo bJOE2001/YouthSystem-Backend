@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AttendanceLog;
 use App\Models\EcesproApplication;
 use App\Models\EcesproProgram;
 use App\Models\EcesproScholar;
@@ -552,6 +553,23 @@ class ScannerAttendanceTest extends TestCase
     public function test_admin_receives_city_level_scanner_activities(): void
     {
         $admin = User::factory()->admin()->active()->create();
+        $skUser = User::factory()->skAdmin()->active()->create();
+
+        $adminEvent = Event::create([
+            'name' => 'City Leadership Forum 2026',
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->toDateString(),
+            'user_id' => $admin->id,
+            'status' => 'ongoing',
+        ]);
+
+        $skEvent = Event::create([
+            'name' => 'Barangay SK Internal Assembly',
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->toDateString(),
+            'user_id' => $skUser->id,
+            'status' => 'ongoing',
+        ]);
 
         $response = $this->actingAs($admin, 'sanctum')
             ->getJson('/api/scanner/activities');
@@ -562,7 +580,14 @@ class ScannerAttendanceTest extends TestCase
             ->assertJsonFragment([
                 'duty_title' => 'TCYDO In-Office Duty',
                 'group' => 'TCYDO Volunteer Duties',
+            ])
+            ->assertJsonFragment([
+                'duty_title' => 'City Leadership Forum 2026',
+                'group' => 'Official Events',
             ]);
+
+        $titles = collect($response->json('data'))->pluck('duty_title');
+        $this->assertFalse($titles->contains('Barangay SK Internal Assembly'));
     }
 
     public function test_sk_admin_receives_barangay_specific_scanner_activities(): void
@@ -583,7 +608,7 @@ class ScannerAttendanceTest extends TestCase
             'start_date' => now()->toDateString(),
             'end_date' => now()->toDateString(),
             'user_id' => $skUser->id,
-            'status' => 'upcoming',
+            'status' => 'ongoing',
         ]);
 
         $sports = SportsProgram::create([
@@ -604,7 +629,7 @@ class ScannerAttendanceTest extends TestCase
             'start_date' => now()->toDateString(),
             'end_date' => now()->toDateString(),
             'user_id' => $cityAdmin->id,
-            'status' => 'upcoming',
+            'status' => 'ongoing',
         ]);
         $citySports = SportsProgram::create([
             'name' => 'City-Wide Inter-Barangay Olympics',
@@ -638,5 +663,34 @@ class ScannerAttendanceTest extends TestCase
         $this->assertFalse($activityTitles->contains('TCYDO In-Office Duty'));
         $this->assertFalse($activityTitles->contains('City-Wide Youth Summit 2026'));
         $this->assertFalse($activityTitles->contains('City-Wide Inter-Barangay Olympics'));
+    }
+
+    public function test_operator_can_fetch_recent_scanner_logs(): void
+    {
+        $admin = User::factory()->admin()->active()->create();
+        $youth = User::factory()->active()->create(['name' => 'Maria Santos']);
+
+        AttendanceLog::create([
+            'user_id' => $youth->id,
+            'activity_type' => 'office_duty',
+            'activity_title' => 'TCYDO In-Office Duty',
+            'time_in' => now()->subMinutes(45),
+            'time_out' => now(),
+            'status' => 'timed_out',
+            'scanned_by_user_id' => $admin->id,
+            'remarks' => 'Completed office duty',
+        ]);
+
+        $response = $this->actingAs($admin, 'sanctum')
+            ->getJson('/api/scanner/recent-logs');
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonFragment([
+                'attendee_name' => 'Maria Santos',
+                'duty_title' => 'TCYDO In-Office Duty',
+                'scan_type' => 'time_out',
+                'status' => 'timed_out',
+            ]);
     }
 }

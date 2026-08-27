@@ -64,12 +64,12 @@ class ScannerController extends Controller
             ];
         }
 
-        // 2. Active Barangay / Official Events
-        $eventsQuery = Event::where('status', '!=', 'cancelled');
-        if ($isSkAdmin) {
+        // 2. Ongoing Barangay / Official Events (Scoped to operator)
+        $eventsQuery = Event::whereIn('status', ['ongoing', 'Ongoing', 'ONGOING']);
+        if ($user) {
             $eventsQuery->where('user_id', $user->id);
         }
-        $events = $eventsQuery->latest()->limit(15)->get();
+        $events = $eventsQuery->latest()->limit(20)->get();
         foreach ($events as $event) {
             $activities[] = [
                 'value' => "event_{$event->id}",
@@ -82,12 +82,12 @@ class ScannerController extends Controller
             ];
         }
 
-        // 3. Active Barangay / City Sports Programs
-        $sportsQuery = SportsProgram::query()->where('status', '!=', 'cancelled');
-        if ($isSkAdmin) {
+        // 3. Ongoing Barangay / City Sports Programs (Scoped to operator)
+        $sportsQuery = SportsProgram::query()->whereIn('status', ['ongoing', 'Ongoing', 'ONGOING']);
+        if ($user) {
             $sportsQuery->where('user_id', $user->id);
         }
-        $sports = $sportsQuery->latest()->limit(15)->get();
+        $sports = $sportsQuery->latest()->limit(20)->get();
         foreach ($sports as $sport) {
             $activities[] = [
                 'value' => "sport_{$sport->id}",
@@ -111,6 +111,67 @@ class ScannerController extends Controller
     }
 
     /**
+     * Get recent scanner attendance logs for the live audit feed.
+     */
+    public function recentLogs(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = auth('sanctum')->user() ?? auth()->user();
+
+        $query = AttendanceLog::with(['user.scholar', 'user.youthProfile', 'event', 'sportsProgram'])
+            ->where(function ($q) use ($user) {
+                $q->where('scanned_by_user_id', $user->id)
+                    ->orWhereHas('event', fn ($eq) => $eq->where('user_id', $user->id))
+                    ->orWhereHas('sportsProgram', fn ($sq) => $sq->where('user_id', $user->id));
+            })
+            ->latest('updated_at')
+            ->limit(50);
+
+        $logs = $query->get()->map(function (AttendanceLog $log) {
+            $attendee = $log->user;
+            $isScholar = $attendee?->scholar !== null;
+            $roleLabel = $isScholar ? 'Scholar' : ($attendee?->role === UserRole::SkAdmin || $attendee?->role === 'sk_admin' ? 'SK Official' : 'Youth');
+
+            $scanType = match ($log->status) {
+                'timed_in' => 'time_in',
+                'timed_out' => 'time_out',
+                default => 'attendance_only',
+            };
+
+            $minutesRendered = null;
+            $hoursRendered = null;
+            if ($log->time_in && $log->time_out) {
+                $minutesRendered = max(1, (int) $log->time_in->diffInMinutes($log->time_out));
+                $hoursRendered = round($minutesRendered / 60, 2);
+            }
+
+            $timePoint = $log->time_out ?? $log->time_in ?? $log->updated_at ?? $log->created_at;
+
+            return [
+                'id' => $log->id,
+                'attendee_name' => $attendee?->name ?? 'Unknown Attendee',
+                'is_scholar' => $isScholar,
+                'role' => $roleLabel,
+                'duty_title' => $log->activity_title ?? ($log->event?->name ?? $log->sportsProgram?->name ?? 'General Attendance'),
+                'scan_type' => $scanType,
+                'status' => $log->status,
+                'time_in' => $log->time_in?->toIso8601String(),
+                'time_out' => $log->time_out?->toIso8601String(),
+                'hours_rendered' => $hoursRendered,
+                'minutes_rendered' => $minutesRendered,
+                'timeString' => $timePoint ? $timePoint->timezone('Asia/Manila')->format('h:i:s A') : 'Recently',
+                'created_at' => $log->created_at?->toIso8601String(),
+                'updated_at' => $log->updated_at?->toIso8601String(),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $logs,
+        ]);
+    }
+
+    /**
      * Record QR scan for attendance or scholar volunteer hours across Events, Sports, and Office Duty.
      */
     public function recordScan(Request $request): JsonResponse
@@ -126,8 +187,11 @@ class ScannerController extends Controller
 
         $official = $request->user();
 
-        // 1. Resolve scanned attendee by QR code token
-        $attendee = User::where('qr_code_token', $validated['qr_code_token'])->first();
+        // 1. Resolve scanned attendee with active scholar profile
+        $attendee = User::with(['scholar' => fn ($q) => $q->where('status', 'Active')])
+            ->where('qr_code_token', $validated['qr_code_token'])
+            ->first();
+
         if (! $attendee) {
             return response()->json([
                 'success' => false,
@@ -145,18 +209,15 @@ class ScannerController extends Controller
         if ($rawEventId) {
             if (is_string($rawEventId) && str_starts_with($rawEventId, 'sport_')) {
                 $numericSportsProgramId = (int) substr($rawEventId, 6);
-                $sports = SportsProgram::find($numericSportsProgramId);
-                $eventName = $sports ? $sports->name : ($validated['duty_title'] ?? 'Sports Program');
                 $activityType = 'sports';
+                $eventName = $validated['duty_title'] ?? SportsProgram::where('id', $numericSportsProgramId)->value('name');
             } elseif (is_numeric($rawEventId)) {
                 if ($activityType === 'sports') {
                     $numericSportsProgramId = (int) $rawEventId;
-                    $sports = SportsProgram::find($numericSportsProgramId);
-                    $eventName = $sports ? $sports->name : ($validated['duty_title'] ?? 'Sports Program');
+                    $eventName = $validated['duty_title'] ?? SportsProgram::where('id', $numericSportsProgramId)->value('name');
                 } else {
                     $numericEventId = (int) $rawEventId;
-                    $evt = Event::find($numericEventId);
-                    $eventName = $evt ? $evt->name : null;
+                    $eventName = $validated['duty_title'] ?? Event::where('id', $numericEventId)->value('name');
                     $activityType = 'event';
                 }
             }
@@ -167,7 +228,7 @@ class ScannerController extends Controller
         $activityTitle = $validated['duty_title'] ?? ($eventName ?: ($activityType === 'office_duty' ? 'TCYDO In-Office Duty' : 'Youth Activity Attendance'));
 
         // 2. Check if the attendee is an active ECESPRO Scholar
-        $scholar = $attendee->scholar()->where('status', 'Active')->first();
+        $scholar = $attendee->scholar;
 
         return DB::transaction(function () use (
             $attendee,
@@ -288,7 +349,8 @@ class ScannerController extends Controller
             // SCAN 2: Time-Out (Departure)
             // ------------------------------------------
             $timeIn = $activeLog->time_in;
-            $hours = round($timeIn->diffInMinutes($now) / 60, 2);
+            $diffMinutes = max(1, (int) $timeIn->diffInMinutes($now));
+            $hours = round($diffMinutes / 60, 2);
             if ($hours < 0.01) {
                 $hours = 0.01;
             }
@@ -329,10 +391,11 @@ class ScannerController extends Controller
                 'time_in' => $activeLog->time_in->toIso8601String(),
                 'time_out' => $now->toIso8601String(),
                 'hours_rendered' => $hours,
+                'minutes_rendered' => $diffMinutes,
                 'total_rendered_hours' => (float) $scholar->total_rendered_hours,
                 'required_volunteer_hours' => (float) ($scholar->required_volunteer_hours ?: EcesproSetting::get('required_volunteer_hours', 36.00)),
                 'is_volunteer_completed' => (bool) $scholar->is_volunteer_completed,
-                'message' => "🔴 Time-Out recorded for Scholar {$attendee->name}! ({$hours} hrs rendered)",
+                'message' => "🔴 Time-Out recorded for Scholar {$attendee->name}! ({$diffMinutes} mins rendered)",
             ]);
         });
     }
