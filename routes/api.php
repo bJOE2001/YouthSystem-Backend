@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\SystemSettingController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PublicBarangayController;
 use App\Http\Controllers\Api\PublicLydcMemberController;
+use App\Http\Controllers\Api\PublicPurokController;
 use App\Http\Controllers\Api\PublicSkOfficialController;
 use App\Http\Controllers\Api\Youth\YouthEcesproController;
 use Illuminate\Support\Facades\Route;
@@ -35,6 +36,9 @@ Route::get('/lydc-members', [PublicLydcMemberController::class, 'index'])->name(
 
 Route::get('/public/barangays', [PublicBarangayController::class, 'index'])->name('public.barangays.index');
 Route::get('/barangays', [PublicBarangayController::class, 'index'])->name('barangays.index');
+
+Route::get('/public/puroks', [PublicPurokController::class, 'index'])->name('public.puroks.index');
+Route::get('/puroks', [PublicPurokController::class, 'index'])->name('puroks.index');
 
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::get('/resident-youth', [ResidentYouthController::class, 'index'])->name('resident-youth.index');

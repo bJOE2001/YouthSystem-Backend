@@ -78,6 +78,10 @@ class GetAdminDashboard
                 Announcement::latest()->take(5)->get()
             )->resolve(),
 
+            'engagement_metrics' => app(GetEngagementMetricsAction::class)->execute(),
+
+            'youth_participation' => app(GetYouthParticipationAction::class)->execute(),
+
         ];
     }
 }
