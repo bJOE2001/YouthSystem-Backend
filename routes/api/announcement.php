@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
 
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
+    Route::post('/announcements/read-all', [AnnouncementController::class, 'markAllAsRead'])->name('announcements.read-all');
+    Route::post('/announcements/{announcement}/read', [AnnouncementController::class, 'markAsRead'])->name('announcements.read');
 
     // Accessible by admin and sk_admin
     Route::middleware('role:admin,sk_admin')->group(function () {

@@ -17,10 +17,16 @@ class GetYouthDashboardAction
         // 1. Calculate Cards
         $eventJoined = $user->joinedEvents()->count() + $user->joinedSportsPrograms()->count();
         $certificateEarned = 0; // Placeholder for future feature
-        $unreadAnnouncements = Announcement::count(); // Approximation since read receipts aren't tracked
 
-        $upcomingEventsCount = Event::where('status', 'upcoming')->count()
-            + SportsProgram::where('status', 'upcoming')->count();
+        $readAnnouncementIds = $user->readAnnouncements()->pluck('announcements.id');
+        $unreadAnnouncements = Announcement::whereNotIn('id', $readAnnouncementIds)->count();
+
+        $upcomingEventsCount = $user->joinedEvents()
+            ->whereIn('events.status', ['upcoming', 'Upcoming'])
+            ->count()
+            + $user->joinedSportsPrograms()
+            ->whereIn('sports_programs.status', ['upcoming', 'Upcoming'])
+            ->count();
 
         // 2. Fetch Latest Events & Sports Programs Combined
         $latestEvents = Event::latest()->take(5)->get()->map(function ($event) use ($user) {

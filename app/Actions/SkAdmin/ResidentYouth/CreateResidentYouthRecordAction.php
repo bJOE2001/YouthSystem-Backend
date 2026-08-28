@@ -7,6 +7,8 @@ use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Enums\YouthProfileStatus;
 use App\Mail\YouthValidatedEmail;
+use App\Models\Barangay;
+use App\Models\Purok;
 use App\Models\User;
 use App\Models\YouthProfile;
 use Illuminate\Http\UploadedFile;
@@ -90,6 +92,23 @@ class CreateResidentYouthRecordAction
                 'reviewed_by' => Auth::id(),
                 'reviewed_at' => now(),
             ];
+
+            $barangayName = $data['barangay'] ?? null;
+            $purokName = trim($data['purokSitio'] ?? '');
+
+            if (! empty($barangayName) && ! empty($purokName)) {
+                $barangayModel = Barangay::where('name', $barangayName)->first();
+                Purok::firstOrCreate(
+                    [
+                        'name' => $purokName,
+                        'barangay' => $barangayName,
+                    ],
+                    [
+                        'barangay_id' => $barangayModel?->id,
+                        'user_id' => Auth::id(),
+                    ]
+                );
+            }
 
             return $this->createYouthProfileAction->execute($user, $mappedProfileData, $attachedId);
         });

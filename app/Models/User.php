@@ -37,6 +37,20 @@ class User extends Authenticatable
             if (Schema::hasTable('feedbacks')) {
                 DB::table('feedbacks')->where('user_id', $user->id)->update(['user_id' => null]);
             }
+
+            if (Schema::hasTable('announcement_user')) {
+                DB::table('announcement_user')->where('user_id', $user->id)->delete();
+            }
+
+            if (! empty($user->email)) {
+                if (Schema::hasTable('sk_officials')) {
+                    DB::table('sk_officials')->where('email', $user->email)->delete();
+                }
+
+                if (Schema::hasTable('lydc_members')) {
+                    DB::table('lydc_members')->where('email', $user->email)->delete();
+                }
+            }
         });
     }
 
@@ -68,6 +82,11 @@ class User extends Authenticatable
     public function joinedSportsPrograms()
     {
         return $this->belongsToMany(SportsProgram::class, 'sports_program_user')->withPivot(['id', 'attended_at', 'team_name', 'teammates'])->withTimestamps();
+    }
+
+    public function readAnnouncements()
+    {
+        return $this->belongsToMany(Announcement::class, 'announcement_user')->withPivot('read_at')->withTimestamps();
     }
 
     public function bookingRequests()

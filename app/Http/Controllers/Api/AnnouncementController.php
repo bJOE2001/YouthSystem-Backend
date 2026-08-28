@@ -81,4 +81,52 @@ class AnnouncementController extends Controller
 
         return response()->json(['message' => 'Announcement deleted successfully']);
     }
+
+    public function markAsRead(Request $request, Announcement $announcement)
+    {
+        $user = $request->user() ?? auth('sanctum')->user();
+
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $user->readAnnouncements()->syncWithoutDetaching([
+            $announcement->id => ['read_at' => now()],
+        ]);
+
+        $user->unreadNotifications()
+            ->where('data->announcement_id', $announcement->id)
+            ->update(['read_at' => now()]);
+
+        return response()->json([
+            'message' => 'Announcement marked as read',
+            'announcement' => new AnnouncementResource($announcement),
+        ]);
+    }
+
+    public function markAllAsRead(Request $request)
+    {
+        $user = $request->user() ?? auth('sanctum')->user();
+
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $allAnnouncementIds = Announcement::pluck('id')->all();
+        $syncData = [];
+        $now = now();
+        foreach ($allAnnouncementIds as $id) {
+            $syncData[$id] = ['read_at' => $now];
+        }
+
+        $user->readAnnouncements()->syncWithoutDetaching($syncData);
+
+        $user->unreadNotifications()
+            ->where('type', 'App\\Notifications\\NewAnnouncementNotification')
+            ->update(['read_at' => $now]);
+
+        return response()->json([
+            'message' => 'All announcements marked as read',
+        ]);
+    }
 }

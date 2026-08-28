@@ -19,4 +19,9 @@ class Announcement extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function readers()
+    {
+        return $this->belongsToMany(User::class, 'announcement_user')->withPivot('read_at')->withTimestamps();
+    }
 }
