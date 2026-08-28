@@ -15,6 +15,7 @@ class PurokLibraryTest extends TestCase
     use RefreshDatabase;
 
     protected User $skAdmin;
+
     protected Barangay $apokonBarangay;
 
     protected function setUp(): void

@@ -43,7 +43,7 @@ class PurokLibraryController extends Controller
         $query = Purok::query()->where('barangay', $barangay);
 
         if ($request->filled('search')) {
-            $query->where('name', 'LIKE', '%' . $request->search . '%');
+            $query->where('name', 'LIKE', '%'.$request->search.'%');
         }
 
         $sortBy = $request->input('sort_by', 'name');

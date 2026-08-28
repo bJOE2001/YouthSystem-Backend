@@ -13,6 +13,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class ScannerController extends Controller
@@ -116,7 +117,7 @@ class ScannerController extends Controller
     public function recentLogs(Request $request): JsonResponse
     {
         /** @var User $user */
-        $user = auth('sanctum')->user() ?? auth()->user();
+        $user = Auth::guard('sanctum')->user() ?? Auth::user() ?? $request->user();
 
         $query = AttendanceLog::with(['user.scholar', 'user.youthProfile', 'event', 'sportsProgram'])
             ->where(function ($q) use ($user) {
@@ -379,6 +380,8 @@ class ScannerController extends Controller
                 $attendee->joinedSportsPrograms()->syncWithoutDetaching([$numericSportsProgramId]);
             }
 
+            $hoursFormatted = number_format($hours, 2);
+
             return response()->json([
                 'success' => true,
                 'is_scholar' => true,
@@ -395,7 +398,7 @@ class ScannerController extends Controller
                 'total_rendered_hours' => (float) $scholar->total_rendered_hours,
                 'required_volunteer_hours' => (float) ($scholar->required_volunteer_hours ?: EcesproSetting::get('required_volunteer_hours', 36.00)),
                 'is_volunteer_completed' => (bool) $scholar->is_volunteer_completed,
-                'message' => "🔴 Time-Out recorded for Scholar {$attendee->name}! ({$diffMinutes} mins rendered)",
+                'message' => "🔴 Time-Out recorded for Scholar {$attendee->name}! (+{$hoursFormatted} hrs rendered)",
             ]);
         });
     }

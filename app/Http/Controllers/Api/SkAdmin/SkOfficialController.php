@@ -109,7 +109,7 @@ class SkOfficialController extends Controller
                         $fail('The selected youth must have an approved youth profile.');
                     }
                     if (SkOfficial::where('user_id', $value)->exists()) {
-                        $fail('The selected youth is already an appointed SK official.');
+                        $fail('The selected youth is already an active SK official.');
                     }
                 },
             ],
@@ -123,7 +123,7 @@ class SkOfficialController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'SK Official appointed successfully.',
+            'message' => 'SK Official added successfully.',
             'data' => SkOfficialResource::make($official),
         ], 201);
     }

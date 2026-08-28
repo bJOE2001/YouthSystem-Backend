@@ -2,9 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Models\Barangay;
 use App\Models\Purok;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -24,7 +22,7 @@ class PurokFactory extends Factory
         return [
             'barangay' => 'Apokon',
             'barangay_id' => null,
-            'name' => 'Purok ' . fake()->unique()->numberBetween(1, 9999),
+            'name' => 'Purok '.fake()->unique()->numberBetween(1, 9999),
             'user_id' => null,
         ];
     }
