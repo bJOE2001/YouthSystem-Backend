@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('ecespro_volunteer_logs', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('scholar_id')->constrained('ecespro_scholars')->cascadeOnDelete();
-            $table->foreignId('event_id')->nullable()->constrained('events')->nullOnDelete();
+            $table->foreignId('scholar_id')->constrained('ecespro_scholars')->noActionOnDelete();
+            $table->foreignId('event_id')->nullable()->constrained('events')->noActionOnDelete();
             $table->string('activity_type', 50)->default('event_attendance');
             $table->string('duty_title')->nullable();
             $table->timestamp('time_in')->useCurrent();

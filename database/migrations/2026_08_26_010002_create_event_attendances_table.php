@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('event_attendances', function (Blueprint $table) {
             $table->id();
             $table->foreignId('event_id')->nullable()->constrained('events')->nullOnDelete();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained('users')->noActionOnDelete();
             $table->timestamp('time_in')->useCurrent();
             $table->timestamp('time_out')->nullable();
             $table->string('status', 32)->default('attended');

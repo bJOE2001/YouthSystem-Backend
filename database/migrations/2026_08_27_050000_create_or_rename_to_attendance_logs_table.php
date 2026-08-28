@@ -18,11 +18,11 @@ return new class extends Migration
         if (! Schema::hasTable('attendance_logs')) {
             Schema::create('attendance_logs', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+                $table->foreignId('user_id')->constrained('users')->noActionOnDelete();
                 $table->string('activity_type', 50)->default('event');
                 $table->string('activity_title', 255)->nullable();
-                $table->foreignId('event_id')->nullable()->constrained('events')->nullOnDelete();
-                $table->foreignId('sports_program_id')->nullable()->constrained('sports_programs')->nullOnDelete();
+                $table->foreignId('event_id')->nullable()->constrained('events')->noActionOnDelete();
+                $table->foreignId('sports_program_id')->nullable()->constrained('sports_programs')->noActionOnDelete();
                 $table->dateTime('time_in')->useCurrent();
                 $table->dateTime('time_out')->nullable();
                 $table->string('status', 32)->default('attended');
@@ -43,7 +43,7 @@ return new class extends Migration
                     $table->string('activity_title', 255)->nullable()->after('activity_type');
                 }
                 if (! Schema::hasColumn('attendance_logs', 'sports_program_id')) {
-                    $table->foreignId('sports_program_id')->nullable()->after('event_id')->constrained('sports_programs')->nullOnDelete();
+                    $table->foreignId('sports_program_id')->nullable()->after('event_id')->constrained('sports_programs')->noActionOnDelete();
                 }
                 if (! Schema::hasColumn('attendance_logs', 'remarks')) {
                     $table->text('remarks')->nullable()->after('scanned_by_user_id');
