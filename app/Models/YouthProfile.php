@@ -24,6 +24,7 @@ class YouthProfile extends Model
      * @var list<string>
      */
     protected $fillable = [
+        'user_id',
         'first_name',
         'middle_name',
         'last_name',

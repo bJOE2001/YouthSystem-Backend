@@ -13,26 +13,47 @@ class CreateSkOfficialAction
      */
     public function execute(array $data): SkOfficial
     {
-        $skOfficial = SkOfficial::create([
-            'name' => $data['name'],
-            'initials' => $data['initials'] ?? null,
-            'barangay' => $data['barangay'] ?? null,
-            'contact' => $data['contact'] ?? null,
-            'email' => $data['email'] ?? null,
-            'committee' => $data['committee'] ?? null,
-            'position' => $data['position'] ?? null,
-            'responsibilities' => $data['responsibilities'] ?? null,
-            'term' => '2023 - 2025',
-        ]);
+        $userId = $data['user_id'];
+        $user = User::with('youthProfile')->findOrFail($userId);
+        $youthProfile = $user->youthProfile;
 
-        if (! empty($data['email'])) {
-            $user = User::where('email', $data['email'])->first();
-            if ($user && $user->role !== UserRole::Admin) {
-                $user->role = UserRole::SkAdmin;
-                $user->save();
-            }
+        $name = trim(preg_replace('/\s+/', ' ', implode(' ', array_filter([
+            $youthProfile?->first_name,
+            $youthProfile?->middle_name,
+            $youthProfile?->last_name,
+            $youthProfile?->suffix,
+        ]))));
+        if (empty($name)) {
+            $name = $user->name;
         }
 
-        return $skOfficial;
+        $email = $youthProfile?->email ?? $user->email;
+        $contact = $youthProfile?->mobile_number;
+        $barangay = $youthProfile?->barangay;
+
+        $parts = preg_split('/\s+/', trim($name));
+        $initials = count($parts) >= 2
+            ? strtoupper(substr($parts[0], 0, 1).substr(end($parts), 0, 1))
+            : strtoupper(substr($name, 0, 2));
+
+        $skOfficial = SkOfficial::create([
+            'user_id' => $userId,
+            'name' => $name,
+            'initials' => $initials,
+            'barangay' => $barangay,
+            'contact' => $contact,
+            'email' => $email,
+            'committee' => $data['committee'] ?? null,
+            'position' => $data['position'] ?? 'SK Official',
+            'responsibilities' => $data['responsibilities'] ?? null,
+            'term' => $data['term'] ?? '2023 - 2025',
+        ]);
+
+        if ($user->role !== UserRole::Admin) {
+            $user->role = UserRole::SkAdmin;
+            $user->save();
+        }
+
+        return $skOfficial->load(['user.youthProfile']);
     }
 }

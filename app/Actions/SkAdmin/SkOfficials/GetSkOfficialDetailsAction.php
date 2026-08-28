@@ -8,6 +8,6 @@ class GetSkOfficialDetailsAction
 {
     public function execute(SkOfficial $skOfficial): SkOfficial
     {
-        return $skOfficial;
+        return $skOfficial->loadMissing(['user.youthProfile']);
     }
 }

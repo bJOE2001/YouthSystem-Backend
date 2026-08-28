@@ -2,9 +2,6 @@
 
 namespace App\Http\Controllers\Api\Youth;
 
-use App\Models\User;
-use App\Notifications\NewEcesproApplicationNotification;
-use Illuminate\Support\Facades\Notification;
 use App\Http\Controllers\Controller;
 use App\Models\EcesproApplication;
 use App\Models\EcesproComplianceSchedule;
@@ -225,9 +222,7 @@ class YouthEcesproController extends Controller
         $application = EcesproApplication::create($mappedData);
 
         $request->user()->notify(new EcesproApplicationStatusNotification($application, 'Submitted'));
-        // Notify admins of the new application
-        $admins = User::where('role', 'admin')->get();
-        Notification::send($admins, new NewEcesproApplicationNotification($application));
+
         return response()->json([
             'message' => 'Application submitted successfully',
             'application' => $application,
@@ -545,6 +540,114 @@ class YouthEcesproController extends Controller
         return response()->json([
             'message' => 'Document reuploaded successfully and submitted for re-validation.',
             'application' => $application->load(['examination.batch', 'interview.batch', 'contract']),
+        ]);
+    }
+
+    /**
+     * Get the authenticated scholar's volunteer hours progress and session logs.
+     */
+    public function volunteerHours(Request $request)
+    {
+        $scholar = EcesproScholar::where('user_id', $request->user()->id)->latest()->first();
+        $defaultRequired = (float) EcesproSetting::get('required_volunteer_hours', 36.00);
+
+        if (! $scholar) {
+            return response()->json([
+                'is_scholar' => false,
+                'message' => 'No active scholar record found for this user.',
+                'required_volunteer_hours' => $defaultRequired,
+                'required_hours' => $defaultRequired,
+                'total_rendered_hours' => 0.00,
+                'rendered_hours' => 0.00,
+                'remaining_hours' => $defaultRequired,
+                'progress_percentage' => 0,
+                'is_volunteer_completed' => false,
+                'is_completed' => false,
+                'has_override' => false,
+                'override_hours' => null,
+                'active_session' => null,
+                'semester_summaries' => [],
+                'logs' => [],
+            ]);
+        }
+
+        $required = (float) ($scholar->required_volunteer_hours ?: $defaultRequired);
+        $rendered = (float) ($scholar->total_rendered_hours ?: 0.00);
+        $remaining = max(0, round($required - $rendered, 2));
+        $percentage = $required > 0 ? min(100, round(($rendered / $required) * 100, 1)) : 100;
+
+        $allLogs = $scholar->volunteerLogs()
+            ->with(['event', 'verifiedBy'])
+            ->latest('time_in')
+            ->get();
+
+        $semesterSummaries = $allLogs->groupBy(fn ($log) => $log->semester_period ?: 'Unassigned Semester')
+            ->map(function ($group, $sem) use ($required) {
+                $semRendered = (float) $group->sum('hours_rendered');
+                $semRemaining = max(0, round($required - $semRendered, 2));
+                $semPercent = $required > 0 ? min(100, round(($semRendered / $required) * 100, 1)) : 100;
+
+                return [
+                    'semester_period' => $sem,
+                    'rendered_hours' => $semRendered,
+                    'required_hours' => $required,
+                    'remaining_hours' => $semRemaining,
+                    'progress_percentage' => $semPercent,
+                    'is_completed' => $semRendered >= $required,
+                    'logs_count' => $group->count(),
+                ];
+            })->values();
+
+        $filteredLogs = $allLogs;
+        if ($semFilter = $request->query('semester_period')) {
+            $filteredLogs = $allLogs->filter(fn ($l) => $l->semester_period === $semFilter)->values();
+        }
+
+        $logs = $filteredLogs->map(function ($log) {
+            return [
+                'id' => $log->id,
+                'activity_type' => $log->activity_type,
+                'duty_title' => $log->duty_title,
+                'event_id' => $log->event_id,
+                'event_name' => $log->event?->name,
+                'time_in' => $log->time_in?->toIso8601String(),
+                'time_out' => $log->time_out?->toIso8601String(),
+                'time_in_formatted' => $log->time_in?->format('M d, Y g:i A'),
+                'time_out_formatted' => $log->time_out?->format('M d, Y g:i A'),
+                'hours_rendered' => (float) $log->hours_rendered,
+                'semester_period' => $log->semester_period,
+                'verified_by_user_id' => $log->verified_by_user_id,
+                'verified_by' => $log->verifiedBy?->name,
+                'status' => $log->time_out ? 'Completed' : 'Active (Timed In)',
+                'remarks' => $log->remarks,
+            ];
+        });
+
+        $activeSession = $scholar->volunteerLogs()->whereNull('time_out')->latest('time_in')->first();
+
+        return response()->json([
+            'is_scholar' => true,
+            'scholar_id' => $scholar->id,
+            'scholar_no' => $scholar->scholar_no,
+            'required_volunteer_hours' => $required,
+            'required_hours' => $required,
+            'total_rendered_hours' => $rendered,
+            'rendered_hours' => $rendered,
+            'remaining_hours' => $remaining,
+            'progress_percentage' => $percentage,
+            'is_volunteer_completed' => (bool) $scholar->is_volunteer_completed,
+            'is_completed' => (bool) $scholar->is_volunteer_completed,
+            'has_override' => $scholar->required_volunteer_hours !== null,
+            'override_hours' => $scholar->required_volunteer_hours ? (float) $scholar->required_volunteer_hours : null,
+            'active_session' => $activeSession ? [
+                'id' => $activeSession->id,
+                'duty_title' => $activeSession->duty_title,
+                'activity_type' => $activeSession->activity_type,
+                'time_in' => $activeSession->time_in?->toIso8601String(),
+                'time_in_formatted' => $activeSession->time_in?->format('g:i A'),
+            ] : null,
+            'semester_summaries' => $semesterSummaries,
+            'logs' => $logs,
         ]);
     }
 }

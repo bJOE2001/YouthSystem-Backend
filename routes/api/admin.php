@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\EcesproSettingController;
 use App\Http\Controllers\Api\Admin\LydcMemberController;
 use App\Http\Controllers\Api\Admin\ResidentYouthController;
 use App\Http\Controllers\Api\Admin\SkOfficialController;
+use App\Http\Controllers\Api\Admin\SystemSettingController;
 use App\Http\Controllers\EcesproApplicationController;
 use App\Http\Controllers\EcesproComplianceScheduleController;
 use App\Http\Controllers\EcesproContractBatchController;
@@ -43,8 +44,8 @@ Route::middleware([
         });
 
         Route::prefix('sk-officials')->name('sk-officials.')->group(function () {
-
             Route::get('/', [SkOfficialController::class, 'index'])->name('index');
+            Route::get('/eligible-youths', [SkOfficialController::class, 'eligibleYouths'])->name('eligible-youths');
             Route::get('/{skOfficial}', [SkOfficialController::class, 'show'])->name('show');
             Route::post('/', [SkOfficialController::class, 'store'])->name('store');
             Route::post('/{skOfficial}/delete', [SkOfficialController::class, 'destroy'])->name('destroy');
@@ -134,6 +135,9 @@ Route::middleware([
         Route::get('ecespro-scholars/{ecespro_scholar}', [EcesproScholarController::class, 'show'])->name('ecespro-scholars.show');
         Route::post('ecespro-scholars/{ecespro_scholar}', [EcesproScholarController::class, 'update'])->name('ecespro-scholars.update');
         Route::post('ecespro-scholars/{ecespro_scholar}/delete', [EcesproScholarController::class, 'destroy'])->name('ecespro-scholars.destroy');
+        Route::get('ecespro-scholars/{ecespro_scholar}/volunteer-logs', [EcesproScholarController::class, 'volunteerLogs'])->name('ecespro-scholars.volunteer-logs.index');
+        Route::post('ecespro-scholars/{ecespro_scholar}/volunteer-logs', [EcesproScholarController::class, 'storeVolunteerLog'])->name('ecespro-scholars.volunteer-logs.store');
+        Route::post('ecespro-scholars/{ecespro_scholar}/volunteer-logs/{log}/delete', [EcesproScholarController::class, 'deleteVolunteerLog'])->name('ecespro-scholars.volunteer-logs.destroy');
         Route::get('ecespro-compliance-validations', [EcesproScholarController::class, 'complianceValidations'])->name('ecespro-compliance-validations.index');
         Route::post('ecespro-compliance-validations/{ecesproScholar}/review', [EcesproScholarController::class, 'reviewCompliance'])->name('ecespro-compliance-validations.review');
 
@@ -149,16 +153,34 @@ Route::middleware([
 
         // ECESPRO Settings
         Route::get('ecespro-settings', [EcesproSettingController::class, 'index'])->name('ecespro-settings.index');
+        Route::post('ecespro-settings', [EcesproSettingController::class, 'store'])->name('ecespro-settings.store-batch');
         Route::post('ecespro-settings/{key}', [EcesproSettingController::class, 'store'])->name('ecespro-settings.store');
 
-    
         // System Settings
-        Route::get('system-settings/landing-hero', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'getLandingHero'])->name('system-settings.landing-hero.get');
-                Route::get('system-settings/auth-hero', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'getAuthHero'])->name('system-settings.auth-hero.get');
-                Route::get('system-settings/contact', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'getContactSettings'])->name('system-settings.contact.get');
-        Route::post('system-settings/contact', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'updateContactSettings'])->name('system-settings.contact.update');
-        Route::post('system-settings/auth-hero', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'updateAuthHero'])->name('system-settings.auth-hero.update');
-        Route::post('system-settings/landing-hero', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'updateLandingHero'])->name('system-settings.landing-hero.update');
-        Route::post('change-password', [\App\Http\Controllers\Api\Admin\SystemSettingController::class, 'changePassword'])->name('change-password');
-    });
+        Route::get('system-settings/landing-hero', [SystemSettingController::class, 'getLandingHero'])->name('system-settings.landing-hero.get');
+        Route::get('system-settings/auth-hero', [SystemSettingController::class, 'getAuthHero'])->name('system-settings.auth-hero.get');
+        Route::get('system-settings/contact', [SystemSettingController::class, 'getContactSettings'])->name('system-settings.contact.get');
+        Route::get('system-settings/email-layout', [SystemSettingController::class, 'getEmailLayout'])->name('system-settings.email-layout.get');
+        Route::get('system-settings/email-layout/preview', [SystemSettingController::class, 'previewEmailLayout'])->name('system-settings.email-layout.preview');
+        Route::post('system-settings/contact', [SystemSettingController::class, 'updateContactSettings'])->name('system-settings.contact.update');
+        Route::post('system-settings/auth-hero', [SystemSettingController::class, 'updateAuthHero'])->name('system-settings.auth-hero.update');
+        Route::post('system-settings/landing-hero', [SystemSettingController::class, 'updateLandingHero'])->name('system-settings.landing-hero.update');
+        Route::post('system-settings/email-layout', [SystemSettingController::class, 'updateEmailLayout'])->name('system-settings.email-layout.update');
+        Route::post('system-settings/email-layout/send-test', [SystemSettingController::class, 'sendTestEmail'])->name('system-settings.email-layout.send-test');
+        Route::get('system-settings/email-templates', [SystemSettingController::class, 'getEmailTemplates'])->name('system-settings.email-templates.index');
+        Route::get('system-settings/email-templates/{key}', [SystemSettingController::class, 'getEmailTemplate'])->name('system-settings.email-templates.show');
+        Route::post('system-settings/email-templates/{key}', [SystemSettingController::class, 'updateEmailTemplate'])->name('system-settings.email-templates.update');
+        Route::post('system-settings/email-templates/{key}/reset', [SystemSettingController::class, 'resetEmailTemplate'])->name('system-settings.email-templates.reset');
 
+        // Aliases for /admin/settings/...
+        Route::get('settings/email-layout', [SystemSettingController::class, 'getEmailLayout'])->name('settings.email-layout.get');
+        Route::get('settings/email-layout/preview', [SystemSettingController::class, 'previewEmailLayout'])->name('settings.email-layout.preview');
+        Route::post('settings/email-layout', [SystemSettingController::class, 'updateEmailLayout'])->name('settings.email-layout.update');
+        Route::post('settings/email-layout/send-test', [SystemSettingController::class, 'sendTestEmail'])->name('settings.email-layout.send-test');
+        Route::get('settings/email-templates', [SystemSettingController::class, 'getEmailTemplates'])->name('settings.email-templates.index');
+        Route::get('settings/email-templates/{key}', [SystemSettingController::class, 'getEmailTemplate'])->name('settings.email-templates.show');
+        Route::post('settings/email-templates/{key}', [SystemSettingController::class, 'updateEmailTemplate'])->name('settings.email-templates.update');
+        Route::post('settings/email-templates/{key}/reset', [SystemSettingController::class, 'resetEmailTemplate'])->name('settings.email-templates.reset');
+
+        Route::post('change-password', [SystemSettingController::class, 'changePassword'])->name('change-password');
+    });

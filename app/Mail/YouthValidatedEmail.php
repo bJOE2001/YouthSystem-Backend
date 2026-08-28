@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Models\User;
+use App\Services\EmailTemplateService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -24,8 +25,15 @@ class YouthValidatedEmail extends Mailable
      */
     public function envelope(): Envelope
     {
+        $rendered = app(EmailTemplateService::class)->render('youth_validated', [
+            'user_name' => $this->user->name,
+            'user_email' => $this->user->email,
+            'initial_password' => $this->plainPassword,
+            'login_url' => config('app.frontend_url', config('app.url', 'http://localhost')),
+        ]);
+
         return new Envelope(
-            subject: 'Your Youth Account Has Been Validated',
+            subject: $rendered['subject'] ?: 'Your Youth Account Has Been Validated',
         );
     }
 

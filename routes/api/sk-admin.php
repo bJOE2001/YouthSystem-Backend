@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\SkAdmin\ResidentYouthController;
 use App\Http\Controllers\Api\SkAdmin\SkOfficialController;
 use App\Http\Controllers\Api\SkAdmin\SkSportsProgramController;
 use App\Http\Controllers\Api\SkAdmin\YouthValidationController;
+use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware([
@@ -25,6 +26,7 @@ Route::middleware([
         */
 
         Route::get('/dashboard', [DashboardController::class, '__invoke']);
+        Route::get('/qr-pass', [AuthController::class, 'qrPass'])->name('qr-pass');
 
         Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
         Route::post('/profile/create', [ProfileController::class, 'store'])->name('profile.create');
@@ -68,6 +70,7 @@ Route::middleware([
 
         Route::prefix('sk-officials')->name('sk-officials.')->group(function () {
             Route::get('/', [SkOfficialController::class, 'index'])->name('index');
+            Route::get('/eligible-youths', [SkOfficialController::class, 'eligibleYouths'])->name('eligible-youths');
             Route::get('/{skOfficial}', [SkOfficialController::class, 'show'])->name('show');
             Route::post('/', [SkOfficialController::class, 'store'])->name('store');
             Route::post('/{skOfficial}/delete', [SkOfficialController::class, 'destroy'])->name('destroy');

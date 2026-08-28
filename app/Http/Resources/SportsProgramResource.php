@@ -21,11 +21,11 @@ class SportsProgramResource extends JsonResource
 
         $dateFormatted = '';
         if ($start) {
-            $dateFormatted = $end ? $start->format('M d, Y') . ' - ' . $end->format('M d, Y') : $start->format('M d, Y');
+            $dateFormatted = $end ? $start->format('M d, Y').' - '.$end->format('M d, Y') : $start->format('M d, Y');
         }
 
         $timeFormatted = $this->start_time ? Carbon::parse($this->start_time)->format('g:i A') : '';
-        $dateTime = trim($dateFormatted . ' ' . $timeFormatted);
+        $dateTime = trim($dateFormatted.' '.$timeFormatted);
 
         $user = Auth::guard('sanctum')->user() ?? Auth::user();
         $attended = false;
@@ -85,8 +85,8 @@ class SportsProgramResource extends JsonResource
             'certificate_path' => $certificatePath,
             'certificateTemplatePath' => $this->certificate_template_path,
             'certificate_template_path' => $this->certificate_template_path,
-            'certificateTemplateUrl' => $this->certificate_template_path ? url('storage/' . $this->certificate_template_path) : null,
-            'certificate_template_url' => $this->certificate_template_path ? url('storage/' . $this->certificate_template_path) : null,
+            'certificateTemplateUrl' => $this->certificate_template_path ? url('storage/'.$this->certificate_template_path) : null,
+            'certificate_template_url' => $this->certificate_template_path ? url('storage/'.$this->certificate_template_path) : null,
             'certificateSettings' => $this->certificate_settings,
             'certificate_settings' => $this->certificate_settings,
             'canDownloadCertificate' => $canDownloadCertificate,

@@ -2,17 +2,20 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\SkAdmin\ResidentYouth\GetResidentYouthRecordsAction;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSportsProgramRequest;
 use App\Http\Requests\UpdateSportsProgramRequest;
 use App\Http\Resources\EventParticipantResource;
+use App\Http\Resources\SkAdmin\ResidentYouthListResource;
 use App\Http\Resources\SportsProgramResource;
 use App\Http\Resources\UnifiedEventResource;
 use App\Models\SkOfficial;
 use App\Models\SportsProgram;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -21,7 +24,8 @@ class SportsProgramController extends Controller
     public function index(Request $request)
     {
         $query = SportsProgram::query();
-        $user = auth('sanctum')->user();
+        /** @var User|null $user */
+        $user = Auth::guard('sanctum')->user() ?? Auth::user();
 
         $isOwnerRequest = $request->input('owner') === 'me';
 
@@ -47,9 +51,9 @@ class SportsProgramController extends Controller
 
         if ($request->has('search') && ! empty($request->search)) {
             $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->search . '%')
-                    ->orWhere('location', 'like', '%' . $request->search . '%')
-                    ->orWhere('type', 'like', '%' . $request->search . '%');
+                $q->where('name', 'like', '%'.$request->search.'%')
+                    ->orWhere('location', 'like', '%'.$request->search.'%')
+                    ->orWhere('type', 'like', '%'.$request->search.'%');
             });
         }
 
@@ -68,7 +72,8 @@ class SportsProgramController extends Controller
 
     public function store(StoreSportsProgramRequest $request)
     {
-        $user = auth()->user();
+        /** @var User $user */
+        $user = $request->user() ?? Auth::guard('sanctum')->user() ?? Auth::user();
         $data = $this->mapToSnakeCase($request->validated());
         $data['user_id'] = $user->id;
 
@@ -93,7 +98,8 @@ class SportsProgramController extends Controller
 
     public function update(UpdateSportsProgramRequest $request, SportsProgram $sportsProgram)
     {
-        $user = auth()->user();
+        /** @var User $user */
+        $user = $request->user() ?? Auth::guard('sanctum')->user() ?? Auth::user();
         $data = $this->mapToSnakeCase($request->validated());
 
         if ($request->has('openToAll') || $request->has('open_to_all_barangays')) {
@@ -164,18 +170,18 @@ class SportsProgramController extends Controller
                     }
 
                     $expandedParticipants[] = [
-                        'id'              => 'tm_' . md5($p['id'] . '_' . $tmName),
-                        'user_id'         => $tmUserId,
-                        'name'            => $tmName,
+                        'id' => 'tm_'.md5($p['id'].'_'.$tmName),
+                        'user_id' => $tmUserId,
+                        'name' => $tmName,
                         'profile_picture' => null,
-                        'contact'         => $tm['contact'] ?? '—',
-                        'email'           => $tm['email'] ?? '—',
-                        'purok'           => $p['purok'] ?? '—',
-                        'barangay'        => $p['barangay'] ?? 'Unknown',
-                        'team_name'       => $p['team_name'],
-                        'position'        => $tmRole ?: 'Member',
-                        'teammates'       => [],
-                        'status'          => 'Not Attended',
+                        'contact' => $tm['contact'] ?? '—',
+                        'email' => $tm['email'] ?? '—',
+                        'purok' => $p['purok'] ?? '—',
+                        'barangay' => $p['barangay'] ?? 'Unknown',
+                        'team_name' => $p['team_name'],
+                        'position' => $tmRole ?: 'Member',
+                        'teammates' => [],
+                        'status' => 'Not Attended',
                     ];
                 }
             }
@@ -190,7 +196,7 @@ class SportsProgramController extends Controller
         $result = [];
         foreach ($grouped as $barangay => $items) {
             $result[] = [
-                'barangay'     => $barangay,
+                'barangay' => $barangay,
                 'participants' => $items->values()->all(),
             ];
         }
@@ -215,7 +221,7 @@ class SportsProgramController extends Controller
         $validated = $request->validate([
             'team_name' => 'nullable|string|max:255',
             'leader_id' => 'nullable',
-            'leader'    => 'nullable|array',
+            'leader' => 'nullable|array',
             'teammates' => 'nullable|array',
             'teammates.*.user_id' => 'nullable',
             'teammates.*.name' => 'nullable|string',
@@ -224,7 +230,8 @@ class SportsProgramController extends Controller
             'teammates.*.role' => 'nullable|string',
         ]);
 
-        $user = auth('sanctum')->user() ?? auth()->user();
+        /** @var User|null $user */
+        $user = Auth::guard('sanctum')->user() ?? Auth::user() ?? $request->user();
         if (! $user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
@@ -235,7 +242,7 @@ class SportsProgramController extends Controller
         if (! $sportsProgram->open_to_all_barangays && ! $isAdminOrSk) {
             $userBarangay = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
             if (! $userBarangay || strtolower(trim($userBarangay)) !== strtolower(trim($sportsProgram->barangay))) {
-                return response()->json(['message' => 'This sports program is exclusive to residents of Barangay ' . $sportsProgram->barangay . '.'], 403);
+                return response()->json(['message' => 'This sports program is exclusive to residents of Barangay '.$sportsProgram->barangay.'.'], 403);
             }
         }
 
@@ -315,31 +322,31 @@ class SportsProgramController extends Controller
             $existingTeam = $checkExistingRegistration($leaderUser->id, $leaderEmail, $leaderName);
             if ($existingTeam) {
                 return response()->json([
-                    'message' => $leaderName . ' is already registered in team "' . $existingTeam . '" for this sports program.'
+                    'message' => $leaderName.' is already registered in team "'.$existingTeam.'" for this sports program.',
                 ], 422);
             }
 
             $captainInfo = [
                 'user_id' => $leaderUser->id,
-                'name'    => $leaderName,
-                'email'   => $leaderEmail ?? '',
+                'name' => $leaderName,
+                'email' => $leaderEmail ?? '',
                 'contact' => $leaderData['contact'] ?? '',
-                'role'    => 'Team Leader',
+                'role' => 'Team Leader',
             ];
         } else {
             $existingTeam = $checkExistingRegistration($user->id, $user->email, $user->name);
             if ($existingTeam) {
                 return response()->json([
-                    'message' => 'You are already registered in team "' . $existingTeam . '" for this sports program.'
+                    'message' => 'You are already registered in team "'.$existingTeam.'" for this sports program.',
                 ], 400);
             }
 
             $captainInfo = [
                 'user_id' => $user->id,
-                'name'    => $user->name ?? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
-                'email'   => $user->email,
+                'name' => $user->name ?? trim(($user->first_name ?? '').' '.($user->last_name ?? '')),
+                'email' => $user->email,
                 'contact' => $user->youthProfile?->mobile_number ?? $user->contact_number ?? '',
-                'role'    => 'Team Leader',
+                'role' => 'Team Leader',
             ];
             $leaderUser = $user;
         }
@@ -374,16 +381,16 @@ class SportsProgramController extends Controller
             $existingTeam = $checkExistingRegistration($realMemberUserId, $memberEmail, $memberName);
             if ($existingTeam) {
                 return response()->json([
-                    'message' => ($memberName ?: 'A member') . ' is already registered in team "' . $existingTeam . '" for this sports program.'
+                    'message' => ($memberName ?: 'A member').' is already registered in team "'.$existingTeam.'" for this sports program.',
                 ], 422);
             }
 
             $formattedTeammates[] = [
                 'user_id' => $realMemberUserId,
-                'name'    => $memberName,
-                'email'   => $memberEmail,
+                'name' => $memberName,
+                'email' => $memberEmail,
                 'contact' => $t['contact'] ?? '',
-                'role'    => $tRole,
+                'role' => $tRole,
             ];
         }
 
@@ -417,20 +424,20 @@ class SportsProgramController extends Controller
         return new UnifiedEventResource($sportsProgram);
     }
 
-    
     /**
      * Search resident youth for sports team roster registration (delegates to GetResidentYouthRecordsAction).
      */
-    public function searchResidents(Request $request, \App\Actions\SkAdmin\ResidentYouth\GetResidentYouthRecordsAction $action)
+    public function searchResidents(Request $request, GetResidentYouthRecordsAction $action)
     {
-        $user = auth('sanctum')->user() ?? auth()->user();
+        /** @var User|null $user */
+        $user = Auth::guard('sanctum')->user() ?? Auth::user() ?? $request->user();
         if (! $user) {
             return response()->json(['data' => []]);
         }
 
         $records = $action->execute($request->all());
 
-        return \App\Http\Resources\SkAdmin\ResidentYouthListResource::collection($records)->response();
+        return ResidentYouthListResource::collection($records)->response();
     }
 
     private function mapToSnakeCase(array $data): array
@@ -445,7 +452,7 @@ class SportsProgramController extends Controller
 
             // Fix for objective1 -> objective_1
             if (preg_match('/^objective(\d+)$/', $snakeKey, $matches)) {
-                $snakeKey = 'objective_' . $matches[1];
+                $snakeKey = 'objective_'.$matches[1];
             }
 
             $mapped[$snakeKey] = $value;

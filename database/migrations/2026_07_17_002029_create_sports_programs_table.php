@@ -21,8 +21,8 @@ return new class extends Migration
             $table->date('end_date')->nullable();
             $table->time('start_time')->nullable();
             $table->string('location')->nullable();
-            // $table->decimal('budget_allocated', 10, 2)->nullable();
-            // $table->decimal('budget_utilized', 10, 2)->nullable();
+            $table->decimal('budget_allocated', 10, 2)->nullable();
+            $table->decimal('budget_utilized', 10, 2)->nullable();
             $table->text('objective_1')->nullable();
             $table->text('objective_2')->nullable();
             $table->text('objective_3')->nullable();

@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SystemSetting;
+use App\Services\EmailLayoutService;
+use App\Services\EmailTemplateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
 
 class SystemSettingController extends Controller
 {
@@ -23,7 +26,7 @@ class SystemSettingController extends Controller
         if ($imagePath) {
             $imageUrl = filter_var($imagePath, FILTER_VALIDATE_URL)
                 ? $imagePath
-                : url('storage/' . $imagePath);
+                : url('storage/'.$imagePath);
         }
 
         return response()->json([
@@ -32,8 +35,8 @@ class SystemSettingController extends Controller
                 'image_path' => $imagePath,
                 'title' => $data['title'] ?? "Welcome to\nYouth Community",
                 'subtitle' => $data['subtitle'] ?? "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy.",
-                'show_text' => isset($data['show_text']) ? (bool)$data['show_text'] : true,
-                'show_button' => isset($data['show_button']) ? (bool)$data['show_button'] : true,
+                'show_text' => isset($data['show_text']) ? (bool) $data['show_text'] : true,
+                'show_button' => isset($data['show_button']) ? (bool) $data['show_button'] : true,
                 'button_text' => $data['button_text'] ?? 'Register',
                 'button_link' => $data['button_link'] ?? '/register',
                 'gradient_start' => $data['gradient_start'] ?? 'rgba(5, 110, 61, 0.95)',
@@ -114,7 +117,7 @@ class SystemSettingController extends Controller
 
         $imageUrl = null;
         if ($imagePath) {
-            $imageUrl = url('storage/' . $imagePath);
+            $imageUrl = url('storage/'.$imagePath);
         }
 
         return response()->json([
@@ -136,7 +139,7 @@ class SystemSettingController extends Controller
         if ($imagePath) {
             $imageUrl = filter_var($imagePath, FILTER_VALIDATE_URL)
                 ? $imagePath
-                : url('storage/' . $imagePath);
+                : url('storage/'.$imagePath);
         }
 
         return response()->json([
@@ -144,8 +147,8 @@ class SystemSettingController extends Controller
                 'auth_image' => $imageUrl,
                 'image_path' => $imagePath,
                 'title' => $data['title'] ?? "Join Youth Community\nand be part of a better tomorrow",
-                'subtitle' => $data['subtitle'] ?? "Create your profile so you can access youth programs, opportunities, and community announcements in one place.",
-                'show_text' => isset($data['show_text']) ? (bool)$data['show_text'] : true,
+                'subtitle' => $data['subtitle'] ?? 'Create your profile so you can access youth programs, opportunities, and community announcements in one place.',
+                'show_text' => isset($data['show_text']) ? (bool) $data['show_text'] : true,
                 'gradient_start' => $data['gradient_start'] ?? 'rgba(5, 110, 61, 0.96)',
                 'gradient_end' => $data['gradient_end'] ?? 'rgba(14, 136, 70, 0.28)',
                 'gradient_angle' => $data['gradient_angle'] ?? '180deg',
@@ -195,7 +198,7 @@ class SystemSettingController extends Controller
         $updatedData = [
             'image_path' => $imagePath,
             'title' => $request->input('title', $currentValue['title'] ?? "Join Youth Community\nand be part of a better tomorrow"),
-            'subtitle' => $request->input('subtitle', $currentValue['subtitle'] ?? "Create your profile so you can access youth programs, opportunities, and community announcements in one place."),
+            'subtitle' => $request->input('subtitle', $currentValue['subtitle'] ?? 'Create your profile so you can access youth programs, opportunities, and community announcements in one place.'),
             'show_text' => $showText,
             'gradient_start' => $request->input('gradient_start', $currentValue['gradient_start'] ?? 'rgba(5, 110, 61, 0.96)'),
             'gradient_end' => $request->input('gradient_end', $currentValue['gradient_end'] ?? 'rgba(14, 136, 70, 0.28)'),
@@ -208,7 +211,7 @@ class SystemSettingController extends Controller
 
         $imageUrl = null;
         if ($imagePath) {
-            $imageUrl = url('storage/' . $imagePath);
+            $imageUrl = url('storage/'.$imagePath);
         }
 
         return response()->json([
@@ -258,7 +261,7 @@ class SystemSettingController extends Controller
         $cleanedSocialLinks = [];
         if (is_array($rawSocialLinks)) {
             foreach ($rawSocialLinks as $item) {
-                if (!empty($item['url'])) {
+                if (! empty($item['url'])) {
                     $cleanedSocialLinks[] = [
                         'platform' => $item['platform'] ?? 'website',
                         'url' => trim($item['url']),
@@ -292,7 +295,7 @@ class SystemSettingController extends Controller
 
         $user = $request->user();
 
-        if (!Hash::check($request->current_password, $user->password)) {
+        if (! Hash::check($request->current_password, $user->password)) {
             throw ValidationException::withMessages([
                 'current_password' => ['The provided current password does not match your actual password.'],
             ]);
@@ -311,5 +314,159 @@ class SystemSettingController extends Controller
         return response()->json([
             'message' => 'Password updated successfully.',
         ]);
+    }
+
+    public function getEmailLayout(EmailLayoutService $emailLayoutService): JsonResponse
+    {
+        return response()->json([
+            'data' => $emailLayoutService->getSettings(),
+        ]);
+    }
+
+    public function updateEmailLayout(Request $request, EmailLayoutService $emailLayoutService): JsonResponse
+    {
+        $request->validate([
+            'logo_image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif,svg|max:5120',
+            'logo_url' => 'nullable|string|max:500',
+            'show_logo' => 'nullable',
+            'logo_height' => 'nullable|string|max:20',
+            'header_title' => 'nullable|string|max:255',
+            'header_subtitle' => 'nullable|string|max:255',
+            'show_header_title' => 'nullable',
+            'primary_color' => 'nullable|string|max:50',
+            'secondary_color' => 'nullable|string|max:50',
+            'accent_color' => 'nullable|string|max:50',
+            'body_bg_color' => 'nullable|string|max:50',
+            'card_bg_color' => 'nullable|string|max:50',
+            'card_border_radius' => 'nullable|string|max:20',
+            'heading_color' => 'nullable|string|max:50',
+            'text_color' => 'nullable|string|max:50',
+            'button_bg_color' => 'nullable|string|max:50',
+            'button_text_color' => 'nullable|string|max:50',
+            'footer_text' => 'nullable|string|max:500',
+            'footer_tagline' => 'nullable|string|max:500',
+            'footer_disclaimer' => 'nullable|string|max:500',
+            'contact_email' => 'nullable|email|max:255',
+            'contact_phone' => 'nullable|string|max:100',
+            'office_address' => 'nullable|string|max:500',
+            'show_footer_contact' => 'nullable',
+            'show_social_links' => 'nullable',
+            'social_links' => 'nullable|array',
+            'social_links.*.platform' => 'nullable|string|max:50',
+            'social_links.*.url' => 'nullable|string|max:500',
+            'copyright_text' => 'nullable|string|max:255',
+            'remove_logo' => 'nullable',
+        ]);
+
+        $removeLogo = filter_var($request->input('remove_logo'), FILTER_VALIDATE_BOOLEAN);
+        $updatedData = $emailLayoutService->updateSettings(
+            $request->all(),
+            $request->file('logo_image'),
+            $removeLogo
+        );
+
+        return response()->json([
+            'message' => 'Email layout settings updated successfully.',
+            'data' => $updatedData,
+        ]);
+    }
+
+    public function previewEmailLayout(Request $request, EmailLayoutService $emailLayoutService): Response
+    {
+        $html = $emailLayoutService->renderPreview();
+
+        if ($request->query('format') === 'html') {
+            return response($html, 200, ['Content-Type' => 'text/html']);
+        }
+
+        return response()->json([
+            'html' => $html,
+            'data' => $emailLayoutService->getSettings(),
+        ]);
+    }
+
+    public function sendTestEmail(Request $request, EmailLayoutService $emailLayoutService): JsonResponse
+    {
+        $request->validate([
+            'email' => 'nullable|email|max:255',
+        ]);
+
+        $recipient = $request->input('email') ?: $request->user()?->email;
+
+        if (empty($recipient)) {
+            throw ValidationException::withMessages([
+                'email' => ['A valid recipient email address is required to send a test email.'],
+            ]);
+        }
+
+        $emailLayoutService->sendTestEmail($recipient);
+
+        return response()->json([
+            'message' => "Test email successfully sent to {$recipient}.",
+        ]);
+    }
+
+    public function getEmailTemplates(EmailTemplateService $emailTemplateService): JsonResponse
+    {
+        return response()->json([
+            'data' => $emailTemplateService->getAllTemplates(),
+        ]);
+    }
+
+    public function getEmailTemplate(string $key, EmailTemplateService $emailTemplateService): JsonResponse
+    {
+        $template = $emailTemplateService->getTemplate($key);
+
+        if (! $template) {
+            return response()->json([
+                'message' => "Email template '{$key}' not found.",
+            ], 404);
+        }
+
+        return response()->json([
+            'data' => $template,
+        ]);
+    }
+
+    public function updateEmailTemplate(Request $request, string $key, EmailTemplateService $emailTemplateService): JsonResponse
+    {
+        $request->validate([
+            'subject' => 'nullable|string|max:500',
+            'heading' => 'nullable|string|max:500',
+            'body' => 'nullable|string|max:10000',
+            'button_text' => 'nullable|string|max:255',
+            'security_notice' => 'nullable|string|max:1000',
+            'attachment_notice' => 'nullable|string|max:1000',
+            'footnote' => 'nullable|string|max:1000',
+        ]);
+
+        try {
+            $updated = $emailTemplateService->updateTemplate($key, $request->all());
+
+            return response()->json([
+                'message' => "Email template '{$key}' updated successfully.",
+                'data' => $updated,
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 404);
+        }
+    }
+
+    public function resetEmailTemplate(string $key, EmailTemplateService $emailTemplateService): JsonResponse
+    {
+        try {
+            $reset = $emailTemplateService->resetTemplate($key);
+
+            return response()->json([
+                'message' => "Email template '{$key}' reset to default successfully.",
+                'data' => $reset,
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 404);
+        }
     }
 }

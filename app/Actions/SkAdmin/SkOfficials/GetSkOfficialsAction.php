@@ -12,7 +12,11 @@ class GetSkOfficialsAction
      */
     public function execute(array $filters = []): LengthAwarePaginator
     {
-        $query = SkOfficial::query();
+        $query = SkOfficial::with(['user.youthProfile']);
+
+        if (! empty($filters['barangay'])) {
+            $query->where('barangay', $filters['barangay']);
+        }
 
         if (! empty($filters['search'])) {
             $search = '%'.$filters['search'].'%';

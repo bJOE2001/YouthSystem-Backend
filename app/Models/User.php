@@ -7,11 +7,13 @@ use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -21,6 +23,12 @@ class User extends Authenticatable
 
     protected static function booted(): void
     {
+        static::creating(function (User $user) {
+            if (empty($user->qr_code_token)) {
+                $user->qr_code_token = (string) Str::uuid();
+            }
+        });
+
         static::deleting(function (User $user) {
             if (Schema::hasTable('sports_program_user')) {
                 DB::table('sports_program_user')->where('user_id', $user->id)->delete();
@@ -69,9 +77,29 @@ class User extends Authenticatable
         return $this->hasOne(YouthProfile::class);
     }
 
+    public function skOfficial(): HasOne
+    {
+        return $this->hasOne(SkOfficial::class);
+    }
+
     public function ecesproScholar(): HasOne
     {
         return $this->hasOne(EcesproScholar::class)->latest();
+    }
+
+    public function scholar(): HasOne
+    {
+        return $this->hasOne(EcesproScholar::class)->latest();
+    }
+
+    public function attendanceLogs(): HasMany
+    {
+        return $this->hasMany(AttendanceLog::class);
+    }
+
+    public function eventAttendances(): HasMany
+    {
+        return $this->hasMany(AttendanceLog::class);
     }
 
     public function joinedEvents()
@@ -92,6 +120,23 @@ class User extends Authenticatable
     public function bookingRequests()
     {
         return $this->hasMany(BookingRequest::class);
+    }
+
+    public function regenerateQrToken(): string
+    {
+        $this->qr_code_token = (string) Str::uuid();
+        $this->save();
+
+        return $this->qr_code_token;
+    }
+
+    public function ensureQrToken(): string
+    {
+        if (empty($this->qr_code_token)) {
+            return $this->regenerateQrToken();
+        }
+
+        return $this->qr_code_token;
     }
 
     /**
@@ -115,6 +160,7 @@ class User extends Authenticatable
         'password',
         'role',
         'status',
+        'qr_code_token',
         'email_verified_at',
         'last_login_at',
     ];

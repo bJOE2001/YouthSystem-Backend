@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\SportsProgramFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SportsProgram extends Model
 {
@@ -54,5 +55,10 @@ class SportsProgram extends Model
         return $this->belongsToMany(User::class, 'sports_program_user')
             ->withPivot(['id', 'attended_at', 'team_name', 'teammates'])
             ->withTimestamps();
+    }
+
+    public function attendanceLogs(): HasMany
+    {
+        return $this->hasMany(AttendanceLog::class);
     }
 }

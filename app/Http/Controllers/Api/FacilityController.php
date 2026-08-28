@@ -8,10 +8,8 @@ use App\Models\Facility;
 use App\Models\FacilityBlackoutDate;
 use App\Models\User;
 use App\Notifications\BookingConfirmedNotification;
-use App\Notifications\NewBookingRequestNotification;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -268,10 +266,6 @@ class FacilityController extends Controller
         // Notify the user of immediate booking confirmation
         $request->user()->notify(new BookingConfirmedNotification($booking));
 
-        // Notify admins of new booking
-        $admins = User::where('role', 'admin')->get();
-        Notification::send($admins, new NewBookingRequestNotification($booking));
-
         return response()->json([
             'message' => 'Facility successfully booked and confirmed',
             'data' => $booking,
@@ -334,8 +328,8 @@ class FacilityController extends Controller
             return [
                 'id' => $booking->id,
                 'title' => 'Booked',
-                'start' => $booking->date . 'T' . $booking->start_time,
-                'end' => $booking->date . 'T' . $booking->end_time,
+                'start' => $booking->date.'T'.$booking->start_time,
+                'end' => $booking->date.'T'.$booking->end_time,
                 'extendedProps' => [
                     'requestedBy' => $booking->user->name ?? 'Unknown',
                     'status' => $booking->status,

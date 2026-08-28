@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\YouthProfileStatus;
 use App\Models\Barangay;
 use App\Models\SkOfficial;
 use App\Models\User;
@@ -35,9 +36,20 @@ class SkSeeder extends Seeder
                     'email' => $adminEmail,
                 ]);
 
+                // Create approved youth profile for SK Admin
+                YouthProfile::factory()->create([
+                    'user_id' => $skAdminUser->id,
+                    'first_name' => 'SK Admin',
+                    'last_name' => $barangayName,
+                    'barangay' => $barangay->name,
+                    'status' => YouthProfileStatus::Approved,
+                ]);
+
                 SkOfficial::factory()->create([
+                    'user_id' => $skAdminUser->id,
                     'name' => "SK Admin {$barangayName}",
                     'email' => $adminEmail,
+                    'position' => 'SK Chairperson',
                     'barangay' => $barangay->name,
                 ]);
 

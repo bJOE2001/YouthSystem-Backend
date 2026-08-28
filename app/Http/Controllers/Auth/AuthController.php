@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
+use App\Models\SkOfficial;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -135,6 +136,66 @@ class AuthController extends Controller
         return response()->json([
             'user' => UserResource::make($request->user()),
         ]);
+    }
+
+    public function qrPass(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $user->ensureQrToken();
+        $user->loadMissing(['youthProfile', 'scholar', 'skOfficial']);
+
+        $role = $user->role instanceof UserRole ? $user->role->value : (string) $user->role;
+        $isScholar = $user->scholar && $user->scholar->status === 'Active';
+
+        $position = null;
+        $committee = null;
+        $term = null;
+        $barangay = $user->youthProfile?->barangay;
+
+        if ($role === 'sk_admin') {
+            $skOfficial = $user->skOfficial ?? SkOfficial::where('email', $user->email)->first();
+            $position = $skOfficial?->position ?? 'SK Official';
+            $committee = $skOfficial?->committee;
+            $term = $skOfficial?->term ?? '2023 - 2025';
+            $barangay = $skOfficial?->barangay ?? $barangay;
+            $roleLabel = $position;
+        } elseif ($role === 'admin') {
+            $roleLabel = 'TCYDO Administrator';
+            $position = 'Administrator';
+            $barangay = $barangay ?? 'City Youth Development Office';
+        } else {
+            $roleLabel = 'Registered Youth';
+        }
+
+        $profilePicture = $user->youthProfile?->profile_picture;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $role,
+                'role_label' => $roleLabel,
+                'is_scholar' => (bool) $isScholar,
+                'scholar_no' => $isScholar ? $user->scholar?->scholar_no : null,
+                'position' => $position,
+                'committee' => $committee,
+                'term' => $term,
+                'barangay' => $barangay,
+                'profile_picture' => $profilePicture,
+                'qr_code_token' => $user->qr_code_token,
+                'status' => $user->status instanceof UserStatus ? $user->status->value : (string) $user->status,
+            ],
+        ]);
+    }
+
+    public function regenerateQrPass(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $user->regenerateQrToken();
+
+        return $this->qrPass($request);
     }
 
     public function logout(Request $request): Response

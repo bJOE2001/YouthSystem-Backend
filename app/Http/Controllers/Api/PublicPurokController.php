@@ -24,7 +24,7 @@ class PublicPurokController extends Controller
             ->where('barangay', $request->input('barangay'));
 
         if ($request->filled('search')) {
-            $query->where('name', 'LIKE', '%' . $request->input('search') . '%');
+            $query->where('name', 'LIKE', '%'.$request->input('search').'%');
         }
 
         $puroks = $query->orderBy('name', 'asc')

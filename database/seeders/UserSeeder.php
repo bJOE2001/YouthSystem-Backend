@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\YouthProfileStatus;
 use App\Models\Barangay;
 use App\Models\SkOfficial;
 use App\Models\User;
@@ -31,11 +32,35 @@ class UserSeeder extends Seeder
             ]);
 
             $barangay = Barangay::where('name', 'Apokon')->first();
+            $bName = $barangay ? $barangay->name : 'Apokon';
+
+            YouthProfile::factory()->create([
+                'user_id' => $skAdminUser->id,
+                'first_name' => 'SK Admin',
+                'middle_name' => 'Official',
+                'last_name' => 'User',
+                'suffix' => null,
+                'gender' => 'Male',
+                'birth_date' => '2002-05-10',
+                'place_of_birth' => 'Tagum City, Davao del Norte',
+                'mobile_number' => '09123456788',
+                'barangay' => $bName,
+                'purok_sitio' => 'Purok 1',
+                'city' => 'Tagum City',
+                'province' => 'Davao del Norte',
+                'postal_code' => '8100',
+                'educational_attainment' => 'College Graduate',
+                'course_strand' => 'BS Public Administration',
+                'status' => YouthProfileStatus::Approved,
+            ]);
 
             SkOfficial::factory()->create([
+                'user_id' => $skAdminUser->id,
                 'name' => 'SK Admin User',
                 'email' => 'sk@test.com',
-                'barangay' => $barangay ? $barangay->name : 'Apokon',
+                'position' => 'SK Chairperson',
+                'committee' => 'Sports',
+                'barangay' => $bName,
             ]);
         }
 

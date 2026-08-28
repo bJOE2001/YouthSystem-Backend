@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Youth\DashboardController;
 use App\Http\Controllers\Api\Youth\ProfileController;
+use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware([
@@ -14,6 +15,7 @@ Route::middleware([
     ->group(function () {
 
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/qr-pass', [AuthController::class, 'qrPass'])->name('qr-pass');
 
         /*
         |--------------------------------------------------------------------------

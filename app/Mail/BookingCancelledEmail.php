@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\BookingRequest;
 use App\Models\User;
+use App\Services\EmailTemplateService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -27,8 +28,17 @@ class BookingCancelledEmail extends Mailable
     {
         $facilityName = $this->booking->facility->name ?? 'Facility';
 
+        $rendered = app(EmailTemplateService::class)->render('booking_cancelled', [
+            'user_name' => $this->user->name,
+            'facility_name' => $facilityName,
+            'booking_date' => $this->booking->date ?? '',
+            'booking_time' => trim(($this->booking->start_time ?? '').' - '.($this->booking->end_time ?? '')),
+            'remarks' => $this->remarks ?? ($this->booking->remarks ?? ''),
+            'portal_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/#/youth/facilities',
+        ]);
+
         return new Envelope(
-            subject: "Facility Booking Cancelled - {$facilityName}",
+            subject: $rendered['subject'] ?: "Facility Booking Cancelled - {$facilityName}",
         );
     }
 
