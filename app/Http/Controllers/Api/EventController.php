@@ -295,9 +295,18 @@ class EventController extends Controller
         return EventParticipantResource::collection($query->paginate($perPage));
     }
 
-    public function markAttendance(Request $request, $id, User $user)
+    public function markAttendance(Request $request, $id, $participant)
     {
         $model = $this->resolveActivityModel($id, $request);
+
+        if ($model instanceof SportsProgram) {
+            return $this->markSportsProgramAttendance($request, $model, $participant);
+        }
+
+        $user = is_numeric($participant) ? User::find($participant) : null;
+        if (! $user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
 
         // Check if the user is a participant
         if (! $model->participants()->where('user_id', $user->id)->exists()) {
@@ -309,13 +318,128 @@ class EventController extends Controller
             'attended_at' => now(),
         ];
         if (! empty($model->certificate_template_path)) {
-            $pivotTable = $model instanceof SportsProgram ? 'sports_program_user' : 'event_user';
+            $pivotTable = 'event_user';
             if (Schema::hasColumn($pivotTable, 'certificate_path')) {
                 $pivotData['certificate_path'] = $model->certificate_template_path;
             }
         }
 
         $model->participants()->updateExistingPivot($user->id, $pivotData);
+
+        return response()->json(['message' => 'Attendance marked successfully.']);
+    }
+
+    protected function markSportsProgramAttendance(Request $request, SportsProgram $sportsProgram, $participant)
+    {
+        $now = now();
+        $marked = false;
+        $participantStr = (string) $participant;
+        $reqName = $request->input('name');
+        $reqTeam = $request->input('team_name');
+        $reqUserId = $request->input('user_id');
+        $reqPartId = (string) ($request->input('participant_id') ?? '');
+
+        // 1. Direct pivot update if $participant or $reqUserId is a numeric user_id
+        $resolvedUserId = is_numeric($participant) ? (int) $participant : (is_numeric($reqUserId) ? (int) $reqUserId : null);
+        if ($resolvedUserId) {
+            $user = User::find($resolvedUserId);
+            if ($user && $sportsProgram->participants()->where('user_id', $user->id)->exists()) {
+                $pivotData = ['attended_at' => $now];
+                if (! empty($sportsProgram->certificate_template_path) && Schema::hasColumn('sports_program_user', 'certificate_path')) {
+                    $pivotData['certificate_path'] = $sportsProgram->certificate_template_path;
+                }
+                $sportsProgram->participants()->updateExistingPivot($user->id, $pivotData);
+                $marked = true;
+            }
+        }
+
+        // 2. Search and update teammate within roster JSON across all teams in this sports program
+        $pivots = DB::table('sports_program_user')
+            ->where('sports_program_id', $sportsProgram->id)
+            ->get();
+
+        foreach ($pivots as $pivot) {
+            if (empty($pivot->teammates)) {
+                continue;
+            }
+
+            $roster = is_string($pivot->teammates) ? json_decode($pivot->teammates, true) : $pivot->teammates;
+            if (! is_array($roster)) {
+                continue;
+            }
+
+            $rosterUpdated = false;
+            foreach ($roster as &$member) {
+                $mUserId = $member['user_id'] ?? null;
+                $mName = $member['name'] ?? '';
+                $tmGeneratedId = 'tm_'.md5($pivot->user_id.'_'.$mName);
+
+                $isMatch = false;
+
+                // Match by generated tm_ id
+                if ($participantStr === $tmGeneratedId || $reqPartId === $tmGeneratedId) {
+                    $isMatch = true;
+                }
+                // Match by explicit member id if present
+                elseif (isset($member['id']) && ((string) $member['id'] === $participantStr || (string) $member['id'] === $reqPartId)) {
+                    $isMatch = true;
+                }
+                // Match by user_id if numeric
+                elseif ($resolvedUserId && $mUserId && (int) $mUserId === $resolvedUserId) {
+                    $isMatch = true;
+                }
+                // Match by explicit name
+                elseif (! empty($reqName) && strcasecmp(trim($mName), trim($reqName)) === 0) {
+                    if (empty($reqTeam) || strcasecmp(trim($pivot->team_name ?? ''), trim($reqTeam)) === 0) {
+                        $isMatch = true;
+                    }
+                }
+                // Fallback: match by participantStr if name was passed directly
+                elseif (! empty($participantStr) && ! str_starts_with($participantStr, 'tm_') && strcasecmp(trim($mName), trim($participantStr)) === 0) {
+                    if (empty($reqTeam) || strcasecmp(trim($pivot->team_name ?? ''), trim($reqTeam)) === 0) {
+                        $isMatch = true;
+                    }
+                }
+
+                if ($isMatch) {
+                    $member['attended_at'] = $now->toDateTimeString();
+                    $member['status'] = 'Attended';
+                    $rosterUpdated = true;
+                    $marked = true;
+
+                    // If member has a user_id, ensure they also have attended_at on their sports_program_user row
+                    if ($mUserId && is_numeric($mUserId)) {
+                        $mUser = User::find($mUserId);
+                        if ($mUser) {
+                            $mPivotData = [
+                                'team_name' => $pivot->team_name,
+                                'attended_at' => $now,
+                            ];
+                            if (! empty($sportsProgram->certificate_template_path) && Schema::hasColumn('sports_program_user', 'certificate_path')) {
+                                $mPivotData['certificate_path'] = $sportsProgram->certificate_template_path;
+                            }
+                            $mUser->joinedSportsPrograms()->syncWithoutDetaching([
+                                $sportsProgram->id => $mPivotData,
+                            ]);
+                        }
+                    }
+                }
+            }
+            unset($member);
+
+            if ($rosterUpdated) {
+                DB::table('sports_program_user')
+                    ->where('id', $pivot->id)
+                    ->update([
+                        'teammates' => json_encode($roster),
+                        'updated_at' => $now,
+                    ]);
+            }
+        }
+
+        if (! $marked) {
+            return response()->json(['message' => 'Participant not found in this sports program.'], 404);
+        }
 
         return response()->json(['message' => 'Attendance marked successfully.']);
     }

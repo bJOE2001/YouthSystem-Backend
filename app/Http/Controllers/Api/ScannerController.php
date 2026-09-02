@@ -40,8 +40,8 @@ class ScannerController extends Controller
                 'value' => 'duty_tcydo_volunteer',
                 'event_id' => null,
                 'activity_type' => 'office_duty',
-                'duty_title' => 'TCYDO Volunteer Duty',
-                'label' => '🏛️ TCYDO Volunteer Duty',
+                'duty_title' => 'TCYDO In-Office Duty',
+                'label' => '🏛️ TCYDO In-Office Duty',
                 'icon' => 'volunteer_activism',
                 'group' => 'TCYDO Volunteer Duties',
             ];
@@ -246,10 +246,41 @@ class ScannerController extends Controller
                 );
 
                 if ($numericEventId) {
-                    $attendee->joinedEvents()->syncWithoutDetaching([$numericEventId]);
+                    $attendee->joinedEvents()->syncWithoutDetaching([$numericEventId => ['attended_at' => $now]]);
                 }
                 if ($numericSportsProgramId) {
-                    $attendee->joinedSportsPrograms()->syncWithoutDetaching([$numericSportsProgramId]);
+                    $attendee->joinedSportsPrograms()->syncWithoutDetaching([$numericSportsProgramId => ['attended_at' => $now]]);
+
+                    // Also mark in any teammates JSON
+                    $pivots = DB::table('sports_program_user')
+                        ->where('sports_program_id', $numericSportsProgramId)
+                        ->get();
+
+                    foreach ($pivots as $pivot) {
+                        if (empty($pivot->teammates)) {
+                            continue;
+                        }
+                        $roster = is_string($pivot->teammates) ? json_decode($pivot->teammates, true) : $pivot->teammates;
+                        if (! is_array($roster)) {
+                            continue;
+                        }
+
+                        $updated = false;
+                        foreach ($roster as &$m) {
+                            if (($m['user_id'] ?? null) == $attendee->id || strcasecmp(trim($m['name'] ?? ''), trim($attendee->name)) === 0) {
+                                $m['attended_at'] = $now->toDateTimeString();
+                                $m['status'] = 'Attended';
+                                $updated = true;
+                            }
+                        }
+                        unset($m);
+
+                        if ($updated) {
+                            DB::table('sports_program_user')
+                                ->where('id', $pivot->id)
+                                ->update(['teammates' => json_encode($roster), 'updated_at' => $now]);
+                        }
+                    }
                 }
 
                 $roleLabel = $attendee->role === 'sk_admin' ? 'SK Official' : 'Youth';

@@ -20,6 +20,15 @@ class NewAnnouncementEmail extends Mailable
         public Announcement $announcement
     ) {}
 
+    protected function getAnnouncementUrl(): string
+    {
+        $role = $this->user->role;
+        $isSk = $role === \App\Enums\UserRole::SkAdmin || $role === 'sk_admin' || ($role instanceof \BackedEnum && $role->value === 'sk_admin');
+        $path = $isSk ? '/#/announcements' : '/#/youth/announcements';
+
+        return config('app.frontend_url', config('app.url', 'http://localhost')).$path;
+    }
+
     /**
      * Get the message envelope.
      */
@@ -30,7 +39,7 @@ class NewAnnouncementEmail extends Mailable
             'announcement_title' => $this->announcement->title,
             'announcement_description' => $this->announcement->description ?? '',
             'published_date' => $this->announcement->created_at ? $this->announcement->created_at->format('F d, Y') : date('F d, Y'),
-            'announcement_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/#/youth/announcements',
+            'announcement_url' => $this->getAnnouncementUrl(),
         ]);
 
         return new Envelope(
@@ -43,14 +52,12 @@ class NewAnnouncementEmail extends Mailable
      */
     public function content(): Content
     {
-        $announcementUrl = config('app.frontend_url', config('app.url', 'http://localhost')).'/#/youth/announcements';
-
         return new Content(
             view: 'emails.new-announcement',
             with: [
                 'user' => $this->user,
                 'announcement' => $this->announcement,
-                'announcementUrl' => $announcementUrl,
+                'announcementUrl' => $this->getAnnouncementUrl(),
             ],
         );
     }

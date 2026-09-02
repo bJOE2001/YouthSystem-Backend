@@ -64,6 +64,18 @@ class EventParticipantResource extends JsonResource
             }
         }
 
+        $isAttended = ($this->pivot && ($this->pivot->attended_at || $this->pivot->status === 'Attended'));
+        if (! $isAttended && ! empty($teammates) && is_array($teammates)) {
+            foreach ($teammates as $t) {
+                if ((isset($t['user_id']) && $t['user_id'] == $this->id) || (isset($t['name']) && $t['name'] == $name)) {
+                    if (! empty($t['attended_at']) || ($t['status'] ?? '') === 'Attended') {
+                        $isAttended = true;
+                    }
+                    break;
+                }
+            }
+        }
+
         return [
             'id' => $this->id,
             'name' => $name,
@@ -76,7 +88,7 @@ class EventParticipantResource extends JsonResource
             'position' => $position,
             'teammates' => $teammates,
             // Map attended_at or status to 'Attended' or 'Not Attended' for the frontend
-            'status' => ($this->pivot && ($this->pivot->attended_at || $this->pivot->status === 'Attended')) ? 'Attended' : 'Not Attended',
+            'status' => $isAttended ? 'Attended' : 'Not Attended',
         ];
     }
 }

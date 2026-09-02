@@ -147,6 +147,7 @@ class SportsProgramController extends Controller
 
         $expandedParticipants = [];
         $registeredUserIds = $participants->pluck('id')->toArray();
+        $seenTeammateKeys = [];
 
         foreach ($resourceCollection as $p) {
             $expandedParticipants[] = $p;
@@ -169,8 +170,18 @@ class SportsProgramController extends Controller
                         continue;
                     }
 
+                    // Prevent duplicate expansion across multiple team members sharing the same roster
+                    $tmKey = $tmUserId ? "uid_{$tmUserId}" : 'name_'.strtolower(trim($tmName)).'_'.strtolower(trim($p['team_name'] ?? ''));
+                    if (isset($seenTeammateKeys[$tmKey])) {
+                        continue;
+                    }
+                    $seenTeammateKeys[$tmKey] = true;
+
+                    $tmStatus = (! empty($tm['attended_at']) || ($tm['status'] ?? '') === 'Attended') ? 'Attended' : 'Not Attended';
+                    $tmId = ! empty($tm['id']) ? $tm['id'] : ($tmUserId ?: 'tm_'.md5($p['id'].'_'.$tmName));
+
                     $expandedParticipants[] = [
-                        'id' => 'tm_'.md5($p['id'].'_'.$tmName),
+                        'id' => $tmId,
                         'user_id' => $tmUserId,
                         'name' => $tmName,
                         'profile_picture' => null,
@@ -181,7 +192,7 @@ class SportsProgramController extends Controller
                         'team_name' => $p['team_name'],
                         'position' => $tmRole ?: 'Member',
                         'teammates' => [],
-                        'status' => 'Not Attended',
+                        'status' => $tmStatus,
                     ];
                 }
             }

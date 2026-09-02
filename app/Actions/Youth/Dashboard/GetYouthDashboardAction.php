@@ -16,7 +16,63 @@ class GetYouthDashboardAction
 
         // 1. Calculate Cards
         $eventJoined = $user->joinedEvents()->count() + $user->joinedSportsPrograms()->count();
-        $certificateEarned = 0; // Placeholder for future feature
+
+        // Count earned certificates from events:
+        // Event has a certificate template uploaded AND user attended
+        $eventCerts = $user->joinedEvents()
+            ->wherePivotNotNull('attended_at')
+            ->whereNotNull('events.certificate_template_path')
+            ->where('events.certificate_template_path', '!=', '')
+            ->distinct('events.id')
+            ->count('events.id');
+
+        // Count earned certificates from sports programs:
+        // a. Direct attended sports programs with certificate template
+        $sportsWithCert = $user->joinedSportsPrograms()
+            ->wherePivotNotNull('attended_at')
+            ->whereNotNull('sports_programs.certificate_template_path')
+            ->where('sports_programs.certificate_template_path', '!=', '')
+            ->pluck('sports_programs.id')
+            ->toArray();
+
+        // b. Also check if user is in roster of any sports program that has a certificate template and was marked attended
+        $allSportsWithCerts = SportsProgram::whereNotNull('certificate_template_path')
+            ->where('certificate_template_path', '!=', '')
+            ->get();
+
+        foreach ($allSportsWithCerts as $sport) {
+            if (in_array($sport->id, $sportsWithCert)) {
+                continue;
+            }
+
+            $pivots = \Illuminate\Support\Facades\DB::table('sports_program_user')
+                ->where('sports_program_id', $sport->id)
+                ->get();
+
+            foreach ($pivots as $pivot) {
+                if (empty($pivot->teammates)) {
+                    continue;
+                }
+                $roster = is_string($pivot->teammates) ? json_decode($pivot->teammates, true) : $pivot->teammates;
+                if (! is_array($roster)) {
+                    continue;
+                }
+
+                foreach ($roster as $m) {
+                    $mUserId = $m['user_id'] ?? null;
+                    $mName = $m['name'] ?? '';
+                    $isUser = ($mUserId && $mUserId == $user->id) || (! empty($user->name) && strcasecmp(trim($mName), trim($user->name)) === 0);
+                    $attended = ! empty($m['attended_at']) || ($m['status'] ?? '') === 'Attended';
+
+                    if ($isUser && $attended) {
+                        $sportsWithCert[] = $sport->id;
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        $certificateEarned = $eventCerts + count(array_unique($sportsWithCert));
 
         $readAnnouncementIds = $user->readAnnouncements()->pluck('announcements.id');
         $unreadAnnouncements = Announcement::whereNotIn('id', $readAnnouncementIds)->count();
@@ -74,7 +130,9 @@ class GetYouthDashboardAction
             'cards' => [
                 'eventJoined' => $eventJoined,
                 'certificateEarnd' => $certificateEarned, // Matches frontend typo expectations
+                'certificateEarned' => $certificateEarned,
                 'undreadAnnouncements' => $unreadAnnouncements, // Matches frontend typo expectations
+                'unreadAnnouncements' => $unreadAnnouncements,
                 'upcomingEvents' => $upcomingEventsCount,
             ],
             'events' => $events,
