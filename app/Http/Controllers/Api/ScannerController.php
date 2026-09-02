@@ -37,30 +37,12 @@ class ScannerController extends Controller
         // 1. General Volunteer Duties (City Admin only)
         if (! $isSkAdmin) {
             $activities[] = [
-                'value' => 'duty_tcydo_office',
+                'value' => 'duty_tcydo_volunteer',
                 'event_id' => null,
                 'activity_type' => 'office_duty',
-                'duty_title' => 'TCYDO In-Office Duty',
-                'label' => '🏛️ TCYDO In-Office Duty',
-                'icon' => 'account_balance',
-                'group' => 'TCYDO Volunteer Duties',
-            ];
-            $activities[] = [
-                'value' => 'duty_city_community',
-                'event_id' => null,
-                'activity_type' => 'community_service',
-                'duty_title' => 'City-Wide Community Service / Outreach',
-                'label' => '🤝 City-Wide Community Outreach',
+                'duty_title' => 'TCYDO Volunteer Duty',
+                'label' => '🏛️ TCYDO Volunteer Duty',
                 'icon' => 'volunteer_activism',
-                'group' => 'TCYDO Volunteer Duties',
-            ];
-            $activities[] = [
-                'value' => 'duty_city_assembly',
-                'event_id' => null,
-                'activity_type' => 'event',
-                'duty_title' => 'City Youth Assembly / Summit',
-                'label' => '👥 City Youth Assembly / Summit',
-                'icon' => 'groups',
                 'group' => 'TCYDO Volunteer Duties',
             ];
         }

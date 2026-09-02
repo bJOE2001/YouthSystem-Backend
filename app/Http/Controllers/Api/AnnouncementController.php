@@ -14,6 +14,14 @@ class AnnouncementController extends Controller
 {
     public function index(Request $request)
     {
+        if (! $request->user() && $request->bearerToken()) {
+            $token = \Laravel\Sanctum\PersonalAccessToken::findToken($request->bearerToken());
+            if ($token && $token->tokenable) {
+                auth()->setUser($token->tokenable);
+                $request->setUserResolver(fn () => $token->tokenable);
+            }
+        }
+
         $query = Announcement::query();
 
         if ($request->filled('search')) {
@@ -97,6 +105,8 @@ class AnnouncementController extends Controller
         $user->unreadNotifications()
             ->where('data->announcement_id', $announcement->id)
             ->update(['read_at' => now()]);
+
+        AnnouncementResource::clearReadCache();
 
         return response()->json([
             'message' => 'Announcement marked as read',
