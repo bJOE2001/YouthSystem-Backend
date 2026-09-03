@@ -171,6 +171,8 @@ Route::middleware([
         Route::get('system-settings/email-templates/{key}', [SystemSettingController::class, 'getEmailTemplate'])->name('system-settings.email-templates.show');
         Route::post('system-settings/email-templates/{key}', [SystemSettingController::class, 'updateEmailTemplate'])->name('system-settings.email-templates.update');
         Route::post('system-settings/email-templates/{key}/reset', [SystemSettingController::class, 'resetEmailTemplate'])->name('system-settings.email-templates.reset');
+        Route::get('system-settings/engagement-emails/stats', [SystemSettingController::class, 'getInactiveReengagementStats'])->name('system-settings.engagement-emails.stats');
+        Route::post('system-settings/engagement-emails/send', [SystemSettingController::class, 'sendInactiveReengagementEmails'])->name('system-settings.engagement-emails.send');
 
         // Aliases for /admin/settings/...
         Route::get('settings/email-layout', [SystemSettingController::class, 'getEmailLayout'])->name('settings.email-layout.get');
@@ -181,6 +183,8 @@ Route::middleware([
         Route::get('settings/email-templates/{key}', [SystemSettingController::class, 'getEmailTemplate'])->name('settings.email-templates.show');
         Route::post('settings/email-templates/{key}', [SystemSettingController::class, 'updateEmailTemplate'])->name('settings.email-templates.update');
         Route::post('settings/email-templates/{key}/reset', [SystemSettingController::class, 'resetEmailTemplate'])->name('settings.email-templates.reset');
+        Route::get('settings/engagement-emails/stats', [SystemSettingController::class, 'getInactiveReengagementStats'])->name('settings.engagement-emails.stats');
+        Route::post('settings/engagement-emails/send', [SystemSettingController::class, 'sendInactiveReengagementEmails'])->name('settings.engagement-emails.send');
 
         Route::post('change-password', [SystemSettingController::class, 'changePassword'])->name('change-password');
     });

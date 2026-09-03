@@ -49,6 +49,7 @@ class EmailTemplateSettingTest extends TestCase
                     'certificate_issued',
                     'new_compliance_schedule',
                     'ecespro_status',
+                    'inactive_user_reengagement',
                 ],
             ]);
     }

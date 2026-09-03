@@ -130,6 +130,15 @@ class AppServiceProvider extends ServiceProvider
                 if (isset($viewData['adminUrl'])) {
                     $variables['admin_url'] = (string) $viewData['adminUrl'];
                 }
+                if (isset($viewData['loginUrl'])) {
+                    $variables['login_url'] = (string) $viewData['loginUrl'];
+                }
+                if (isset($viewData['daysInactive'])) {
+                    $variables['days_inactive'] = (string) $viewData['daysInactive'];
+                }
+                if (isset($viewData['lastLoginFormatted'])) {
+                    $variables['last_login_formatted'] = (string) $viewData['lastLoginFormatted'];
+                }
 
                 // Add any scalar parameters directly
                 foreach ($viewData as $k => $v) {
