@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AnnouncementResource;
 use App\Models\Announcement;
@@ -14,6 +15,14 @@ class AnnouncementController extends Controller
 {
     public function index(Request $request)
     {
+        if (! $request->user() && $request->bearerToken()) {
+            $token = \Laravel\Sanctum\PersonalAccessToken::findToken($request->bearerToken());
+            if ($token && $token->tokenable) {
+                auth()->setUser($token->tokenable);
+                $request->setUserResolver(fn () => $token->tokenable);
+            }
+        }
+
         $query = Announcement::query();
 
         if ($request->filled('search')) {
@@ -57,8 +66,16 @@ class AnnouncementController extends Controller
 
         $announcement = Announcement::create($validated);
 
-        $youthUsers = User::where('role', 'youth')->get();
-        Notification::send($youthUsers, new NewAnnouncementNotification($announcement));
+        $recipients = User::where(function ($query) {
+            $query->whereIn('role', [
+                UserRole::Youth->value,
+                UserRole::SkAdmin->value,
+                'youth',
+                'sk_admin',
+            ]);
+        })->get();
+
+        Notification::send($recipients, new NewAnnouncementNotification($announcement));
 
         return new AnnouncementResource($announcement);
     }
@@ -97,6 +114,8 @@ class AnnouncementController extends Controller
         $user->unreadNotifications()
             ->where('data->announcement_id', $announcement->id)
             ->update(['read_at' => now()]);
+
+        AnnouncementResource::clearReadCache();
 
         return response()->json([
             'message' => 'Announcement marked as read',

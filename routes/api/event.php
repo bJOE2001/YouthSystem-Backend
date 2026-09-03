@@ -25,7 +25,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/events/{event}/status', [EventController::class, 'updateStatus'])->name('events.update-status');
         Route::post('/events/{event}/delete', [EventController::class, 'destroy'])->name('events.destroy');
         Route::get('/events/{event}/participants', [EventController::class, 'participants'])->name('events.participants');
-        Route::post('/events/{event}/participants/{user}/attend', [EventController::class, 'markAttendance'])->name('events.participants.attend');
+        Route::post('/events/{event}/participants/{participant}/attend', [EventController::class, 'markAttendance'])->name('events.participants.attend');
         Route::post('/events/{event}/certificate', [EventController::class, 'uploadCertificate'])->name('events.certificate.upload');
         Route::post('/events/{event}/certificates', [EventController::class, 'uploadCertificate'])->name('events.certificates.upload');
         Route::get('/events/{event}/certificate-preview', [EventController::class, 'certificatePreview'])->name('events.certificate.preview');

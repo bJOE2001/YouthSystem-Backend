@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Models\EcesproProgram;
+use App\Models\User;
+use App\Notifications\NewEcesproProgramNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 
 class EcesproProgramController extends Controller
 {
@@ -50,7 +54,26 @@ class EcesproProgramController extends Controller
             unset($data['requirements']);
         }
 
-        return EcesproProgram::create($data);
+        $program = EcesproProgram::create($data);
+
+        if (isset($data['status']) && strcasecmp($data['status'], 'Open') === 0) {
+            EcesproProgram::where('id', '!=', $program->id)
+                ->where('status', 'Open')
+                ->update(['status' => 'Closed']);
+
+            $recipients = User::where(function ($query) {
+                $query->whereIn('role', [
+                    UserRole::Youth->value,
+                    UserRole::SkAdmin->value,
+                    'youth',
+                    'sk_admin',
+                ]);
+            })->get();
+
+            Notification::send($recipients, new NewEcesproProgramNotification($program));
+        }
+
+        return response()->json($program, 201);
     }
 
     /**
@@ -96,12 +119,26 @@ class EcesproProgramController extends Controller
             unset($data['requirements']);
         }
 
+        $previousStatus = $ecesproProgram->status;
         $ecesproProgram->update($data);
 
-        if (isset($data['status']) && $data['status'] === 'Open') {
+        if (isset($data['status']) && strcasecmp($data['status'], 'Open') === 0) {
             EcesproProgram::where('id', '!=', $ecesproProgram->id)
                 ->where('status', 'Open')
                 ->update(['status' => 'Closed']);
+
+            if (strcasecmp($previousStatus, 'Open') !== 0) {
+                $recipients = User::where(function ($query) {
+                    $query->whereIn('role', [
+                        UserRole::Youth->value,
+                        UserRole::SkAdmin->value,
+                        'youth',
+                        'sk_admin',
+                    ]);
+                })->get();
+
+                Notification::send($recipients, new NewEcesproProgramNotification($ecesproProgram));
+            }
         }
 
         return $ecesproProgram;

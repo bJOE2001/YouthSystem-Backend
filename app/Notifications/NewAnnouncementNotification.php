@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Enums\UserRole;
 use App\Mail\NewAnnouncementEmail;
 use App\Models\Announcement;
 use App\Models\User;
@@ -36,11 +37,14 @@ class NewAnnouncementNotification extends Notification
     /**
      * Get the mail representation of the notification.
      */
-    public function toMail(object $notifiable): Mailable
+    public function toMail(object $notifiable): ?Mailable
     {
-        /** @var User $notifiable */
-        return (new NewAnnouncementEmail($notifiable, $this->announcement))
-            ->to($notifiable->email);
+        if ($notifiable instanceof User && ! empty($notifiable->email)) {
+            return (new NewAnnouncementEmail($notifiable, $this->announcement))
+                ->to($notifiable->email);
+        }
+
+        return null;
     }
 
     /**
@@ -50,11 +54,15 @@ class NewAnnouncementNotification extends Notification
      */
     public function toArray(object $notifiable): array
     {
+        $role = $notifiable instanceof User ? $notifiable->role : null;
+        $isSk = $role === UserRole::SkAdmin || $role === 'sk_admin' || ($role instanceof \BackedEnum && $role->value === 'sk_admin');
+
         return [
-            'title' => 'New Announcement',
-            'message' => "A new announcement has been posted: '{$this->announcement->title}'.",
+            'title' => $this->announcement->title,
+            'message' => $this->announcement->description ?? '',
+            'description' => $this->announcement->description ?? '',
             'announcement_id' => $this->announcement->id,
-            'url' => '/youth/announcements',
+            'url' => $isSk ? '/announcements' : '/youth/announcements',
         ];
     }
 }

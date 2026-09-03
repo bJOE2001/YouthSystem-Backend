@@ -143,7 +143,60 @@ class SkSportsProgramController extends Controller
         $participants = $sportsProgram->participants()->with('youthProfile')->get();
         $resourceCollection = EventParticipantResource::collection($participants)->resolve($request);
 
-        $grouped = collect($resourceCollection)->groupBy(function ($participant) {
+        $expandedParticipants = [];
+        $registeredUserIds = $participants->pluck('id')->toArray();
+        $seenTeammateKeys = [];
+
+        foreach ($resourceCollection as $p) {
+            $expandedParticipants[] = $p;
+
+            // If this participant has offline teammates in roster who don't have separate user accounts in the list
+            $teammates = $p['teammates'] ?? [];
+            if (! empty($teammates) && is_array($teammates)) {
+                foreach ($teammates as $tm) {
+                    $tmUserId = $tm['user_id'] ?? null;
+                    $tmName = $tm['name'] ?? '';
+                    $tmRole = $tm['role'] ?? 'Member';
+
+                    // Skip the leader itself (already in list)
+                    if ($tmRole === 'Team Leader' || ($tmUserId && $tmUserId == $p['id']) || $tmName === $p['name']) {
+                        continue;
+                    }
+
+                    // If teammate is already registered as an independent user in this sports program, skip duplicate
+                    if ($tmUserId && in_array($tmUserId, $registeredUserIds)) {
+                        continue;
+                    }
+
+                    // Prevent duplicate expansion across multiple team members sharing the same roster
+                    $tmKey = $tmUserId ? "uid_{$tmUserId}" : 'name_'.strtolower(trim($tmName)).'_'.strtolower(trim($p['team_name'] ?? ''));
+                    if (isset($seenTeammateKeys[$tmKey])) {
+                        continue;
+                    }
+                    $seenTeammateKeys[$tmKey] = true;
+
+                    $tmStatus = (! empty($tm['attended_at']) || ($tm['status'] ?? '') === 'Attended') ? 'Attended' : 'Not Attended';
+                    $tmId = ! empty($tm['id']) ? $tm['id'] : ($tmUserId ?: 'tm_'.md5($p['id'].'_'.$tmName));
+
+                    $expandedParticipants[] = [
+                        'id' => $tmId,
+                        'user_id' => $tmUserId,
+                        'name' => $tmName,
+                        'profile_picture' => null,
+                        'contact' => $tm['contact'] ?? '—',
+                        'email' => $tm['email'] ?? '—',
+                        'purok' => $p['purok'] ?? '—',
+                        'barangay' => $p['barangay'] ?? 'Unknown',
+                        'team_name' => $p['team_name'],
+                        'position' => $tmRole ?: 'Member',
+                        'teammates' => [],
+                        'status' => $tmStatus,
+                    ];
+                }
+            }
+        }
+
+        $grouped = collect($expandedParticipants)->groupBy(function ($participant) {
             return ! empty($participant['barangay']) ? $participant['barangay'] : 'Unknown';
         });
 
@@ -151,7 +204,7 @@ class SkSportsProgramController extends Controller
         foreach ($grouped as $barangay => $items) {
             $result[] = [
                 'barangay' => $barangay,
-                'participants' => $items,
+                'participants' => $items->values()->all(),
             ];
         }
 
