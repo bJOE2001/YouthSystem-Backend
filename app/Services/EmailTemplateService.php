@@ -87,29 +87,6 @@ class EmailTemplateService
                 ],
             ],
 
-            'new_announcement' => [
-                'name' => 'Official Announcement',
-                'description' => 'Broadcast notification sent to youth members when a new announcement is posted.',
-                'subject' => 'Announcement: {announcement_title}',
-                'heading' => 'Official Announcement',
-                'body' => 'Hello {user_name}, a new official announcement has been published by TCYDO. Please check the details below.',
-                'button_text' => 'View on Portal →',
-                'placeholders' => [
-                    '{user_name}' => 'Recipient user name',
-                    '{announcement_title}' => 'Title of the announcement',
-                    '{announcement_description}' => 'Announcement body text',
-                    '{published_date}' => 'Date posted',
-                    '{announcement_url}' => 'Link to portal announcements',
-                ],
-                'sample_data' => [
-                    'user_name' => 'Youth Member',
-                    'announcement_title' => 'Tagum City Youth Leadership Summit 2026',
-                    'announcement_description' => 'Registration is now open for all barangay youth leaders for the annual leadership empowerment camp.',
-                    'published_date' => date('F d, Y'),
-                    'announcement_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/#/youth/announcements',
-                ],
-            ],
-
             'new_event' => [
                 'name' => 'New Youth Event / Activity',
                 'description' => 'Sent to youth members when a new event or sports program is posted.',

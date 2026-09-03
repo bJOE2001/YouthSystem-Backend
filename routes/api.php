@@ -62,10 +62,11 @@ Route::get('/system-settings/contact', [SystemSettingController::class, 'getCont
 Route::get('/system-settings/email-layout', [SystemSettingController::class, 'getEmailLayout']);
 
 Route::get('/media/{path}', function ($path) {
-    $filePath = storage_path('app/public/' . $path);
-    if (!file_exists($filePath)) {
+    $filePath = storage_path('app/public/'.$path);
+    if (! file_exists($filePath)) {
         abort(404);
     }
+
     return response()->file($filePath, [
         'Access-Control-Allow-Origin' => '*',
         'Access-Control-Allow-Methods' => 'GET, OPTIONS',

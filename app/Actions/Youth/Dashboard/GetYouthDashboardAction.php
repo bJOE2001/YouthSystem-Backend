@@ -7,6 +7,7 @@ use App\Models\Announcement;
 use App\Models\Event;
 use App\Models\SportsProgram;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class GetYouthDashboardAction
 {
@@ -45,7 +46,7 @@ class GetYouthDashboardAction
                 continue;
             }
 
-            $pivots = \Illuminate\Support\Facades\DB::table('sports_program_user')
+            $pivots = DB::table('sports_program_user')
                 ->where('sports_program_id', $sport->id)
                 ->get();
 

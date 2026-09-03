@@ -10,13 +10,14 @@ use App\Models\User;
 use App\Notifications\NewAnnouncementNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AnnouncementController extends Controller
 {
     public function index(Request $request)
     {
         if (! $request->user() && $request->bearerToken()) {
-            $token = \Laravel\Sanctum\PersonalAccessToken::findToken($request->bearerToken());
+            $token = PersonalAccessToken::findToken($request->bearerToken());
             if ($token && $token->tokenable) {
                 auth()->setUser($token->tokenable);
                 $request->setUserResolver(fn () => $token->tokenable);

@@ -3,11 +3,9 @@
 namespace App\Notifications;
 
 use App\Enums\UserRole;
-use App\Mail\NewAnnouncementEmail;
 use App\Models\Announcement;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
-use Illuminate\Mail\Mailable;
 use Illuminate\Notifications\Notification;
 
 class NewAnnouncementNotification extends Notification
@@ -31,20 +29,7 @@ class NewAnnouncementNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
-    }
-
-    /**
-     * Get the mail representation of the notification.
-     */
-    public function toMail(object $notifiable): ?Mailable
-    {
-        if ($notifiable instanceof User && ! empty($notifiable->email)) {
-            return (new NewAnnouncementEmail($notifiable, $this->announcement))
-                ->to($notifiable->email);
-        }
-
-        return null;
+        return ['database'];
     }
 
     /**
