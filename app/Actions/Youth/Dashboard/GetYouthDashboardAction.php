@@ -7,6 +7,7 @@ use App\Models\Announcement;
 use App\Models\Event;
 use App\Models\SportsProgram;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class GetYouthDashboardAction
 {
@@ -45,7 +46,7 @@ class GetYouthDashboardAction
                 continue;
             }
 
-            $pivots = \Illuminate\Support\Facades\DB::table('sports_program_user')
+            $pivots = DB::table('sports_program_user')
                 ->where('sports_program_id', $sport->id)
                 ->get();
 
@@ -81,8 +82,8 @@ class GetYouthDashboardAction
             ->whereIn('events.status', ['upcoming', 'Upcoming'])
             ->count()
             + $user->joinedSportsPrograms()
-            ->whereIn('sports_programs.status', ['upcoming', 'Upcoming'])
-            ->count();
+                ->whereIn('sports_programs.status', ['upcoming', 'Upcoming'])
+                ->count();
 
         // 2. Fetch Latest Events & Sports Programs Combined
         $latestEvents = Event::latest()->take(5)->get()->map(function ($event) use ($user) {

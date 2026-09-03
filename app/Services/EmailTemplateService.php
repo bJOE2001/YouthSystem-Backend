@@ -87,29 +87,6 @@ class EmailTemplateService
                 ],
             ],
 
-            'new_announcement' => [
-                'name' => 'Official Announcement',
-                'description' => 'Broadcast notification sent to youth members when a new announcement is posted.',
-                'subject' => 'Announcement: {announcement_title}',
-                'heading' => 'Official Announcement',
-                'body' => 'Hello {user_name}, a new official announcement has been published by TCYDO. Please check the details below.',
-                'button_text' => 'View on Portal →',
-                'placeholders' => [
-                    '{user_name}' => 'Recipient user name',
-                    '{announcement_title}' => 'Title of the announcement',
-                    '{announcement_description}' => 'Announcement body text',
-                    '{published_date}' => 'Date posted',
-                    '{announcement_url}' => 'Link to portal announcements',
-                ],
-                'sample_data' => [
-                    'user_name' => 'Youth Member',
-                    'announcement_title' => 'Tagum City Youth Leadership Summit 2026',
-                    'announcement_description' => 'Registration is now open for all barangay youth leaders for the annual leadership empowerment camp.',
-                    'published_date' => date('F d, Y'),
-                    'announcement_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/#/youth/announcements',
-                ],
-            ],
-
             'new_event' => [
                 'name' => 'New Youth Event / Activity',
                 'description' => 'Sent to youth members when a new event or sports program is posted.',
@@ -204,6 +181,32 @@ class EmailTemplateService
                     'status' => 'Exam Scheduled',
                     'status_message' => 'Congratulations! You have been qualified to take the ECESPRO Qualifying Examination.',
                     'portal_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/#/youth/ecespro',
+                ],
+            ],
+
+            'inactive_user_reengagement' => [
+                'name' => 'Inactive User Re-engagement',
+                'description' => 'Sent to registered youth members who have not logged in for a while to encourage them to explore new opportunities.',
+                'subject' => '👋 We Miss You, {user_name}! Discover What\'s New at TCYDO',
+                'heading' => 'We Miss You, {user_name}!',
+                'body' => "It has been a while since you last visited the Tagum City Youth Development Portal.\n\nNew youth programs, upcoming sports tournaments, leadership workshops, and scholarship updates are happening right now. Don't miss out on community opportunities tailored for you!",
+                'button_text' => 'Log In & Explore →',
+                'footnote' => 'If you have forgotten your password, you can easily reset it using the "Forgot Password" link on the login page.',
+                'placeholders' => [
+                    '{user_name}' => 'Full name of the youth member',
+                    '{user_email}' => 'Registered email address',
+                    '{last_login_formatted}' => 'Date of last login or "Never logged in"',
+                    '{days_inactive}' => 'Number of days since last login or account creation',
+                    '{login_url}' => 'Direct link to login page',
+                    '{portal_url}' => 'Link to youth portal',
+                ],
+                'sample_data' => [
+                    'user_name' => 'Alex Rivera',
+                    'user_email' => 'alex.rivera@gmail.com',
+                    'last_login_formatted' => 'June 15, 2026',
+                    'days_inactive' => '45',
+                    'login_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/#/login',
+                    'portal_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/#/youth/dashboard',
                 ],
             ],
         ];

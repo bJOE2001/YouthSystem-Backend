@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Actions\Notification\SendInactiveUserReengagementEmailsAction;
 use App\Http\Controllers\Controller;
 use App\Models\SystemSetting;
 use App\Services\EmailLayoutService;
@@ -468,5 +469,52 @@ class SystemSettingController extends Controller
                 'message' => $e->getMessage(),
             ], 404);
         }
+    }
+
+    public function getInactiveReengagementStats(
+        Request $request,
+        SendInactiveUserReengagementEmailsAction $action
+    ): JsonResponse {
+        $inactiveDays = max(1, (int) $request->query('inactive_days', SendInactiveUserReengagementEmailsAction::DEFAULT_INACTIVE_DAYS));
+        $cooldownDays = max(1, (int) $request->query('cooldown_days', SendInactiveUserReengagementEmailsAction::DEFAULT_COOLDOWN_DAYS));
+
+        $stats = $action->getStats(
+            inactiveDays: $inactiveDays,
+            cooldownDays: $cooldownDays
+        );
+
+        return response()->json([
+            'data' => $stats,
+        ]);
+    }
+
+    public function sendInactiveReengagementEmails(
+        Request $request,
+        SendInactiveUserReengagementEmailsAction $action
+    ): JsonResponse {
+        $validated = $request->validate([
+            'inactive_days' => 'nullable|integer|min:1|max:365',
+            'cooldown_days' => 'nullable|integer|min:1|max:365',
+            'dry_run' => 'nullable|boolean',
+        ]);
+
+        $inactiveDays = isset($validated['inactive_days']) ? (int) $validated['inactive_days'] : SendInactiveUserReengagementEmailsAction::DEFAULT_INACTIVE_DAYS;
+        $cooldownDays = isset($validated['cooldown_days']) ? (int) $validated['cooldown_days'] : SendInactiveUserReengagementEmailsAction::DEFAULT_COOLDOWN_DAYS;
+        $dryRun = filter_var($validated['dry_run'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        $result = $action->execute(
+            inactiveDays: $inactiveDays,
+            cooldownDays: $cooldownDays,
+            dryRun: $dryRun
+        );
+
+        $message = $dryRun
+            ? "Dry run simulation complete. {$result['eligible_count']} eligible inactive users identified."
+            : "Re-engagement notifications successfully dispatched to {$result['sent_count']} inactive users.";
+
+        return response()->json([
+            'message' => $message,
+            'data' => $result,
+        ]);
     }
 }
