@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\SkAdmin\SkOfficialController;
 use App\Http\Controllers\Api\SkAdmin\SkSportsProgramController;
 use App\Http\Controllers\Api\SkAdmin\YouthValidationController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Api\FeedbackController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware([
@@ -26,6 +27,7 @@ Route::middleware([
         */
 
         Route::get('/dashboard', [DashboardController::class, '__invoke']);
+        Route::get('/feedbacks', [FeedbackController::class, 'skFeedbacks'])->name('feedbacks.index');
         Route::get('/qr-pass', [AuthController::class, 'qrPass'])->name('qr-pass');
 
         Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');

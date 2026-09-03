@@ -14,7 +14,10 @@ class Feedback extends Model
     protected $fillable = [
         'user_id',
         'event_id',
+        'sports_program_id',
         'type',
+        'target',
+        'barangay',
         'category',
         'subject',
         'message',
@@ -33,5 +36,10 @@ class Feedback extends Model
     public function event()
     {
         return $this->belongsTo(Event::class);
+    }
+
+    public function sportsProgram()
+    {
+        return $this->belongsTo(SportsProgram::class, 'sports_program_id');
     }
 }

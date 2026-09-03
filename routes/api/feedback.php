@@ -10,6 +10,9 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/events/{event}/feedbacks', [FeedbackController::class, 'storeEventFeedback'])->name('events.feedbacks.store');
     Route::get('/events/{event}/feedbacks', [FeedbackController::class, 'eventFeedbacks'])->name('events.feedbacks.index');
 
+    // SK Admin feedback listing
+    Route::get('/sk/feedbacks', [FeedbackController::class, 'skFeedbacks'])->name('sk.feedbacks.index');
+
     // Admin Routes
     Route::middleware('role:admin')->group(function () {
         Route::get('/admin/feedbacks', [FeedbackController::class, 'index'])->name('admin.feedbacks.index');
