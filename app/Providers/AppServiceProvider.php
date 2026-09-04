@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Illuminate\Auth\Notifications\ResetPassword;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,6 +27,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        resetPassword::createUrlUsing(function($user, string $token){
+        return env('FRONTEND_URL', 'http://localhost:9000') . '/#/reset-password?token=' . $token . '&email=' . urlencode($user->email);
+        });
         RateLimiter::for('login', function (Request $request): Limit {
             $email = (string) $request->string('email')->trim()->lower();
 
@@ -153,3 +157,5 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 }
+
+

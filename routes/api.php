@@ -41,6 +41,7 @@ Route::get('/public/puroks', [PublicPurokController::class, 'index'])->name('pub
 Route::get('/puroks', [PublicPurokController::class, 'index'])->name('puroks.index');
 
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
+    
     Route::get('/resident-youth', [ResidentYouthController::class, 'index'])->name('resident-youth.index');
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);

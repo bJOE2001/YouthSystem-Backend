@@ -60,7 +60,7 @@ class YouthValidationDetailsResource extends JsonResource
             'lgbtqMember' => $this->lgbtq_member ? 'Yes' : 'No',
             'specialYouthSector' => $this->special_youth_sector,
             'attachedId' => $this->attached_id_path ? 'View ID' : null,
-            'attachedIdImage' => $this->attached_id_path ? Storage::url($this->attached_id_path) : null,
+            'attachedIdImage' => $this->attached_id_path ? url(Storage::url($this->attached_id_path)) : null,
             'birthRegistered' => $this->birth_registered ? 'Yes' : 'No',
             'civilStatus' => $this->civil_status,
             'soloParent' => $this->solo_parent ? 'Yes' : 'No',

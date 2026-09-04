@@ -62,6 +62,9 @@ class UpdateEventRequest extends FormRequest
             'primaryObjective2' => ['sometimes', 'string'],
             'primaryObjective3' => ['sometimes', 'string'],
             'status' => ['sometimes', 'in:draft,upcoming,ongoing,completed,cancelled'],
+            'openToAll' => ['nullable', 'boolean'],
+            'openToAllBarangays' => ['nullable', 'boolean'],
         ];
     }
 }
+

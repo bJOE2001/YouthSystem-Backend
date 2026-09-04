@@ -71,6 +71,13 @@ class GetResidentYouthRecordsAction
                         $uq->where('email', 'LIKE', $search)
                             ->orWhere('name', 'LIKE', $search);
                     });
+                
+                $searchLower = strtolower(trim($filters['search']));
+                if ($searchLower === 'sinag') {
+                    $q->orWhere('sinag_member', true);
+                } elseif ($searchLower === 'non sinag' || $searchLower === 'non-sinag' || $searchLower === 'nonsinag') {
+                    $q->orWhere('sinag_member', false);
+                }
             });
         }
 
@@ -96,3 +103,4 @@ class GetResidentYouthRecordsAction
         return $query->paginate($perPage);
     }
 }
+

@@ -62,6 +62,9 @@ class StoreEventRequest extends FormRequest
             'primaryObjective2' => ['required', 'string'],
             'primaryObjective3' => ['required', 'string'],
             'status' => ['required', 'in:draft,upcoming,ongoing,completed,cancelled'],
+            'openToAll' => ['nullable', 'boolean'],
+            'openToAllBarangays' => ['nullable', 'boolean'],
         ];
     }
 }
+

@@ -86,7 +86,28 @@ class GetYouthDashboardAction
                 ->count();
 
         // 2. Fetch Latest Events & Sports Programs Combined
-        $latestEvents = Event::latest()->take(5)->get()->map(function ($event) use ($user) {
+        $userBarangay = $user->youthProfile->barangay ?? \App\Models\SkOfficial::where('email', $user->email)->value('barangay') ?? null;
+        
+        $eventsQuery = Event::query();
+        $eventsQuery->where(function ($q) use ($userBarangay) {
+            $q->where('open_to_all_barangays', true);
+            $q->orWhereHas('user', function ($uq) {
+                $uq->whereIn('role', ['admin', \App\Enums\UserRole::Admin->value]);
+            });
+            if ($userBarangay) {
+                $q->orWhereRaw('LOWER(barangay) = ?', [strtolower(trim($userBarangay))]);
+            }
+        });
+
+        $sportsQuery = SportsProgram::query();
+        $sportsQuery->where(function ($q) use ($userBarangay) {
+            $q->where('open_to_all_barangays', true);
+            if ($userBarangay) {
+                $q->orWhereRaw('LOWER(barangay) = ?', [strtolower(trim($userBarangay))]);
+            }
+        });
+
+        $latestEvents = $eventsQuery->latest()->take(5)->get()->map(function ($event) use ($user) {
             $start = Carbon::parse($event->start_date);
 
             return [
@@ -96,12 +117,13 @@ class GetYouthDashboardAction
                 'description' => str($event->performance_indicator)->limit(100)->toString(),
                 'date' => $start->format('M d, Y').($event->start_time ? ' at '.Carbon::parse($event->start_time)->format('g:i A') : ''),
                 'location' => $event->location,
+                'status' => $event->status,
                 'joined' => $event->participants()->where('user_id', $user->id)->exists(),
                 'created_at' => $event->created_at,
             ];
         });
 
-        $latestSports = SportsProgram::latest()->take(5)->get()->map(function ($sport) use ($user) {
+        $latestSports = $sportsQuery->latest()->take(5)->get()->map(function ($sport) use ($user) {
             $start = Carbon::parse($sport->start_date);
 
             return [
@@ -111,6 +133,7 @@ class GetYouthDashboardAction
                 'description' => str($sport->objective_1)->limit(100)->toString(),
                 'date' => $start->format('M d, Y').($sport->start_time ? ' at '.Carbon::parse($sport->start_time)->format('g:i A') : ''),
                 'location' => $sport->location,
+                'status' => $sport->status,
                 'joined' => $sport->participants()->where('user_id', $user->id)->exists(),
                 'created_at' => $sport->created_at,
             ];
@@ -141,3 +164,5 @@ class GetYouthDashboardAction
         ];
     }
 }
+
+

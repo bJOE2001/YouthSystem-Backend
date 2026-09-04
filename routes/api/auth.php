@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\Admin\SystemSettingController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Auth\ForgotPasswordController;
+use App\Http\Controllers\Api\Auth\ResetPasswordController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,6 +18,14 @@ Route::post('/login', [AuthController::class, 'login'])
 
 Route::post('/register', [AuthController::class, 'register'])
     ->name('api.register');
+
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])
+    ->middleware('guest')
+    ->name('password.email');
+
+Route::post('/reset-password', [ResetPasswordController::class, 'reset'])
+    ->middleware('guest')
+    ->name('password.update');
 
 /*
 |--------------------------------------------------------------------------
@@ -43,3 +53,4 @@ Route::middleware([
     Route::post('/change-password', [SystemSettingController::class, 'changePassword'])
         ->name('auth.change-password');
 });
+

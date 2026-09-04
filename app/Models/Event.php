@@ -35,6 +35,8 @@ class Event extends Model
         'certificate_template_path',
         'certificate_settings',
         'user_id',
+        'open_to_all_barangays',
+        'barangay',
     ];
 
     protected function casts(): array
@@ -46,6 +48,7 @@ class Event extends Model
             'budget_allocated' => 'decimal:2',
             'budget_utilized' => 'decimal:2',
             'certificate_settings' => 'array',
+            'open_to_all_barangays' => 'boolean',
         ];
     }
 

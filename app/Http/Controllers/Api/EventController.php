@@ -65,21 +65,23 @@ class EventController extends Controller
 
         if (! $user || $user->role !== UserRole::Admin) {
             $events->where(function ($q) use ($userBarangay) {
+                $q->where('open_to_all_barangays', true);
+                
                 // City-wide events created by City Admins are open to all
-                $q->whereHas('user', function ($uq) {
+                $q->orWhereHas('user', function ($uq) {
                     $uq->where('role', UserRole::Admin->value)
                         ->orWhere('role', 'admin');
                 });
+                
                 // Barangay events created by SK Admins are exclusive to youth belonging to that barangay
                 if ($userBarangay) {
                     $q->orWhereHas('user', function ($uq) use ($userBarangay) {
                         $uq->where(function ($roleQ) {
                             $roleQ->where('role', UserRole::SkAdmin->value)
                                 ->orWhere('role', 'sk_admin');
-                        })->where(function ($bq) use ($userBarangay) {
-                            $bq->whereHas('skOfficial', fn ($sq) => $sq->whereRaw('LOWER(barangay) = ?', [strtolower(trim($userBarangay))]))
-                                ->orWhereHas('youthProfile', fn ($yq) => $yq->whereRaw('LOWER(barangay) = ?', [strtolower(trim($userBarangay))]));
                         });
+                    })->where(function ($bq) use ($userBarangay) {
+                        $bq->whereRaw('LOWER(events.barangay) = ?', [strtolower(trim($userBarangay))]);
                     });
                 }
             });
@@ -132,8 +134,19 @@ class EventController extends Controller
 
     public function store(StoreEventRequest $request)
     {
+        /** @var User $user */
+        $user = Auth::guard('sanctum')->user() ?? Auth::user();
         $data = $this->mapToSnakeCase($request->validated());
         $data['user_id'] = Auth::id() ?? $request->user()?->id;
+        
+        $isOpenToAll = filter_var($request->input('openToAll', $request->input('openToAllBarangays', $request->input('open_to_all_barangays', false))), FILTER_VALIDATE_BOOLEAN);
+        $data['open_to_all_barangays'] = $isOpenToAll;
+        if (! $isOpenToAll) {
+            $data['barangay'] = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
+        } else {
+            $data['barangay'] = null;
+        }
+
         $event = Event::create($data);
 
         $youthUsers = User::where('role', 'youth')->get();
@@ -159,7 +172,20 @@ class EventController extends Controller
 
     public function update(UpdateEventRequest $request, Event $event)
     {
+        /** @var User $user */
+        $user = Auth::guard('sanctum')->user() ?? Auth::user();
         $data = $this->mapToSnakeCase($request->validated());
+        
+        if ($request->has('openToAll') || $request->has('openToAllBarangays') || $request->has('open_to_all_barangays')) {
+            $isOpenToAll = filter_var($request->input('openToAll', $request->input('openToAllBarangays', $request->input('open_to_all_barangays', false))), FILTER_VALIDATE_BOOLEAN);
+            $data['open_to_all_barangays'] = $isOpenToAll;
+            if (! $isOpenToAll) {
+                $data['barangay'] = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
+            } else {
+                $data['barangay'] = null;
+            }
+        }
+        
         $event->update($data);
 
         return new EventResource($event);
@@ -215,7 +241,7 @@ class EventController extends Controller
 
         $creator = $event->user;
         $isSkEvent = $creator && ($creator->role === UserRole::SkAdmin || $creator->role === 'sk_admin' || $creator->role?->value === 'sk_admin');
-        if ($isSkEvent) {
+        if ($isSkEvent && !$event->open_to_all_barangays) {
             $eventBarangay = $creator->skOfficial?->barangay ?? $creator->youthProfile?->barangay;
             $userBarangay = $user->youthProfile?->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
             if ($eventBarangay && (! $userBarangay || strtolower(trim($userBarangay)) !== strtolower(trim($eventBarangay)))) {
@@ -734,3 +760,6 @@ class EventController extends Controller
         return $mapped;
     }
 }
+
+
+
