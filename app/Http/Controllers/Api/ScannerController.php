@@ -170,9 +170,16 @@ class ScannerController extends Controller
 
         $official = $request->user();
 
+        $token = trim((string) ($validated['qr_code_token'] ?? ''));
+
         // 1. Resolve scanned attendee with active scholar profile
         $attendee = User::with(['scholar' => fn ($q) => $q->where('status', 'Active')])
-            ->where('qr_code_token', $validated['qr_code_token'])
+            ->where(function ($query) use ($token) {
+                $query->where('qr_code_token', $token);
+                if (is_numeric($token)) {
+                    $query->orWhere('id', (int) $token);
+                }
+            })
             ->first();
 
         if (! $attendee) {
@@ -194,6 +201,10 @@ class ScannerController extends Controller
                 $numericSportsProgramId = (int) substr($rawEventId, 6);
                 $activityType = 'sports';
                 $eventName = $validated['duty_title'] ?? SportsProgram::where('id', $numericSportsProgramId)->value('name');
+            } elseif (is_string($rawEventId) && str_starts_with($rawEventId, 'event_')) {
+                $numericEventId = (int) substr($rawEventId, 6);
+                $activityType = 'event';
+                $eventName = $validated['duty_title'] ?? Event::where('id', $numericEventId)->value('name');
             } elseif (is_numeric($rawEventId)) {
                 if ($activityType === 'sports') {
                     $numericSportsProgramId = (int) $rawEventId;
@@ -203,6 +214,8 @@ class ScannerController extends Controller
                     $eventName = $validated['duty_title'] ?? Event::where('id', $numericEventId)->value('name');
                     $activityType = 'event';
                 }
+            } elseif (is_string($rawEventId) && str_starts_with($rawEventId, 'duty_')) {
+                $activityType = 'office_duty';
             }
         } elseif (empty($validated['activity_type'])) {
             $activityType = 'office_duty';
@@ -225,33 +238,20 @@ class ScannerController extends Controller
         ) {
             $now = Carbon::now();
 
-            if (! $scholar) {
-                // ==========================================
-                // SCENARIO A: Regular Youth / SK (1 SCAN ONLY)
-                // ==========================================
-                $attendance = AttendanceLog::updateOrCreate(
-                    [
-                        'user_id' => $attendee->id,
-                        'event_id' => $numericEventId,
-                        'sports_program_id' => $numericSportsProgramId,
-                        'activity_type' => $activityType,
-                    ],
-                    [
-                        'activity_title' => $activityTitle,
-                        'time_in' => $now,
-                        'status' => 'attended',
-                        'scanned_by_user_id' => $official ? $official->id : null,
-                        'remarks' => $validated['remarks'] ?? 'QR attendance recorded',
-                    ]
-                );
-
+            // Reusable closure to synchronize participant attendance across Event and SportsProgram
+            $markActivityAttendance = function () use ($attendee, $numericEventId, $numericSportsProgramId, $now) {
                 if ($numericEventId) {
-                    $attendee->joinedEvents()->syncWithoutDetaching([$numericEventId => ['attended_at' => $now]]);
+                    $attendee->joinedEvents()->syncWithoutDetaching([
+                        $numericEventId => ['attended_at' => $now],
+                    ]);
                 }
-                if ($numericSportsProgramId) {
-                    $attendee->joinedSportsPrograms()->syncWithoutDetaching([$numericSportsProgramId => ['attended_at' => $now]]);
 
-                    // Also mark in any teammates JSON
+                if ($numericSportsProgramId) {
+                    $attendee->joinedSportsPrograms()->syncWithoutDetaching([
+                        $numericSportsProgramId => ['attended_at' => $now],
+                    ]);
+
+                    // Also mark in any teammates JSON across all teams in this sports program
                     $pivots = DB::table('sports_program_user')
                         ->where('sports_program_id', $numericSportsProgramId)
                         ->get();
@@ -282,6 +282,29 @@ class ScannerController extends Controller
                         }
                     }
                 }
+            };
+
+            if (! $scholar) {
+                // ==========================================
+                // SCENARIO A: Regular Youth / SK (1 SCAN ONLY)
+                // ==========================================
+                $attendance = AttendanceLog::updateOrCreate(
+                    [
+                        'user_id' => $attendee->id,
+                        'event_id' => $numericEventId,
+                        'sports_program_id' => $numericSportsProgramId,
+                        'activity_type' => $activityType,
+                    ],
+                    [
+                        'activity_title' => $activityTitle,
+                        'time_in' => $now,
+                        'status' => 'attended',
+                        'scanned_by_user_id' => $official ? $official->id : null,
+                        'remarks' => $validated['remarks'] ?? 'QR attendance recorded',
+                    ]
+                );
+
+                $markActivityAttendance();
 
                 $roleLabel = $attendee->role === 'sk_admin' ? 'SK Official' : 'Youth';
 
@@ -342,6 +365,9 @@ class ScannerController extends Controller
                     ]
                 );
 
+                // Mark the scholar as attended immediately on their first scan
+                $markActivityAttendance();
+
                 return response()->json([
                     'success' => true,
                     'is_scholar' => true,
@@ -386,12 +412,8 @@ class ScannerController extends Controller
                     'status' => 'timed_out',
                 ]);
 
-            if ($numericEventId) {
-                $attendee->joinedEvents()->syncWithoutDetaching([$numericEventId]);
-            }
-            if ($numericSportsProgramId) {
-                $attendee->joinedSportsPrograms()->syncWithoutDetaching([$numericSportsProgramId]);
-            }
+            // Ensure event / sports attendance remains marked with timestamp
+            $markActivityAttendance();
 
             $hoursFormatted = number_format($hours, 2);
 

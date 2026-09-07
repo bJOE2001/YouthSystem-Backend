@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Enums\UserRole;
 use App\Models\SkOfficial;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -76,6 +77,9 @@ class EventParticipantResource extends JsonResource
             }
         }
 
+        $attendedAt = $this->pivot?->attended_at;
+        $formattedTime = $attendedAt ? Carbon::parse($attendedAt)->timezone('Asia/Manila')->format('h:i A') : '—';
+
         return [
             'id' => $this->id,
             'name' => $name,
@@ -87,6 +91,8 @@ class EventParticipantResource extends JsonResource
             'team_name' => $teamName,
             'position' => $position,
             'teammates' => $teammates,
+            'time' => $formattedTime,
+            'attended_at' => $attendedAt,
             // Map attended_at or status to 'Attended' or 'Not Attended' for the frontend
             'status' => $isAttended ? 'Attended' : 'Not Attended',
         ];
