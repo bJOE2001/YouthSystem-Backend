@@ -14,9 +14,15 @@ class EcesproScholarController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return EcesproScholar::with(['user.youthProfile', 'application'])->get();
+        $query = EcesproScholar::with(['user.youthProfile', 'application']);
+
+        if ($request->query('qualified_for_grant') === 'true') {
+            $query->where('compliance_status', 'Validated');
+        }
+
+        return $query->get();
     }
 
     /**

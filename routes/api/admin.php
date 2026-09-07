@@ -17,6 +17,7 @@ use App\Http\Controllers\EcesproInterviewBatchController;
 use App\Http\Controllers\EcesproInterviewController;
 use App\Http\Controllers\EcesproProgramController;
 use App\Http\Controllers\EcesproScholarController;
+use App\Http\Controllers\Api\Admin\EcesproGrantReleaseController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware([
@@ -140,6 +141,13 @@ Route::middleware([
         Route::post('ecespro-scholars/{ecespro_scholar}/volunteer-logs/{log}/delete', [EcesproScholarController::class, 'deleteVolunteerLog'])->name('ecespro-scholars.volunteer-logs.destroy');
         Route::get('ecespro-compliance-validations', [EcesproScholarController::class, 'complianceValidations'])->name('ecespro-compliance-validations.index');
         Route::post('ecespro-compliance-validations/{ecesproScholar}/review', [EcesproScholarController::class, 'reviewCompliance'])->name('ecespro-compliance-validations.review');
+
+        // ECESPRO Grant Releases
+        Route::get('ecespro-grant-release-batches', [EcesproGrantReleaseController::class, 'index']);
+        Route::post('ecespro-grant-release-batches', [EcesproGrantReleaseController::class, 'store']);
+        Route::get('ecespro-grant-release-batches/{id}', [EcesproGrantReleaseController::class, 'show']);
+        Route::post('ecespro-grant-release-batches/{id}/delete', [EcesproGrantReleaseController::class, 'destroy']);
+        Route::post('ecespro-grant-releases/{grantReleaseId}/remove-from-batch', [EcesproGrantReleaseController::class, 'removeFromBatch']);
 
         // ECESPRO Compliance Schedules
         Route::get('ecespro-compliance-schedules', [EcesproComplianceScheduleController::class, 'index'])->name('ecespro-compliance-schedules.index');
