@@ -39,7 +39,17 @@ class GetResidentYouthRecordsAction
             }
         }
 
-        if (! empty($filters['barangay'])) {
+        if (! empty($filters['age_bracket'])) {
+    $now = now();
+    if ($filters['age_bracket'] === '15-30') {
+        $query->whereDate('birth_date', '<=', $now->copy()->subYears(15)->format('Y-m-d'))
+              ->whereDate('birth_date', '>', $now->copy()->subYears(31)->format('Y-m-d'));
+    } elseif ($filters['age_bracket'] === '31-above') {
+        $query->whereDate('birth_date', '<=', $now->copy()->subYears(31)->format('Y-m-d'));
+    }
+}
+
+if (! empty($filters['barangay'])) {
             $targetBarangay = trim($filters['barangay']);
             $query->where(function ($q) use ($targetBarangay) {
                 $q->where('barangay', $targetBarangay)
@@ -58,7 +68,7 @@ class GetResidentYouthRecordsAction
 
         if (! empty($filters['search'])) {
             $search = '%'.$filters['search'].'%';
-            $query->where(function ($q) use ($search) {
+            $query->where(function ($q) use ($search, $filters) {
                 $q->where(DB::raw("CONCAT(first_name, ' ', last_name)"), 'LIKE', $search)
                     ->orWhere(DB::raw("CONCAT(first_name, ' ', middle_name, ' ', last_name)"), 'LIKE', $search)
                     ->orWhere('first_name', 'LIKE', $search)
@@ -103,4 +113,5 @@ class GetResidentYouthRecordsAction
         return $query->paginate($perPage);
     }
 }
+
 

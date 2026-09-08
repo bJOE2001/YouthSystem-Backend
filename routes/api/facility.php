@@ -20,6 +20,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Accessible by admin
     Route::middleware('role:admin')->group(function () {
         // Facility Management
+        Route::post('/facilities/{facility}/admin-book', [FacilityController::class, 'adminBook'])->name('facilities.admin-book');
         Route::post('/facilities', [FacilityController::class, 'store'])->name('facilities.store');
         Route::post('/facilities/{facility}', [FacilityController::class, 'update'])->name('facilities.update');
         Route::post('/facilities/{facility}/status', [FacilityController::class, 'status'])->name('facilities.status');
