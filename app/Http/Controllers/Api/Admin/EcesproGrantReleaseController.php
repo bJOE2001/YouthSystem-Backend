@@ -14,7 +14,7 @@ class EcesproGrantReleaseController extends Controller
 {
     public function index()
     {
-        $batches = EcesproGrantReleaseBatch::with(['grants.scholar.user.youthProfile'])
+        $batches = EcesproGrantReleaseBatch::with(['grants.scholar.user.youthProfile', 'grants.scholar.application'])
             ->orderByDesc('release_date')
             ->paginate(15);
 
@@ -75,8 +75,7 @@ class EcesproGrantReleaseController extends Controller
 
     public function show($id)
     {
-        $batch = EcesproGrantReleaseBatch::with(['grants.scholar.user.youthProfile'])->findOrFail($id);
-
+        $batch = EcesproGrantReleaseBatch::with(['grants.scholar.user.youthProfile', 'grants.scholar.application'])->findOrFail($id);
         return response()->json($batch);
     }
 
