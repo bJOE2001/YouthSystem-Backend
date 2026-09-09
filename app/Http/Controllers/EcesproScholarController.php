@@ -39,6 +39,7 @@ class EcesproScholarController extends Controller
             'compliance_status' => 'nullable|string|max:255',
             'requirements_history' => 'nullable|array',
             'status' => 'nullable|string',
+            'remarks' => 'nullable|string',
             'allowance_received_amount' => 'nullable|numeric|min:0',
             'required_volunteer_hours' => 'nullable|numeric|min:0|max:500',
         ]);
@@ -71,6 +72,7 @@ class EcesproScholarController extends Controller
             'compliance_status' => 'nullable|string|max:255',
             'requirements_history' => 'nullable|array',
             'status' => 'nullable|string',
+            'remarks' => 'nullable|string',
             'allowance_received_amount' => 'nullable|numeric|min:0',
             'required_volunteer_hours' => 'nullable|numeric|min:0|max:500',
         ]);

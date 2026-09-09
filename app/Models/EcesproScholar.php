@@ -20,6 +20,7 @@ class EcesproScholar extends Model
         'compliance_status',
         'requirements_history',
         'status',
+        'remarks',
         'allowance_received_amount',
         'required_volunteer_hours',
         'total_rendered_hours',
