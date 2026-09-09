@@ -30,6 +30,11 @@ class EcesproScholar extends Model
         'effective_required_volunteer_hours',
         'remaining_hours',
         'progress_percentage',
+        'full_name',
+        'first_name',
+        'middle_name',
+        'last_name',
+        'year_level',
     ];
 
     protected function casts(): array
@@ -77,6 +82,92 @@ class EcesproScholar extends Model
         }
 
         return min(100.0, round(((float) ($this->total_rendered_hours ?: 0.00) / $effectiveRequired) * 100, 1));
+    }
+
+    public function getFirstNameAttribute()
+    {
+        if ($this->relationLoaded('user') && $this->user && $this->user->relationLoaded('youthProfile') && $this->user->youthProfile) {
+            return $this->user->youthProfile->first_name;
+        }
+        if ($this->relationLoaded('application') && $this->application) {
+            return $this->application->first_name;
+        }
+        return $this->attributes['first_name'] ?? null;
+    }
+
+    public function getMiddleNameAttribute()
+    {
+        if ($this->relationLoaded('user') && $this->user && $this->user->relationLoaded('youthProfile') && $this->user->youthProfile) {
+            return $this->user->youthProfile->middle_name;
+        }
+        if ($this->relationLoaded('application') && $this->application) {
+            return $this->application->middle_name;
+        }
+        return $this->attributes['middle_name'] ?? null;
+    }
+
+    public function getLastNameAttribute()
+    {
+        if ($this->relationLoaded('user') && $this->user && $this->user->relationLoaded('youthProfile') && $this->user->youthProfile) {
+            return $this->user->youthProfile->last_name;
+        }
+        if ($this->relationLoaded('application') && $this->application) {
+            return $this->application->last_name;
+        }
+        return $this->attributes['last_name'] ?? null;
+    }
+
+    public function getYearLevelAttribute()
+    {
+        if ($this->relationLoaded('application') && $this->application) {
+            return $this->application->year_level ?: $this->application->previous_grade_college_year_level;
+        }
+        return $this->attributes['year_level'] ?? null;
+    }
+
+    public function getCourseAttribute($value)
+    {
+        if (empty($value) && $this->relationLoaded('application') && $this->application) {
+            return $this->application->course;
+        }
+        return $value;
+    }
+
+    public function getSchoolAttribute($value)
+    {
+        if (empty($value) && $this->relationLoaded('application') && $this->application) {
+            return $this->application->school;
+        }
+        return $value;
+    }
+
+    /**
+     * Get the standardized full name of the scholar.
+     */
+    public function getFullNameAttribute()
+    {
+        if ($this->relationLoaded('user') && $this->user && $this->user->relationLoaded('youthProfile') && $this->user->youthProfile) {
+            $profile = $this->user->youthProfile;
+            $middle = $profile->middle_name ? ' ' . $profile->middle_name . ' ' : ' ';
+            return trim(($profile->first_name ?? '') . $middle . ($profile->last_name ?? ''));
+        }
+
+        if ($this->relationLoaded('application') && $this->application) {
+            $middle = $this->application->middle_name ? ' ' . $this->application->middle_name . ' ' : ' ';
+            return trim(($this->application->first_name ?? '') . $middle . ($this->application->last_name ?? ''));
+        }
+        
+        if (isset($this->attributes['first_name']) || isset($this->attributes['last_name'])) {
+             $middle = $this->attributes['middle_name'] ?? '';
+             $middleSpacing = $middle ? ' ' . $middle . ' ' : ' ';
+             return trim(($this->attributes['first_name'] ?? '') . $middleSpacing . ($this->attributes['last_name'] ?? ''));
+        }
+
+        if ($this->relationLoaded('user') && $this->user) {
+            return $this->user->name;
+        }
+
+        return $this->attributes['name'] ?? 'N/A';
     }
 
     /**
