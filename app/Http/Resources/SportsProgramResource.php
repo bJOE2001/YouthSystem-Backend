@@ -49,6 +49,9 @@ class SportsProgramResource extends JsonResource
         $canDownloadCertificate = (bool) ($attended && $hasCertificate && $isCompleted);
         $certDownloadUrl = $canDownloadCertificate ? url("/api/events/sport_{$this->id}/certificate") : null;
 
+        $frontendUrl = config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost');
+        $shareUrl = rtrim($frontendUrl, '/')."/#/activities/sport_{$this->id}";
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -95,6 +98,8 @@ class SportsProgramResource extends JsonResource
             'can_download' => $canDownloadCertificate,
             'certificateUrl' => $certDownloadUrl,
             'certificate_url' => $certDownloadUrl,
+            'shareUrl' => $shareUrl,
+            'share_url' => $shareUrl,
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
         ];

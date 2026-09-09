@@ -18,8 +18,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/events/{event}/join', [EventController::class, 'join'])->name('events.join');
     });
 
-    // Accessible by admin and sk_admin
-    Route::middleware('role:admin,sk_admin')->group(function () {
+    // Accessible by admin, sub_admin, and sk_admin
+    Route::middleware(['role:admin,sub_admin,sk_admin', 'module:events'])->group(function () {
         Route::post('/events', [EventController::class, 'store'])->name('events.store');
         Route::post('/events/{event}', [EventController::class, 'update'])->name('events.update');
         Route::post('/events/{event}/status', [EventController::class, 'updateStatus'])->name('events.update-status');

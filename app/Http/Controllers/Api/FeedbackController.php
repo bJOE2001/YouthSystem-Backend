@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\FeedbackResource;
 use App\Models\Event;
 use App\Models\Feedback;
-use App\Models\SportsProgram;
 use App\Models\SkOfficial;
+use App\Models\SportsProgram;
 use Illuminate\Http\Request;
 
 class FeedbackController extends Controller
@@ -34,7 +34,7 @@ class FeedbackController extends Controller
     {
         if ($eventModel) {
             $role = $eventModel->user?->role;
-            $creatorRole = strtolower($role instanceof \BackedEnum ? $role->value : (string)$role);
+            $creatorRole = strtolower($role instanceof \BackedEnum ? $role->value : (string) $role);
             if ($creatorRole === 'sk_admin' || $creatorRole === 'sk' || $eventModel->scope === 'barangay' || ! empty($eventModel->barangay)) {
                 return true;
             }
@@ -42,7 +42,7 @@ class FeedbackController extends Controller
 
         if ($sportsModel) {
             $role = $sportsModel->user?->role;
-            $creatorRole = strtolower($role instanceof \BackedEnum ? $role->value : (string)$role);
+            $creatorRole = strtolower($role instanceof \BackedEnum ? $role->value : (string) $role);
             if ($creatorRole === 'sk_admin' || $creatorRole === 'sk' || (! empty($sportsModel->barangay) && strtolower($sportsModel->barangay) !== 'all')) {
                 return true;
             }
@@ -62,7 +62,7 @@ class FeedbackController extends Controller
         // 1. Not targeted to SK
         $query->where(function ($q) {
             $q->where('target', 'admin')
-              ->orWhereNull('target');
+                ->orWhereNull('target');
         });
 
         // 2. Event must NOT be created by an sk_admin
@@ -78,8 +78,8 @@ class FeedbackController extends Controller
         // 4. Sports program must not be specific to a barangay
         $query->whereDoesntHave('sportsProgram', function ($sp) {
             $sp->whereNotNull('barangay')
-               ->where('barangay', '!=', '')
-               ->whereRaw('LOWER(barangay) != ?', ['all']);
+                ->where('barangay', '!=', '')
+                ->whereRaw('LOWER(barangay) != ?', ['all']);
         });
 
         if ($request->filled('type') && $request->type !== 'all') {
@@ -139,26 +139,26 @@ class FeedbackController extends Controller
             // C: Feedbacks belonging to the assigned barangay
             if ($barangay) {
                 $q->orWhere('barangay', $barangay)
-                  ->orWhereHas('event', function ($eq) use ($barangay) {
-                      $eq->where('barangay', $barangay);
-                  })
-                  ->orWhereHas('sportsProgram', function ($sq) use ($barangay) {
-                      $sq->where('barangay', $barangay);
-                  })
-                  ->orWhere(function ($sub) use ($barangay) {
-                      $sub->where('target', 'sk')
-                          ->whereHas('user.youthProfile', function ($yq) use ($barangay) {
-                              $yq->where('barangay', $barangay);
-                          });
-                  });
+                    ->orWhereHas('event', function ($eq) use ($barangay) {
+                        $eq->where('barangay', $barangay);
+                    })
+                    ->orWhereHas('sportsProgram', function ($sq) use ($barangay) {
+                        $sq->where('barangay', $barangay);
+                    })
+                    ->orWhere(function ($sub) use ($barangay) {
+                        $sub->where('target', 'sk')
+                            ->whereHas('user.youthProfile', function ($yq) use ($barangay) {
+                                $yq->where('barangay', $barangay);
+                            });
+                    });
             }
 
             // D: Feedbacks explicitly targeting SK for this user's events/sports
             $q->orWhere(function ($sub) use ($user) {
                 $sub->where('target', 'sk')
                     ->where(function ($inner) use ($user) {
-                        $inner->whereHas('event', fn($eq) => $eq->where('user_id', $user->id))
-                              ->orWhereHas('sportsProgram', fn($sq) => $sq->where('user_id', $user->id));
+                        $inner->whereHas('event', fn ($eq) => $eq->where('user_id', $user->id))
+                            ->orWhereHas('sportsProgram', fn ($sq) => $sq->where('user_id', $user->id));
                     });
             });
         });

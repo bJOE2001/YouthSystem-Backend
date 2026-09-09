@@ -62,8 +62,9 @@ class ResidentYouthDetailsResource extends JsonResource
             'purokSitio' => $this->purok_sitio,
             'city' => $this->city,
             'province' => $this->province,
-            'postalCode' => $this->postal_code,
-            'status' => $this->sinag_member ? 'Sinag' : 'Non Sinag',
+            'organization_id' => $this->organization_id,
+            'organization_name' => $this->organization?->name ?? 'None',
+            'status' => $this->organization?->name ?? 'None',
 
             // Assuming bookings and events might be loaded later, default to empty arrays
             'bookingHistory' => $this->whenLoaded('bookings', function () {

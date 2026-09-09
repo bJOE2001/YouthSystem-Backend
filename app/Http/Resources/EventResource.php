@@ -43,6 +43,9 @@ class EventResource extends JsonResource
         $isCompleted = strtolower((string) $this->status) === 'completed';
         $canDownloadCertificate = (bool) ($attended && $hasCertificate && $isCompleted);
 
+        $frontendUrl = config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost');
+        $shareUrl = rtrim($frontendUrl, '/')."/#/activities/event_{$this->id}";
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -94,6 +97,8 @@ class EventResource extends JsonResource
             'can_download' => $canDownloadCertificate,
             'certificateUrl' => $canDownloadCertificate ? url("/api/events/event_{$this->id}/certificate") : null,
             'certificate_url' => $canDownloadCertificate ? url("/api/events/event_{$this->id}/certificate") : null,
+            'shareUrl' => $shareUrl,
+            'share_url' => $shareUrl,
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
         ];

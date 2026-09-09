@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\YouthProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class SkOfficialController extends Controller
 {
@@ -119,6 +120,41 @@ class SkOfficialController extends Controller
         $official = $action->execute($skOfficial->loadMissing('user.youthProfile'));
 
         return response()->json(SkOfficialResource::make($official));
+    }
+
+    public function changeEmail(Request $request, SkOfficial $skOfficial): JsonResponse
+    {
+        $userId = $skOfficial->user_id;
+
+        $validated = $request->validate([
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($userId),
+                Rule::notIn(array_filter([$skOfficial->email, $skOfficial->user?->email])),
+            ],
+        ], [
+            'email.not_in' => 'The new email must be different from the current email address.',
+        ]);
+
+        $newEmail = $validated['email'];
+
+        $skOfficial->email = $newEmail;
+        $skOfficial->save();
+
+        if ($skOfficial->user) {
+            $skOfficial->user->email = $newEmail;
+            $skOfficial->user->email_verified_at = now();
+            $skOfficial->user->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'SK Official email updated successfully.',
+            'data' => SkOfficialResource::make($skOfficial->loadMissing('user.youthProfile')),
+        ]);
     }
 
     public function destroy(SkOfficial $skOfficial, DeleteSkOfficialAction $action): JsonResponse

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureUserCanAccessModule;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Auth\AuthenticationException;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'active' => EnsureUserIsActive::class,
             'role' => EnsureUserHasRole::class,
+            'module' => EnsureUserCanAccessModule::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

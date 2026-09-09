@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('feedbacks', function (Blueprint $table) {
-            $table->string('target')->default('admin')->after('type'); // 'admin' or 'sk'
-            $table->string('barangay')->nullable()->after('target');
+        Schema::table('users', function (Blueprint $table) {
+            $table->json('permissions')->nullable()->after('role');
         });
     }
 
@@ -22,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('feedbacks', function (Blueprint $table) {
-            $table->dropColumn(['target', 'barangay']);
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('permissions');
         });
     }
 };

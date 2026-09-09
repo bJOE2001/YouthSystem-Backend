@@ -17,8 +17,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/my-bookings', [BookingRequestController::class, 'myBookings'])->name('my-bookings.index');
     });
 
-    // Accessible by admin
-    Route::middleware('role:admin')->group(function () {
+    // Accessible by admin and sub_admin
+    Route::middleware(['role:admin,sub_admin', 'module:facilities'])->group(function () {
         // Facility Management
         Route::post('/facilities/{facility}/admin-book', [FacilityController::class, 'adminBook'])->name('facilities.admin-book');
         Route::post('/facilities', [FacilityController::class, 'store'])->name('facilities.store');

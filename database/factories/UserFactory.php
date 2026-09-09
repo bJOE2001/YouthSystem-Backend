@@ -58,6 +58,17 @@ class UserFactory extends Factory
     }
 
     /**
+     * Indicate that the user is a sub-administrator.
+     */
+    public function subAdmin(array $permissions = []): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'role' => UserRole::SubAdmin->value,
+            'permissions' => $permissions,
+        ]);
+    }
+
+    /**
      * Indicate that the user is an SK official.
      */
     public function skAdmin(): static

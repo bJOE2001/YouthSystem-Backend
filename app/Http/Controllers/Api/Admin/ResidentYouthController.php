@@ -16,10 +16,12 @@ use App\Http\Resources\SkAdmin\ResidentYouthDetailsResource;
 use App\Http\Resources\SkAdmin\ResidentYouthListResource;
 use App\Models\BookingRequest;
 use App\Models\Event;
+use App\Models\Organization;
 use App\Models\YouthProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
 
 class ResidentYouthController extends Controller
@@ -84,15 +86,73 @@ class ResidentYouthController extends Controller
         ]);
     }
 
-    public function toggleSinag(YouthProfile $youthProfile): JsonResponse
+    public function changeEmail(Request $request, YouthProfile $youthProfile): JsonResponse
     {
-        $youthProfile->sinag_member = ! $youthProfile->sinag_member;
+        $user = $youthProfile->user;
+        abort_if(! $user, Response::HTTP_NOT_FOUND, 'User account associated with this profile was not found.');
+
+        $validated = $request->validate([
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($user->id),
+                Rule::notIn([$user->email]),
+            ],
+        ], [
+            'email.not_in' => 'The new email must be different from the current email address.',
+        ]);
+
+        $newEmail = $validated['email'];
+
+        $user->email = $newEmail;
+        $user->email_verified_at = now();
+        $user->save();
+
+        if ($user->skOfficial) {
+            $user->skOfficial->email = $newEmail;
+            $user->skOfficial->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Resident youth email updated successfully.',
+            'data' => ResidentYouthDetailsResource::make($youthProfile->fresh()->loadMissing('user')),
+        ]);
+    }
+
+    public function assignOrganization(Request $request, YouthProfile $youthProfile): JsonResponse
+    {
+        $validated = $request->validate([
+            'organization_id' => 'nullable|integer|exists:organizations,id',
+        ]);
+
+        $youthProfile->organization_id = $validated['organization_id'] ?? null;
         $youthProfile->save();
 
         return response()->json([
             'success' => true,
-            'message' => 'Sinag status updated successfully.',
-            'data' => ResidentYouthDetailsResource::make($youthProfile),
+            'message' => 'Youth organization updated successfully.',
+            'data' => ResidentYouthDetailsResource::make($youthProfile->fresh()->loadMissing(['user', 'organization'])),
+        ]);
+    }
+
+    public function toggleSinag(YouthProfile $youthProfile): JsonResponse
+    {
+        $sinagOrg = Organization::where('name', 'SINAG')->first();
+        if ($youthProfile->organization_id === $sinagOrg?->id) {
+            $youthProfile->organization_id = null;
+        } else {
+            $youthProfile->organization_id = $sinagOrg?->id;
+        }
+
+        $youthProfile->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Organization status updated successfully.',
+            'data' => ResidentYouthDetailsResource::make($youthProfile->fresh()->loadMissing(['user', 'organization'])),
         ]);
     }
 

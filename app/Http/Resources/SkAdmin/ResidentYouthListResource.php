@@ -28,7 +28,9 @@ class ResidentYouthListResource extends JsonResource
             'email' => $this->user ? $this->user->email : '',
             'barangay' => $this->barangay,
             'purok' => $this->purok_sitio,
-            'status' => $this->sinag_member ? 'Sinag' : 'Non Sinag',
+            'organization_id' => $this->organization_id,
+            'organization_name' => $this->organization?->name ?? 'None',
+            'status' => $this->organization?->name ?? 'None',
         ];
     }
 }

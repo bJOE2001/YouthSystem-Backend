@@ -14,7 +14,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::get('/sk/feedbacks', [FeedbackController::class, 'skFeedbacks'])->name('sk.feedbacks.index');
 
     // Admin Routes
-    Route::middleware('role:admin')->group(function () {
+    Route::middleware(['role:admin,sub_admin', 'module:feedbacks'])->group(function () {
         Route::get('/admin/feedbacks', [FeedbackController::class, 'index'])->name('admin.feedbacks.index');
     });
 });

@@ -1,10 +1,10 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\SystemSettingController;
-use App\Http\Controllers\Auth\AuthController;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\Auth\ForgotPasswordController;
 use App\Http\Controllers\Api\Auth\ResetPasswordController;
+use App\Http\Controllers\Auth\AuthController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -53,4 +53,3 @@ Route::middleware([
     Route::post('/change-password', [SystemSettingController::class, 'changePassword'])
         ->name('auth.change-password');
 });
-
