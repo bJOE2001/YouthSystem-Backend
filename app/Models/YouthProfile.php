@@ -62,7 +62,7 @@ class YouthProfile extends Model
         'province',
         'postal_code',
         'status',
-        'sinag_member',
+        'organization_id',
         'reviewed_by',
         'reviewed_at',
         'profile_picture',
@@ -78,6 +78,11 @@ class YouthProfile extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
     }
 
     public function reviewer(): BelongsTo
@@ -100,7 +105,6 @@ class YouthProfile extends Model
             'birth_registered' => 'boolean',
             'solo_parent' => 'boolean',
             'status' => YouthProfileStatus::class,
-            'sinag_member' => 'boolean',
             'reviewed_at' => 'datetime',
         ];
     }

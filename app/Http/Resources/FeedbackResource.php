@@ -17,14 +17,14 @@ class FeedbackResource extends JsonResource
             $isSk = true;
         } elseif ($this->event) {
             $role = $this->event->user?->role;
-            $roleStr = strtolower($role instanceof \BackedEnum ? $role->value : (string)$role);
-            if ($roleStr === 'sk_admin' || $roleStr === 'sk' || $this->event->scope === 'barangay' || !empty($this->event->barangay)) {
+            $roleStr = strtolower($role instanceof \BackedEnum ? $role->value : (string) $role);
+            if ($roleStr === 'sk_admin' || $roleStr === 'sk' || $this->event->scope === 'barangay' || ! empty($this->event->barangay)) {
                 $isSk = true;
             }
         } elseif ($this->sportsProgram) {
             $role = $this->sportsProgram->user?->role;
-            $roleStr = strtolower($role instanceof \BackedEnum ? $role->value : (string)$role);
-            if ($roleStr === 'sk_admin' || $roleStr === 'sk' || (!empty($this->sportsProgram->barangay) && strtolower($this->sportsProgram->barangay) !== 'all')) {
+            $roleStr = strtolower($role instanceof \BackedEnum ? $role->value : (string) $role);
+            if ($roleStr === 'sk_admin' || $roleStr === 'sk' || (! empty($this->sportsProgram->barangay) && strtolower($this->sportsProgram->barangay) !== 'all')) {
                 $isSk = true;
             }
         }

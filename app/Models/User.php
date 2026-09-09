@@ -6,6 +6,7 @@ namespace App\Models;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
+use Illuminate\Auth\Passwords\CanResetPassword;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -15,12 +16,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Auth\Passwords\CanResetPassword;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, CanResetPassword;
+    use CanResetPassword, HasApiTokens, HasFactory, Notifiable;
 
     protected static function booted(): void
     {
@@ -71,6 +71,31 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === UserStatus::Active;
+    }
+
+    public function isRootAdmin(): bool
+    {
+        return $this->role === UserRole::Admin;
+    }
+
+    public function isSubAdmin(): bool
+    {
+        return $this->role === UserRole::SubAdmin;
+    }
+
+    public function canAccessModule(string $module): bool
+    {
+        if ($this->isRootAdmin()) {
+            return true;
+        }
+
+        if (! $this->isSubAdmin()) {
+            return false;
+        }
+
+        $permissions = $this->permissions ?? [];
+
+        return in_array($module, $permissions, true);
     }
 
     public function youthProfile(): HasOne
@@ -160,6 +185,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'permissions',
         'status',
         'qr_code_token',
         'email_verified_at',
@@ -187,6 +213,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
+            'permissions' => 'array',
             'role' => UserRole::class,
             'status' => UserStatus::class,
         ];

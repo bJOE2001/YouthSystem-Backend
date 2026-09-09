@@ -63,12 +63,13 @@ class EcesproGrantReleaseController extends Controller
 
             return response()->json([
                 'message' => 'Grant release batch created successfully.',
-                'batch' => $batch->load('grants.scholar.user.youthProfile')
+                'batch' => $batch->load('grants.scholar.user.youthProfile'),
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Failed to create batch: ' . $e->getMessage()], 500);
+
+            return response()->json(['message' => 'Failed to create batch: '.$e->getMessage()], 500);
         }
     }
 

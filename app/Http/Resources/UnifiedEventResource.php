@@ -120,6 +120,8 @@ class UnifiedEventResource extends JsonResource
             'can_download' => $canDownloadCertificate,
             'certificateUrl' => $certDownloadUrl,
             'certificate_url' => $certDownloadUrl,
+            'shareUrl' => rtrim(config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost'), '/')."/#/activities/{$unifiedId}",
+            'share_url' => rtrim(config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost'), '/')."/#/activities/{$unifiedId}",
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
         ];

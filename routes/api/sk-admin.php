@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\SkAdmin\DashboardController;
 use App\Http\Controllers\Api\SkAdmin\ProfileController;
 use App\Http\Controllers\Api\SkAdmin\PurokLibraryController;
@@ -8,7 +9,6 @@ use App\Http\Controllers\Api\SkAdmin\SkOfficialController;
 use App\Http\Controllers\Api\SkAdmin\SkSportsProgramController;
 use App\Http\Controllers\Api\SkAdmin\YouthValidationController;
 use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Api\FeedbackController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware([

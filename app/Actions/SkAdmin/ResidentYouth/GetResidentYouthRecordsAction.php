@@ -17,7 +17,7 @@ class GetResidentYouthRecordsAction
      */
     public function execute(array $filters = []): LengthAwarePaginator
     {
-        $query = YouthProfile::query()->with('user')->where('status', YouthProfileStatus::Approved);
+        $query = YouthProfile::query()->with(['user', 'organization'])->where('status', YouthProfileStatus::Approved);
 
         $user = auth()->user();
         $includeSelf = filter_var($filters['include_self'] ?? false, FILTER_VALIDATE_BOOLEAN);
@@ -40,16 +40,16 @@ class GetResidentYouthRecordsAction
         }
 
         if (! empty($filters['age_bracket'])) {
-    $now = now();
-    if ($filters['age_bracket'] === '15-30') {
-        $query->whereDate('birth_date', '<=', $now->copy()->subYears(15)->format('Y-m-d'))
-              ->whereDate('birth_date', '>', $now->copy()->subYears(31)->format('Y-m-d'));
-    } elseif ($filters['age_bracket'] === '31-above') {
-        $query->whereDate('birth_date', '<=', $now->copy()->subYears(31)->format('Y-m-d'));
-    }
-}
+            $now = now();
+            if ($filters['age_bracket'] === '15-30') {
+                $query->whereDate('birth_date', '<=', $now->copy()->subYears(15)->format('Y-m-d'))
+                    ->whereDate('birth_date', '>', $now->copy()->subYears(31)->format('Y-m-d'));
+            } elseif ($filters['age_bracket'] === '31-above') {
+                $query->whereDate('birth_date', '<=', $now->copy()->subYears(31)->format('Y-m-d'));
+            }
+        }
 
-if (! empty($filters['barangay'])) {
+        if (! empty($filters['barangay'])) {
             $targetBarangay = trim($filters['barangay']);
             $query->where(function ($q) use ($targetBarangay) {
                 $q->where('barangay', $targetBarangay)
@@ -80,13 +80,18 @@ if (! empty($filters['barangay'])) {
                     ->orWhereHas('user', function ($uq) use ($search) {
                         $uq->where('email', 'LIKE', $search)
                             ->orWhere('name', 'LIKE', $search);
+                    })
+                    ->orWhereHas('organization', function ($oq) use ($search) {
+                        $oq->where('name', 'LIKE', $search);
                     });
-                
+
                 $searchLower = strtolower(trim($filters['search']));
                 if ($searchLower === 'sinag') {
-                    $q->orWhere('sinag_member', true);
-                } elseif ($searchLower === 'non sinag' || $searchLower === 'non-sinag' || $searchLower === 'nonsinag') {
-                    $q->orWhere('sinag_member', false);
+                    $q->orWhereHas('organization', function ($oq) {
+                        $oq->where('name', 'LIKE', '%SINAG%');
+                    });
+                } elseif ($searchLower === 'non sinag' || $searchLower === 'non-sinag' || $searchLower === 'nonsinag' || $searchLower === 'none') {
+                    $q->orWhereNull('organization_id');
                 }
             });
         }
@@ -113,5 +118,3 @@ if (! empty($filters['barangay'])) {
         return $query->paginate($perPage);
     }
 }
-
-

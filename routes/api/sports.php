@@ -21,8 +21,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/sports/{sportsProgram}/participants-by-barangay', [SportsProgramController::class, 'participantsByBarangay'])->name('sports.participants-by-barangay');
     });
 
-    // Accessible by admin and sk_admin
-    Route::middleware('role:admin,sk_admin')->group(function () {
+    // Accessible by admin, sub_admin, and sk_admin
+    Route::middleware(['role:admin,sub_admin,sk_admin', 'module:sports_programs'])->group(function () {
         Route::post('/sports', [SportsProgramController::class, 'store'])->name('sports.store');
         Route::post('/sports/{sportsProgram}', [SportsProgramController::class, 'update'])->name('sports.update');
         Route::post('/sports/{sportsProgram}/status', [SportsProgramController::class, 'updateStatus'])->name('sports.update-status');

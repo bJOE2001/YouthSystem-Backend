@@ -69,7 +69,7 @@ class YouthProfileFactory extends Factory
             'province' => 'Davao del Norte',
             'postal_code' => '8100',
             'status' => YouthProfileStatus::Pending->value,
-            'sinag_member' => false,
+            'organization_id' => null,
             'reviewed_by' => null,
             'reviewed_at' => null,
             'rejection_reason' => null,

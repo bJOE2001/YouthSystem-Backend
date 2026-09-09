@@ -67,4 +67,3 @@ class UpdateEventRequest extends FormRequest
         ];
     }
 }
-

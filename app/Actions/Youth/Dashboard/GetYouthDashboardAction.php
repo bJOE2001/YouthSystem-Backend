@@ -2,9 +2,11 @@
 
 namespace App\Actions\Youth\Dashboard;
 
+use App\Enums\UserRole;
 use App\Http\Resources\AnnouncementResource;
 use App\Models\Announcement;
 use App\Models\Event;
+use App\Models\SkOfficial;
 use App\Models\SportsProgram;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -86,13 +88,13 @@ class GetYouthDashboardAction
                 ->count();
 
         // 2. Fetch Latest Events & Sports Programs Combined
-        $userBarangay = $user->youthProfile->barangay ?? \App\Models\SkOfficial::where('email', $user->email)->value('barangay') ?? null;
-        
+        $userBarangay = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
+
         $eventsQuery = Event::query();
         $eventsQuery->where(function ($q) use ($userBarangay) {
             $q->where('open_to_all_barangays', true);
             $q->orWhereHas('user', function ($uq) {
-                $uq->whereIn('role', ['admin', \App\Enums\UserRole::Admin->value]);
+                $uq->whereIn('role', ['admin', UserRole::Admin->value]);
             });
             if ($userBarangay) {
                 $q->orWhereRaw('LOWER(barangay) = ?', [strtolower(trim($userBarangay))]);
@@ -164,5 +166,3 @@ class GetYouthDashboardAction
         ];
     }
 }
-
-
