@@ -13,13 +13,11 @@ use App\Models\Event;
 use App\Models\SkOfficial;
 use App\Models\SportsProgram;
 use App\Models\User;
-use App\Notifications\NewEventNotification;
 use App\Services\CertificateService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -148,9 +146,6 @@ class EventController extends Controller
         }
 
         $event = Event::create($data);
-
-        $youthUsers = User::where('role', 'youth')->get();
-        Notification::send($youthUsers, new NewEventNotification($event));
 
         return new EventResource($event);
     }

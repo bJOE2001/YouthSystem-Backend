@@ -87,33 +87,6 @@ class EmailTemplateService
                 ],
             ],
 
-            'new_event' => [
-                'name' => 'New Youth Event / Activity',
-                'description' => 'Sent to youth members when a new event or sports program is posted.',
-                'subject' => 'New Youth Activity: {event_name}',
-                'heading' => 'New Youth Event Posted!',
-                'body' => 'Hello {user_name}, a new youth activity has just been scheduled. Join in, gain new skills, and connect with fellow youth leaders!',
-                'button_text' => 'Join This Event →',
-                'placeholders' => [
-                    '{user_name}' => 'Recipient user name',
-                    '{event_name}' => 'Name of the event / activity',
-                    '{classification}' => 'PPA Classification or sports category',
-                    '{location}' => 'Event venue / location',
-                    '{event_date}' => 'Event date schedule',
-                    '{event_time}' => 'Time schedule',
-                    '{event_url}' => 'Link to activity page',
-                ],
-                'sample_data' => [
-                    'user_name' => 'Youth Leader',
-                    'event_name' => 'Youth Environmental Action & Tree Planting 2026',
-                    'classification' => 'Environmental Protection & Climate Action',
-                    'location' => 'Tagum City Botanical Park, Magugpo North',
-                    'event_date' => 'September 20, 2026',
-                    'event_time' => '07:00 AM - 11:30 AM',
-                    'event_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/#/youth/events',
-                ],
-            ],
-
             'certificate_issued' => [
                 'name' => 'Certificate of Participation',
                 'description' => 'Sent to participants upon successful attendance in events or sports programs.',
