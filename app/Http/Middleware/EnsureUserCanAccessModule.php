@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
@@ -23,6 +24,23 @@ class EnsureUserCanAccessModule
         // Root Admin has unrestricted access to all modules
         if ($user->isRootAdmin()) {
             return $next($request);
+        }
+
+        // Scanner module has multi-persona access: Admin, SK Admin, permitted Sub-Admin, and scanning Scholar
+        if ($module === 'scanner') {
+            if ($user->role === UserRole::SkAdmin || $user->role === 'sk_admin' || $user->role?->value === 'sk_admin') {
+                return $next($request);
+            }
+
+            if ($user->isSubAdmin() && $user->canAccessModule('scanner')) {
+                return $next($request);
+            }
+
+            if ($user->canScanAsScholar()) {
+                return $next($request);
+            }
+
+            abort(Response::HTTP_FORBIDDEN, 'You do not have permission to access the scanner module.');
         }
 
         // Sub-Admins must have the specific module in their permissions

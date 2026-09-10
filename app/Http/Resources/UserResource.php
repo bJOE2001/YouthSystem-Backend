@@ -24,6 +24,12 @@ class UserResource extends JsonResource
             'status' => $this->status->value,
             'permissions' => $this->permissions ?? [],
             'is_root' => $this->isRootAdmin(),
+            'can_scan' => (bool) $this->canScan(),
+            'scholar_position' => $this->scholar?->scholarPosition ? [
+                'id' => $this->scholar->scholarPosition->id,
+                'name' => $this->scholar->scholarPosition->name,
+                'can_scan' => (bool) $this->scholar->scholarPosition->can_scan,
+            ] : null,
             'qr_code_token' => $this->qr_code_token,
             'scholar' => $this->ecesproScholar,
         ];

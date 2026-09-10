@@ -8,6 +8,7 @@ use App\Models\SkOfficial;
 use App\Models\User;
 use App\Models\YouthProfile;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class UserSeeder extends Seeder
 {
@@ -17,18 +18,24 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         // 1. Admin
-        if (! User::where('email', 'admin@test.com')->exists()) {
+        $admin = User::where('email', 'admin@test.com')->first();
+        if (! $admin) {
             User::factory()->admin()->active()->create([
                 'name' => 'Admin User',
                 'email' => 'admin@test.com',
+                'qr_code_token' => (string) Str::uuid(),
             ]);
+        } elseif (empty($admin->qr_code_token)) {
+            $admin->update(['qr_code_token' => (string) Str::uuid()]);
         }
 
         // 2. SK Admin
-        if (! User::where('email', 'sk@test.com')->exists()) {
+        $skAdminUser = User::where('email', 'sk@test.com')->first();
+        if (! $skAdminUser) {
             $skAdminUser = User::factory()->skAdmin()->active()->create([
                 'name' => 'SK Admin User',
                 'email' => 'sk@test.com',
+                'qr_code_token' => (string) Str::uuid(),
             ]);
 
             $barangay = Barangay::where('name', 'Apokon')->first();
@@ -62,13 +69,17 @@ class UserSeeder extends Seeder
                 'committee' => 'Sports',
                 'barangay' => $bName,
             ]);
+        } elseif (empty($skAdminUser->qr_code_token)) {
+            $skAdminUser->update(['qr_code_token' => (string) Str::uuid()]);
         }
 
         // 3. Youth
-        if (! User::where('email', 'youth@test.com')->exists()) {
+        $youthUser = User::where('email', 'youth@test.com')->first();
+        if (! $youthUser) {
             $youthUser = User::factory()->youth()->active()->create([
                 'name' => 'Juan Dela Cruz',
                 'email' => 'youth@test.com',
+                'qr_code_token' => (string) Str::uuid(),
             ]);
 
             $barangay = Barangay::where('name', 'Apokon')->first();
@@ -113,6 +124,8 @@ class UserSeeder extends Seeder
                 'province' => 'Davao del Norte',
                 'postal_code' => '8100',
             ]);
+        } elseif (empty($youthUser->qr_code_token)) {
+            $youthUser->update(['qr_code_token' => (string) Str::uuid()]);
         }
     }
 }

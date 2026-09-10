@@ -16,7 +16,7 @@ class EcesproScholarController extends Controller
      */
     public function index(Request $request)
     {
-        $query = EcesproScholar::with(['user.youthProfile', 'application']);
+        $query = EcesproScholar::with(['user.youthProfile', 'application', 'scholarPosition']);
 
         if ($request->query('qualified_for_grant') === 'true') {
             $query->where('compliance_status', 'Validated');
@@ -41,12 +41,13 @@ class EcesproScholarController extends Controller
             'status' => 'nullable|string',
             'allowance_received_amount' => 'nullable|numeric|min:0',
             'required_volunteer_hours' => 'nullable|numeric|min:0|max:500',
+            'scholar_position_id' => 'nullable|exists:scholar_positions,id',
         ]);
 
         $scholar = EcesproScholar::create($validated);
         $scholar->recalculateVolunteerHours();
 
-        return $scholar;
+        return $scholar->load(['user.youthProfile', 'application', 'scholarPosition']);
     }
 
     /**
@@ -54,7 +55,7 @@ class EcesproScholarController extends Controller
      */
     public function show(EcesproScholar $ecesproScholar)
     {
-        return $ecesproScholar->load(['user.youthProfile', 'application']);
+        return $ecesproScholar->load(['user.youthProfile', 'application', 'scholarPosition']);
     }
 
     /**
@@ -131,6 +132,10 @@ class EcesproScholarController extends Controller
                     'generalAverage' => $item['general_average'] ?? $item['generalAverage'] ?? null,
                     'status' => $item['status'] ?? 'Pending',
                     'remarks' => $item['remarks'] ?? '',
+                    'hardCopyStatus' => $item['hard_copy_status'] ?? $item['hardCopyStatus'] ?? 'Hard Copy Not Yet Submitted',
+                    'hardCopySubmittedAt' => $item['hard_copy_submitted_at'] ?? $item['hardCopySubmittedAt'] ?? null,
+                    'hardCopyReceivedBy' => $item['hard_copy_received_by'] ?? $item['hardCopyReceivedBy'] ?? null,
+                    'hardCopyNotes' => $item['hard_copy_notes'] ?? $item['hardCopyNotes'] ?? '',
                     'files' => $files,
                     'is_volunteer_completed' => (bool) $scholar->is_volunteer_completed,
                     'total_rendered_hours' => (float) ($scholar->total_rendered_hours ?: 0.00),
@@ -160,10 +165,16 @@ class EcesproScholarController extends Controller
             'historyIndexes' => 'nullable|array',
             'status' => 'required|string|in:Pending,Validated,Approved,For Revision,For Resubmission,Disapproved',
             'remarks' => 'nullable|string',
+            'hard_copy_status' => 'nullable|string|in:Hard Copy Submitted,Hard Copy Not Yet Submitted',
+            'hardCopyStatus' => 'nullable|string|in:Hard Copy Submitted,Hard Copy Not Yet Submitted',
+            'hard_copy_notes' => 'nullable|string',
+            'hardCopyNotes' => 'nullable|string',
         ]);
 
         $status = $request->input('status');
         $remarks = $request->input('remarks', '');
+        $hardCopyStatus = $request->input('hard_copy_status', $request->input('hardCopyStatus'));
+        $hardCopyNotes = $request->input('hard_copy_notes', $request->input('hardCopyNotes'));
 
         $indexes = $request->input('historyIndexes');
         if (empty($indexes)) {
@@ -177,6 +188,21 @@ class EcesproScholarController extends Controller
                 $history[$index]['status'] = $status;
                 $history[$index]['remarks'] = $remarks;
                 $history[$index]['reviewed_at'] = now()->toIso8601String();
+
+                if ($hardCopyStatus !== null) {
+                    $history[$index]['hard_copy_status'] = $hardCopyStatus;
+                    if ($hardCopyStatus === 'Hard Copy Submitted') {
+                        $history[$index]['hard_copy_submitted_at'] = $history[$index]['hard_copy_submitted_at'] ?? now()->toIso8601String();
+                        $history[$index]['hard_copy_received_by'] = auth()->user()?->name ?? 'Admin';
+                    } else {
+                        $history[$index]['hard_copy_submitted_at'] = null;
+                        $history[$index]['hard_copy_received_by'] = null;
+                    }
+                }
+
+                if ($hardCopyNotes !== null) {
+                    $history[$index]['hard_copy_notes'] = $hardCopyNotes;
+                }
             }
         }
 
@@ -197,6 +223,80 @@ class EcesproScholarController extends Controller
 
         return response()->json([
             'message' => 'Compliance requirement updated successfully.',
+            'scholar' => $ecesproScholar->load(['user', 'application']),
+        ]);
+    }
+
+    /**
+     * Quick-toggle physical hard copy submission status.
+     */
+    public function updateComplianceHardCopy(Request $request, EcesproScholar $ecesproScholar)
+    {
+        $statusInput = $request->input('hard_copy_status') ?? $request->input('status');
+        $notesInput = $request->input('hard_copy_notes') ?? $request->input('notes');
+
+        $request->merge([
+            'status' => $statusInput,
+            'notes' => $notesInput,
+        ]);
+
+        $validated = $request->validate([
+            'historyIndex' => 'nullable|integer',
+            'history_index' => 'nullable|integer',
+            'historyIndexes' => 'nullable|array',
+            'history_indexes' => 'nullable|array',
+            'status' => 'required|string|in:Hard Copy Submitted,Hard Copy Not Yet Submitted',
+            'notes' => 'nullable|string',
+        ]);
+
+        $status = $validated['status'];
+        $notes = $validated['notes'] ?? null;
+
+        $indexes = $validated['historyIndexes'] ?? $validated['history_indexes'] ?? null;
+        if (empty($indexes)) {
+            $singleIndex = $validated['historyIndex'] ?? $validated['history_index'] ?? 0;
+            $indexes = [$singleIndex];
+        }
+
+        $history = $ecesproScholar->requirements_history ?? [];
+        $adminName = auth()->user()?->name ?? 'Admin';
+        $submittedAt = now()->toIso8601String();
+
+        foreach ($indexes as $index) {
+            if (isset($history[$index])) {
+                $history[$index]['hard_copy_status'] = $status;
+                if ($status === 'Hard Copy Submitted') {
+                    $history[$index]['hard_copy_submitted_at'] = $history[$index]['hard_copy_submitted_at'] ?? $submittedAt;
+                    $history[$index]['hard_copy_received_by'] = $adminName;
+                } else {
+                    $history[$index]['hard_copy_submitted_at'] = null;
+                    $history[$index]['hard_copy_received_by'] = null;
+                }
+
+                if ($notes !== null) {
+                    $history[$index]['hard_copy_notes'] = $notes;
+                }
+            }
+        }
+
+        $ecesproScholar->requirements_history = $history;
+        $ecesproScholar->save();
+
+        $firstIndex = $indexes[0] ?? 0;
+        $firstEntry = $history[$firstIndex] ?? [];
+
+        return response()->json([
+            'message' => "Physical submission status updated to {$status}.",
+            'data' => [
+                'hard_copy_status' => $firstEntry['hard_copy_status'] ?? $status,
+                'hard_copy_submitted_at' => $firstEntry['hard_copy_submitted_at'] ?? null,
+                'hard_copy_received_by' => $firstEntry['hard_copy_received_by'] ?? null,
+                'hard_copy_notes' => $firstEntry['hard_copy_notes'] ?? '',
+            ],
+            'hardCopyStatus' => $firstEntry['hard_copy_status'] ?? $status,
+            'hardCopySubmittedAt' => $firstEntry['hard_copy_submitted_at'] ?? null,
+            'hardCopyReceivedBy' => $firstEntry['hard_copy_received_by'] ?? null,
+            'hardCopyNotes' => $firstEntry['hard_copy_notes'] ?? '',
             'scholar' => $ecesproScholar->load(['user', 'application']),
         ]);
     }
@@ -338,6 +438,28 @@ class EcesproScholarController extends Controller
         return response()->json([
             'message' => 'Volunteer log deleted successfully.',
             'scholar' => $ecesproScholar->load(['user.youthProfile', 'application']),
+        ]);
+    }
+
+    /**
+     * Assign or unassign a scholar position.
+     */
+    public function assignPosition(Request $request, EcesproScholar $ecesproScholar)
+    {
+        $validated = $request->validate([
+            'scholar_position_id' => 'nullable|exists:scholar_positions,id',
+        ]);
+
+        $ecesproScholar->update([
+            'scholar_position_id' => $validated['scholar_position_id'] ?? null,
+        ]);
+
+        $ecesproScholar->load(['user.youthProfile', 'application', 'scholarPosition']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Scholar position updated successfully.',
+            'data' => $ecesproScholar,
         ]);
     }
 }

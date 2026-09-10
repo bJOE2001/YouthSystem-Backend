@@ -83,9 +83,33 @@ class User extends Authenticatable
         return $this->role === UserRole::SubAdmin;
     }
 
+    public function canScanAsScholar(): bool
+    {
+        $scholar = $this->scholar;
+        if (! $scholar || $scholar->status !== 'Active') {
+            return false;
+        }
+
+        $scholar->loadMissing('scholarPosition');
+
+        return (bool) ($scholar->scholarPosition?->can_scan && $scholar->scholarPosition?->status === 'active');
+    }
+
+    public function canScan(): bool
+    {
+        return $this->isRootAdmin()
+            || $this->role === UserRole::SkAdmin
+            || ($this->isSubAdmin() && in_array('scanner', $this->permissions ?? [], true))
+            || $this->canScanAsScholar();
+    }
+
     public function canAccessModule(string $module): bool
     {
         if ($this->isRootAdmin()) {
+            return true;
+        }
+
+        if ($module === 'scanner' && $this->canScan()) {
             return true;
         }
 

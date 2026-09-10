@@ -24,6 +24,42 @@ class ScannerController extends Controller
     public function activities(Request $request): JsonResponse
     {
         $user = $request->user();
+        $isScholarOperator = $user && $user->canScanAsScholar();
+
+        if ($isScholarOperator) {
+            $user->loadMissing(['scholar.scholarPosition']);
+            $scholarPositionName = $user->scholar?->scholarPosition?->name ?? 'Scholar Officer';
+
+            $activities = [
+                [
+                    'value' => 'duty_cluster_volunteer',
+                    'event_id' => null,
+                    'activity_type' => 'office_duty',
+                    'duty_title' => 'Cluster Volunteer Duty',
+                    'label' => '🏛️ Scholar / Cluster Volunteer Duty',
+                    'icon' => 'volunteer_activism',
+                    'group' => 'Scholar Volunteer Duties',
+                ],
+                [
+                    'value' => 'duty_cluster_meeting',
+                    'event_id' => null,
+                    'activity_type' => 'office_duty',
+                    'duty_title' => 'Cluster Meeting / Assembly',
+                    'label' => '👥 Cluster Meeting / Assembly',
+                    'icon' => 'groups',
+                    'group' => 'Scholar Volunteer Duties',
+                ],
+            ];
+
+            return response()->json([
+                'success' => true,
+                'role' => 'scholar_leader',
+                'position' => $scholarPositionName,
+                'barangay' => null,
+                'data' => $activities,
+            ]);
+        }
+
         $isSkAdmin = $user && ($user->role === UserRole::SkAdmin || $user->role === 'sk_admin' || $user->role?->value === 'sk_admin');
 
         $barangay = null;
@@ -225,6 +261,16 @@ class ScannerController extends Controller
 
         // 2. Check if the attendee is an active ECESPRO Scholar
         $scholar = $attendee->scholar;
+
+        // If the scanner operator is a Scholar Leader (Cluster President, etc.), enforce scanning active co-scholars only
+        if ($official && $official->canScanAsScholar()) {
+            if (! $scholar || $scholar->status !== 'Active') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Attendee is not an active ECESPRO scholar. Cluster Officers can only scan co-scholars for volunteer duties and cluster meetings.',
+                ], 422);
+            }
+        }
 
         return DB::transaction(function () use (
             $attendee,

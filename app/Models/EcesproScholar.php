@@ -24,6 +24,7 @@ class EcesproScholar extends Model
         'required_volunteer_hours',
         'total_rendered_hours',
         'is_volunteer_completed',
+        'scholar_position_id',
     ];
 
     protected $appends = [
@@ -35,6 +36,7 @@ class EcesproScholar extends Model
         'middle_name',
         'last_name',
         'year_level',
+        'position_name',
     ];
 
     protected function casts(): array
@@ -46,6 +48,11 @@ class EcesproScholar extends Model
             'total_rendered_hours' => 'decimal:2',
             'is_volunteer_completed' => 'boolean',
         ];
+    }
+
+    public function scholarPosition(): BelongsTo
+    {
+        return $this->belongsTo(ScholarPosition::class, 'scholar_position_id');
     }
 
     public function user(): BelongsTo
@@ -92,6 +99,7 @@ class EcesproScholar extends Model
         if ($this->relationLoaded('application') && $this->application) {
             return $this->application->first_name;
         }
+
         return $this->attributes['first_name'] ?? null;
     }
 
@@ -103,6 +111,7 @@ class EcesproScholar extends Model
         if ($this->relationLoaded('application') && $this->application) {
             return $this->application->middle_name;
         }
+
         return $this->attributes['middle_name'] ?? null;
     }
 
@@ -114,6 +123,7 @@ class EcesproScholar extends Model
         if ($this->relationLoaded('application') && $this->application) {
             return $this->application->last_name;
         }
+
         return $this->attributes['last_name'] ?? null;
     }
 
@@ -122,6 +132,7 @@ class EcesproScholar extends Model
         if ($this->relationLoaded('application') && $this->application) {
             return $this->application->year_level ?: $this->application->previous_grade_college_year_level;
         }
+
         return $this->attributes['year_level'] ?? null;
     }
 
@@ -130,6 +141,7 @@ class EcesproScholar extends Model
         if (empty($value) && $this->relationLoaded('application') && $this->application) {
             return $this->application->course;
         }
+
         return $value;
     }
 
@@ -138,6 +150,7 @@ class EcesproScholar extends Model
         if (empty($value) && $this->relationLoaded('application') && $this->application) {
             return $this->application->school;
         }
+
         return $value;
     }
 
@@ -148,19 +161,22 @@ class EcesproScholar extends Model
     {
         if ($this->relationLoaded('user') && $this->user && $this->user->relationLoaded('youthProfile') && $this->user->youthProfile) {
             $profile = $this->user->youthProfile;
-            $middle = $profile->middle_name ? ' ' . $profile->middle_name . ' ' : ' ';
-            return trim(($profile->first_name ?? '') . $middle . ($profile->last_name ?? ''));
+            $middle = $profile->middle_name ? ' '.$profile->middle_name.' ' : ' ';
+
+            return trim(($profile->first_name ?? '').$middle.($profile->last_name ?? ''));
         }
 
         if ($this->relationLoaded('application') && $this->application) {
-            $middle = $this->application->middle_name ? ' ' . $this->application->middle_name . ' ' : ' ';
-            return trim(($this->application->first_name ?? '') . $middle . ($this->application->last_name ?? ''));
+            $middle = $this->application->middle_name ? ' '.$this->application->middle_name.' ' : ' ';
+
+            return trim(($this->application->first_name ?? '').$middle.($this->application->last_name ?? ''));
         }
-        
+
         if (isset($this->attributes['first_name']) || isset($this->attributes['last_name'])) {
-             $middle = $this->attributes['middle_name'] ?? '';
-             $middleSpacing = $middle ? ' ' . $middle . ' ' : ' ';
-             return trim(($this->attributes['first_name'] ?? '') . $middleSpacing . ($this->attributes['last_name'] ?? ''));
+            $middle = $this->attributes['middle_name'] ?? '';
+            $middleSpacing = $middle ? ' '.$middle.' ' : ' ';
+
+            return trim(($this->attributes['first_name'] ?? '').$middleSpacing.($this->attributes['last_name'] ?? ''));
         }
 
         if ($this->relationLoaded('user') && $this->user) {
@@ -186,5 +202,14 @@ class EcesproScholar extends Model
         $this->total_rendered_hours = $totalRendered;
         $this->is_volunteer_completed = $totalRendered >= $required;
         $this->save();
+    }
+
+    public function getPositionNameAttribute(): ?string
+    {
+        if ($this->relationLoaded('scholarPosition') && $this->scholarPosition) {
+            return $this->scholarPosition->name;
+        }
+
+        return null;
     }
 }

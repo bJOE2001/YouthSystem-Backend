@@ -76,6 +76,12 @@ class YouthProfileResource extends JsonResource
                 $this->status === YouthProfileStatus::Rejected,
                 $this->rejection_reason,
             ),
+            'can_scan' => (bool) $this->user?->canScanAsScholar(),
+            'scholar_position' => $this->user?->scholar?->scholarPosition ? [
+                'id' => $this->user->scholar->scholarPosition->id,
+                'name' => $this->user->scholar->scholarPosition->name,
+                'can_scan' => (bool) $this->user->scholar->scholarPosition->can_scan,
+            ] : null,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

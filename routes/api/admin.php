@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Admin\EcesproSettingController;
 use App\Http\Controllers\Api\Admin\LydcMemberController;
 use App\Http\Controllers\Api\Admin\OrganizationController;
 use App\Http\Controllers\Api\Admin\ResidentYouthController;
+use App\Http\Controllers\Api\Admin\ScholarPositionController;
 use App\Http\Controllers\Api\Admin\SkOfficialController;
 use App\Http\Controllers\Api\Admin\SystemSettingController;
 use App\Http\Controllers\EcesproApplicationController;
@@ -62,6 +63,15 @@ Route::middleware([
             Route::post('/', [OrganizationController::class, 'store'])->name('store');
             Route::post('/{organization}', [OrganizationController::class, 'update'])->name('update');
             Route::post('/{organization}/delete', [OrganizationController::class, 'destroy'])->name('destroy');
+        });
+
+        Route::middleware('module:youth_records')->prefix('scholar-positions')->name('scholar-positions.')->group(function () {
+            Route::get('/', [ScholarPositionController::class, 'index'])->name('index');
+            Route::get('/active', [ScholarPositionController::class, 'active'])->name('active');
+            Route::get('/{scholarPosition}', [ScholarPositionController::class, 'show'])->name('show');
+            Route::post('/', [ScholarPositionController::class, 'store'])->name('store');
+            Route::post('/{scholarPosition}', [ScholarPositionController::class, 'update'])->name('update');
+            Route::post('/{scholarPosition}/delete', [ScholarPositionController::class, 'destroy'])->name('destroy');
         });
 
         Route::middleware('module:sk_officials')->prefix('sk-officials')->name('sk-officials.')->group(function () {
@@ -120,33 +130,33 @@ Route::middleware([
             // ECESPRO Examinations
             Route::get('ecespro-examinations', [EcesproExaminationController::class, 'index'])->name('ecespro-examinations.index');
             Route::post('ecespro-examinations', [EcesproExaminationController::class, 'store'])->name('ecespro-examinations.store');
-            Route::get('ecespro-examinations/{ecespro_examination}', [EcesproExaminationController::class, 'show'])->name('ecespro-examinations.show');
-            Route::post('ecespro-examinations/{ecespro_examination}', [EcesproExaminationController::class, 'update'])->name('ecespro-examinations.update');
-            Route::post('ecespro-examinations/{ecespro_examination}/delete', [EcesproExaminationController::class, 'destroy'])->name('ecespro-examinations.destroy');
             Route::post('ecespro-examinations/bulk', [EcesproExaminationController::class, 'bulkUpdate'])->name('ecespro-examinations.bulk');
+            Route::get('ecespro-examinations/{ecespro_examination}', [EcesproExaminationController::class, 'show'])->name('ecespro-examinations.show')->whereNumber('ecespro_examination');
+            Route::post('ecespro-examinations/{ecespro_examination}', [EcesproExaminationController::class, 'update'])->name('ecespro-examinations.update')->whereNumber('ecespro_examination');
+            Route::post('ecespro-examinations/{ecespro_examination}/delete', [EcesproExaminationController::class, 'destroy'])->name('ecespro-examinations.destroy')->whereNumber('ecespro_examination');
 
             // ECESPRO Interview Batches
             Route::get('ecespro-interview-batches', [EcesproInterviewBatchController::class, 'index'])->name('ecespro-interview-batches.index');
             Route::post('ecespro-interview-batches', [EcesproInterviewBatchController::class, 'store'])->name('ecespro-interview-batches.store');
-            Route::get('ecespro-interview-batches/{ecespro_interview_batch}', [EcesproInterviewBatchController::class, 'show'])->name('ecespro-interview-batches.show');
-            Route::post('ecespro-interview-batches/{ecespro_interview_batch}', [EcesproInterviewBatchController::class, 'update'])->name('ecespro-interview-batches.update');
-            Route::post('ecespro-interview-batches/{ecespro_interview_batch}/delete', [EcesproInterviewBatchController::class, 'destroy'])->name('ecespro-interview-batches.destroy');
+            Route::get('ecespro-interview-batches/{ecespro_interview_batch}', [EcesproInterviewBatchController::class, 'show'])->name('ecespro-interview-batches.show')->whereNumber('ecespro_interview_batch');
+            Route::post('ecespro-interview-batches/{ecespro_interview_batch}', [EcesproInterviewBatchController::class, 'update'])->name('ecespro-interview-batches.update')->whereNumber('ecespro_interview_batch');
+            Route::post('ecespro-interview-batches/{ecespro_interview_batch}/delete', [EcesproInterviewBatchController::class, 'destroy'])->name('ecespro-interview-batches.destroy')->whereNumber('ecespro_interview_batch');
 
             // ECESPRO Interviews
             Route::get('ecespro-interviews', [EcesproInterviewController::class, 'index'])->name('ecespro-interviews.index');
             Route::post('ecespro-interviews', [EcesproInterviewController::class, 'store'])->name('ecespro-interviews.store');
-            Route::get('ecespro-interviews/{ecespro_interview}', [EcesproInterviewController::class, 'show'])->name('ecespro-interviews.show');
-            Route::post('ecespro-interviews/{ecespro_interview}', [EcesproInterviewController::class, 'update'])->name('ecespro-interviews.update');
-            Route::post('ecespro-interviews/{ecespro_interview}/delete', [EcesproInterviewController::class, 'destroy'])->name('ecespro-interviews.destroy');
+            Route::get('ecespro-interviews/{ecespro_interview}', [EcesproInterviewController::class, 'show'])->name('ecespro-interviews.show')->whereNumber('ecespro_interview');
+            Route::post('ecespro-interviews/{ecespro_interview}', [EcesproInterviewController::class, 'update'])->name('ecespro-interviews.update')->whereNumber('ecespro_interview');
+            Route::post('ecespro-interviews/{ecespro_interview}/delete', [EcesproInterviewController::class, 'destroy'])->name('ecespro-interviews.destroy')->whereNumber('ecespro_interview');
 
             // ECESPRO Contracts
             Route::get('ecespro-contracts', [EcesproContractController::class, 'index'])->name('ecespro-contracts.index');
             Route::post('ecespro-contracts', [EcesproContractController::class, 'store'])->name('ecespro-contracts.store');
-            Route::get('ecespro-contracts/{ecespro_contract}', [EcesproContractController::class, 'show'])->name('ecespro-contracts.show');
-            Route::post('ecespro-contracts/{ecespro_contract}', [EcesproContractController::class, 'update'])->name('ecespro-contracts.update');
-            Route::post('ecespro-contracts/{ecespro_contract}/delete', [EcesproContractController::class, 'destroy'])->name('ecespro-contracts.destroy');
-            Route::post('ecespro-contracts/sign-application/{application}', [EcesproContractController::class, 'signApplication']);
-            Route::post('ecespro-contracts/{ecespro_contract}/remove-from-batch', [EcesproContractController::class, 'removeFromBatch']);
+            Route::post('ecespro-contracts/sign-application/{application}', [EcesproContractController::class, 'signApplication'])->whereNumber('application');
+            Route::get('ecespro-contracts/{ecespro_contract}', [EcesproContractController::class, 'show'])->name('ecespro-contracts.show')->whereNumber('ecespro_contract');
+            Route::post('ecespro-contracts/{ecespro_contract}', [EcesproContractController::class, 'update'])->name('ecespro-contracts.update')->whereNumber('ecespro_contract');
+            Route::post('ecespro-contracts/{ecespro_contract}/delete', [EcesproContractController::class, 'destroy'])->name('ecespro-contracts.destroy')->whereNumber('ecespro_contract');
+            Route::post('ecespro-contracts/{ecespro_contract}/remove-from-batch', [EcesproContractController::class, 'removeFromBatch'])->whereNumber('ecespro_contract');
 
             // ECESPRO Contract Signing Batches
             Route::get('ecespro-contract-signing-batches', [EcesproContractBatchController::class, 'index'])->name('ecespro-contract-signing-batches.index');
@@ -160,12 +170,14 @@ Route::middleware([
             Route::post('ecespro-scholars', [EcesproScholarController::class, 'store'])->name('ecespro-scholars.store');
             Route::get('ecespro-scholars/{ecespro_scholar}', [EcesproScholarController::class, 'show'])->name('ecespro-scholars.show');
             Route::post('ecespro-scholars/{ecespro_scholar}', [EcesproScholarController::class, 'update'])->name('ecespro-scholars.update');
+            Route::post('ecespro-scholars/{ecespro_scholar}/position', [EcesproScholarController::class, 'assignPosition'])->name('ecespro-scholars.position');
             Route::post('ecespro-scholars/{ecespro_scholar}/delete', [EcesproScholarController::class, 'destroy'])->name('ecespro-scholars.destroy');
             Route::get('ecespro-scholars/{ecespro_scholar}/volunteer-logs', [EcesproScholarController::class, 'volunteerLogs'])->name('ecespro-scholars.volunteer-logs.index');
             Route::post('ecespro-scholars/{ecespro_scholar}/volunteer-logs', [EcesproScholarController::class, 'storeVolunteerLog'])->name('ecespro-scholars.volunteer-logs.store');
             Route::post('ecespro-scholars/{ecespro_scholar}/volunteer-logs/{log}/delete', [EcesproScholarController::class, 'deleteVolunteerLog'])->name('ecespro-scholars.volunteer-logs.destroy');
             Route::get('ecespro-compliance-validations', [EcesproScholarController::class, 'complianceValidations'])->name('ecespro-compliance-validations.index');
-            Route::post('ecespro-compliance-validations/{ecesproScholar}/review', [EcesproScholarController::class, 'reviewCompliance'])->name('ecespro-compliance-validations.review');
+            Route::post('ecespro-compliance-validations/{ecesproScholar}/review', [EcesproScholarController::class, 'reviewCompliance'])->name('ecespro-compliance-validations.review')->whereNumber('ecesproScholar');
+            Route::post('ecespro-compliance-validations/{ecesproScholar}/hard-copy', [EcesproScholarController::class, 'updateComplianceHardCopy'])->name('ecespro-compliance-validations.hard-copy')->whereNumber('ecesproScholar');
 
             // ECESPRO Grant Releases
             Route::get('ecespro-grant-release-batches', [EcesproGrantReleaseController::class, 'index']);

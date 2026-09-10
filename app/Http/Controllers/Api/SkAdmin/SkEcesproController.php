@@ -9,6 +9,7 @@ use App\Models\EcesproProgram;
 use App\Models\EcesproScholar;
 use App\Models\EcesproSetting;
 use App\Notifications\EcesproApplicationStatusNotification;
+use App\Notifications\ScholarComplianceHardCopyPromptNotification;
 use Illuminate\Http\Request;
 
 class SkEcesproController extends Controller
@@ -423,6 +424,7 @@ class SkEcesproController extends Controller
                 $historyArr[$matchedIdx]['filePath'] = $filePath;
                 $historyArr[$matchedIdx]['status'] = 'Pending';
                 $historyArr[$matchedIdx]['remarks'] = '';
+                $historyArr[$matchedIdx]['hard_copy_status'] = $historyArr[$matchedIdx]['hard_copy_status'] ?? 'Hard Copy Not Yet Submitted';
             } else {
                 $historyArr[] = [
                     'id' => uniqid(),
@@ -435,6 +437,9 @@ class SkEcesproController extends Controller
                     'filePath' => $filePath,
                     'status' => 'Pending',
                     'remarks' => '',
+                    'hard_copy_status' => 'Hard Copy Not Yet Submitted',
+                    'hard_copy_submitted_at' => null,
+                    'hard_copy_received_by' => null,
                 ];
             }
         };
@@ -494,8 +499,18 @@ class SkEcesproController extends Controller
 
         $scholar->update(['requirements_history' => $dedupedHistory]);
 
+        $user = $request->user();
+        if ($user) {
+            $user->notify(new ScholarComplianceHardCopyPromptNotification(
+                $validated['schoolYear'],
+                $validated['semester'],
+                $schedule?->instructions,
+                $schedule?->required_documents ?? []
+            ));
+        }
+
         return response()->json([
-            'message' => 'Requirements submitted successfully.',
+            'message' => 'Requirements submitted successfully. Please submit physical hard copies to the TCYDO office.',
             'requirements_history' => $dedupedHistory,
         ]);
     }
