@@ -6,6 +6,7 @@ use App\Models\EcesproScholar;
 use App\Models\EcesproSetting;
 use App\Models\EcesproVolunteerLog;
 use App\Notifications\EcesproApplicationStatusNotification;
+use App\Notifications\EcesproScholarStatusNotification;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -77,9 +78,32 @@ class EcesproScholarController extends Controller
             'required_volunteer_hours' => 'nullable|numeric|min:0|max:500',
         ]);
 
+        $originalStatus = $ecesproScholar->status;
+
         $ecesproScholar->update($validated);
         $ecesproScholar->recalculateVolunteerHours();
         $ecesproScholar->refresh();
+
+        if (isset($validated['status']) && $validated['status'] !== $originalStatus) {
+            if ($user = $ecesproScholar->user) {
+                $status = $validated['status'];
+                $remarks = $validated['remarks'] ?? '';
+                
+                $message = null;
+                if ($remarks) {
+                    // Start with a generic or empty message if we append remarks
+                    $message = "Your ECESPRO Scholarship status has been updated to {$status}. Remarks: {$remarks}";
+                }
+
+                if ($ecesproScholar->application) {
+                    $user->notify(new EcesproScholarStatusNotification(
+                        $ecesproScholar->application,
+                        $status,
+                        $message
+                    ));
+                }
+            }
+        }
 
         return $ecesproScholar->load(['user.youthProfile', 'application']);
     }
@@ -87,8 +111,25 @@ class EcesproScholarController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(EcesproScholar $ecesproScholar)
+    public function destroy(Request $request, EcesproScholar $ecesproScholar)
     {
+        $reason = $request->input('reason');
+        $user = $ecesproScholar->user;
+
+        if ($user) {
+            $message = null; // Let the notification class handle the default message
+            if ($reason) {
+                $message = "Your ECESPRO Scholarship has been terminated. Reason: " . $reason;
+            }
+            if ($ecesproScholar->application) {
+                $user->notify(new EcesproScholarStatusNotification(
+                    $ecesproScholar->application,
+                    'Terminated',
+                    $message
+                ));
+            }
+        }
+
         $ecesproScholar->delete();
 
         return response()->noContent();

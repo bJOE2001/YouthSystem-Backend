@@ -41,11 +41,21 @@ class GetResidentYouthRecordsAction
 
         if (! empty($filters['age_bracket'])) {
             $now = now();
-            if ($filters['age_bracket'] === '15-30') {
-                $query->whereDate('birth_date', '<=', $now->copy()->subYears(15)->format('Y-m-d'))
-                    ->whereDate('birth_date', '>', $now->copy()->subYears(31)->format('Y-m-d'));
-            } elseif ($filters['age_bracket'] === '31-above') {
-                $query->whereDate('birth_date', '<=', $now->copy()->subYears(31)->format('Y-m-d'));
+            $bracket = $filters['age_bracket'];
+            
+            if (str_contains($bracket, '-')) {
+                $parts = explode('-', $bracket);
+                if (count($parts) === 2) {
+                    $minAge = trim($parts[0]);
+                    $maxAge = trim($parts[1]);
+                    
+                    if (is_numeric($minAge)) {
+                        $query->whereDate('birth_date', '<=', $now->copy()->subYears((int) $minAge)->format('Y-m-d'));
+                    }
+                    if (is_numeric($maxAge)) {
+                        $query->whereDate('birth_date', '>', $now->copy()->subYears((int) $maxAge + 1)->format('Y-m-d'));
+                    }
+                }
             }
         }
 
