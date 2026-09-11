@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\BarangayLibraryController;
+use App\Http\Controllers\Api\Admin\CommitteeLibraryController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\EcesproGrantReleaseController;
 use App\Http\Controllers\Api\Admin\EcesproSettingController;
@@ -55,6 +56,14 @@ Route::middleware([
             Route::post('/', [BarangayLibraryController::class, 'store'])->name('store');
             Route::post('/{barangay}', [BarangayLibraryController::class, 'update'])->name('update');
             Route::post('/{barangay}/delete', [BarangayLibraryController::class, 'destroy'])->name('destroy');
+        });
+
+        Route::middleware('module:youth_records')->prefix('committee-library')->name('committee-library.')->group(function () {
+            Route::get('/', [CommitteeLibraryController::class, 'index'])->name('index');
+            Route::get('/{committee}', [CommitteeLibraryController::class, 'show'])->name('show');
+            Route::post('/', [CommitteeLibraryController::class, 'store'])->name('store');
+            Route::post('/{committee}', [CommitteeLibraryController::class, 'update'])->name('update');
+            Route::post('/{committee}/delete', [CommitteeLibraryController::class, 'destroy'])->name('destroy');
         });
 
         Route::middleware('module:youth_records')->prefix('organizations')->name('organizations.')->group(function () {

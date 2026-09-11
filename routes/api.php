@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\CommitteeLibraryController;
 use App\Http\Controllers\Api\Admin\EcesproSettingController;
 use App\Http\Controllers\Api\Admin\ResidentYouthController;
 use App\Http\Controllers\Api\Admin\SystemSettingController;
@@ -39,6 +40,9 @@ Route::get('/barangays', [PublicBarangayController::class, 'index'])->name('bara
 
 Route::get('/public/puroks', [PublicPurokController::class, 'index'])->name('public.puroks.index');
 Route::get('/puroks', [PublicPurokController::class, 'index'])->name('puroks.index');
+
+Route::get('/public/committees', [CommitteeLibraryController::class, 'publicIndex'])->name('public.committees.index');
+Route::get('/committees', [CommitteeLibraryController::class, 'publicIndex'])->name('committees.index');
 
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
