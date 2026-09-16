@@ -34,4 +34,9 @@ class EcesproProgram extends Model
     {
         return $this->hasMany(EcesproApplication::class);
     }
+
+    public function examinationSetup()
+    {
+        return $this->hasOne(EcesproExaminationSetup::class, 'ecespro_program_id');
+    }
 }

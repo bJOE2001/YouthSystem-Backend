@@ -16,7 +16,7 @@ class EcesproProgramController extends Controller
      */
     public function index()
     {
-        return EcesproProgram::withCount('applications')->orderBy('created_at', 'desc')->get();
+        return EcesproProgram::with('examinationSetup.questionnaire')->withCount('applications')->orderBy('created_at', 'desc')->get();
     }
 
     /**

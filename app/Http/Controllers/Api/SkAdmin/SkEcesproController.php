@@ -8,9 +8,13 @@ use App\Models\EcesproComplianceSchedule;
 use App\Models\EcesproProgram;
 use App\Models\EcesproScholar;
 use App\Models\EcesproSetting;
+use App\Models\User;
+use App\Enums\UserRole;
 use App\Notifications\EcesproApplicationStatusNotification;
+use App\Notifications\NewEcesproApplicationNotification;
 use App\Notifications\ScholarComplianceHardCopyPromptNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 
 class SkEcesproController extends Controller
 {
@@ -223,6 +227,9 @@ class SkEcesproController extends Controller
         $application = EcesproApplication::create($mappedData);
 
         $request->user()->notify(new EcesproApplicationStatusNotification($application, 'Submitted'));
+
+        $admins = User::whereIn('role', [UserRole::Admin, UserRole::SubAdmin])->get();
+        Notification::send($admins, new NewEcesproApplicationNotification($application));
 
         return response()->json([
             'message' => 'Application submitted successfully',

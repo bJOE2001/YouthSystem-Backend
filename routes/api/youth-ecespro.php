@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\Youth\YouthEcesproController;
+use App\Http\Controllers\Api\Youth\EcesproApplicantExamController;
+
 use Illuminate\Support\Facades\Route;
 
 Route::middleware([
