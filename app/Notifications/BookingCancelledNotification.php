@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Channels\SmsChannel;
 use App\Mail\BookingCancelledEmail;
 use App\Models\BookingRequest;
 use App\Models\User;
@@ -30,7 +31,7 @@ class BookingCancelledNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ['database', 'mail', SmsChannel::class];
     }
 
     /**
@@ -41,6 +42,18 @@ class BookingCancelledNotification extends Notification
         /** @var User $notifiable */
         return (new BookingCancelledEmail($notifiable, $this->booking, $this->remarks))
             ->to($notifiable->email);
+    }
+
+    /**
+     * Get the SMS representation of the notification.
+     */
+    public function toSms(object $notifiable): string
+    {
+        $facilityName = $this->booking->facility->name ?? 'Facility';
+        $date = $this->booking->date ?? '';
+        $reason = $this->remarks ? " Reason: {$this->remarks}" : '';
+
+        return "TCYSDO: Your booking for {$facilityName} on {$date} was cancelled.{$reason}";
     }
 
     /**

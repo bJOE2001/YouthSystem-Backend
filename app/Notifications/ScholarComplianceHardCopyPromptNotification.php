@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Channels\SmsChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -23,7 +24,15 @@ class ScholarComplianceHardCopyPromptNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', SmsChannel::class];
+    }
+
+    /**
+     * Get the SMS representation of the notification.
+     */
+    public function toSms(object $notifiable): string
+    {
+        return "TCYSDO: Please submit your physical hard copy requirements for S.Y. {$this->schoolYear} ({$this->semester}) in a long brown folder to TCYDO.";
     }
 
     /**

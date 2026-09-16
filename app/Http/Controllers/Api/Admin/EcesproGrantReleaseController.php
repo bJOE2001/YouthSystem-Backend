@@ -76,6 +76,7 @@ class EcesproGrantReleaseController extends Controller
     public function show($id)
     {
         $batch = EcesproGrantReleaseBatch::with(['grants.scholar.user.youthProfile', 'grants.scholar.application'])->findOrFail($id);
+
         return response()->json($batch);
     }
 

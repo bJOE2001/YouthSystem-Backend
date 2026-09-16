@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Channels\SmsChannel;
 use App\Mail\NewComplianceScheduleEmail;
 use App\Models\EcesproComplianceSchedule;
 use App\Models\User;
@@ -30,7 +31,7 @@ class NewComplianceScheduleNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ['database', 'mail', SmsChannel::class];
     }
 
     /**
@@ -41,6 +42,14 @@ class NewComplianceScheduleNotification extends Notification
         /** @var User $notifiable */
         return (new NewComplianceScheduleEmail($notifiable, $this->schedule))
             ->to($notifiable->email);
+    }
+
+    /**
+     * Get the SMS representation of the notification.
+     */
+    public function toSms(object $notifiable): string
+    {
+        return "TCYSDO: New compliance schedule for {$this->schedule->school_year} ({$this->schedule->semester}) has been posted. Please submit your requirements on time.";
     }
 
     /**

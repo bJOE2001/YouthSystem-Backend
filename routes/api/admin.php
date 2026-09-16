@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\Admin\OrganizationController;
 use App\Http\Controllers\Api\Admin\ResidentYouthController;
 use App\Http\Controllers\Api\Admin\ScholarPositionController;
 use App\Http\Controllers\Api\Admin\SkOfficialController;
+use App\Http\Controllers\Api\Admin\SmsController;
 use App\Http\Controllers\Api\Admin\SystemSettingController;
 use App\Http\Controllers\EcesproApplicationController;
 use App\Http\Controllers\EcesproComplianceScheduleController;
@@ -254,6 +255,13 @@ Route::middleware([
             Route::post('settings/email-templates/{key}/reset', [SystemSettingController::class, 'resetEmailTemplate'])->name('settings.email-templates.reset');
             Route::get('settings/engagement-emails/stats', [SystemSettingController::class, 'getInactiveReengagementStats'])->name('settings.engagement-emails.stats');
             Route::post('settings/engagement-emails/send', [SystemSettingController::class, 'sendInactiveReengagementEmails'])->name('settings.engagement-emails.send');
+        });
+
+        // SMS Gateway & Delivery Logs
+        Route::prefix('sms')->name('sms.')->group(function () {
+            Route::get('logs', [SmsController::class, 'index'])->name('logs');
+            Route::post('test', [SmsController::class, 'sendTest'])->name('test');
+            Route::get('diagnostics', [SmsController::class, 'diagnostics'])->name('diagnostics');
         });
 
         Route::post('change-password', [SystemSettingController::class, 'changePassword'])->name('change-password');

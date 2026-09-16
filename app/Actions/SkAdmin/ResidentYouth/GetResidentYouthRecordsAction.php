@@ -42,13 +42,13 @@ class GetResidentYouthRecordsAction
         if (! empty($filters['age_bracket'])) {
             $now = now();
             $bracket = $filters['age_bracket'];
-            
+
             if (str_contains($bracket, '-')) {
                 $parts = explode('-', $bracket);
                 if (count($parts) === 2) {
                     $minAge = trim($parts[0]);
                     $maxAge = trim($parts[1]);
-                    
+
                     if (is_numeric($minAge)) {
                         $query->whereDate('birth_date', '<=', $now->copy()->subYears((int) $minAge)->format('Y-m-d'));
                     }

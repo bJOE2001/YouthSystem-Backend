@@ -11,6 +11,7 @@ use App\Models\Barangay;
 use App\Models\Purok;
 use App\Models\User;
 use App\Models\YouthProfile;
+use App\Services\SmsService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -50,6 +51,16 @@ class CreateResidentYouthRecordAction
             ]);
 
             Mail::to($user->email)->send(new YouthValidatedEmail($user, $plainPassword));
+
+            if (! empty($data['mobileNumber'])) {
+                $smsMessage = "Welcome to TCYSDO! Your account has been created. Email: {$user->email}, Temp Password: {$plainPassword}. Please login and change your password.";
+                app(SmsService::class)->send(
+                    $data['mobileNumber'],
+                    $smsMessage,
+                    $user,
+                    'resident_youth_created'
+                );
+            }
 
             $mappedProfileData = [
                 'first_name' => $data['firstName'],

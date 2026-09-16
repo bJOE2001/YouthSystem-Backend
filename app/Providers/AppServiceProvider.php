@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Mail\ResetPasswordEmail;
 use App\Services\EmailLayoutService;
 use App\Services\EmailTemplateService;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -28,8 +29,19 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         ResetPassword::createUrlUsing(function ($user, string $token) {
-            return env('FRONTEND_URL', 'http://localhost:9000').'/#/reset-password?token='.$token.'&email='.urlencode($user->email);
+            $baseUrl = config('app.frontend_url') ?: config('app.url', 'http://localhost:9000');
+
+            return rtrim($baseUrl, '/').'/#/reset-password?token='.$token.'&email='.urlencode($user->email);
         });
+
+        ResetPassword::toMailUsing(function ($notifiable, string $token) {
+            $baseUrl = config('app.frontend_url') ?: config('app.url', 'http://localhost:9000');
+            $resetUrl = rtrim($baseUrl, '/').'/#/reset-password?token='.$token.'&email='.urlencode($notifiable->getEmailForPasswordReset());
+
+            return (new ResetPasswordEmail($notifiable, $token, $resetUrl))
+                ->to($notifiable->getEmailForPasswordReset());
+        });
+
         RateLimiter::for('login', function (Request $request): Limit {
             $email = (string) $request->string('email')->trim()->lower();
 
@@ -60,6 +72,12 @@ class AppServiceProvider extends ServiceProvider
                 }
                 if (isset($viewData['loginUrl'])) {
                     $variables['login_url'] = (string) $viewData['loginUrl'];
+                }
+                if (isset($viewData['resetUrl'])) {
+                    $variables['reset_url'] = (string) $viewData['resetUrl'];
+                }
+                if (isset($viewData['expireMinutes'])) {
+                    $variables['expire_minutes'] = (string) $viewData['expireMinutes'];
                 }
                 if (isset($viewData['facility'])) {
                     $variables['facility_name'] = $viewData['facility']->name ?? '';

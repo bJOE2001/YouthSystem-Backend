@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Channels\SmsChannel;
 use App\Mail\CertificateIssuedEmail;
 use App\Models\Event;
 use App\Models\SportsProgram;
@@ -27,7 +28,15 @@ class CertificateIssuedNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', SmsChannel::class];
+    }
+
+    /**
+     * Get the SMS representation of the notification.
+     */
+    public function toSms(object $notifiable): string
+    {
+        return "TCYSDO: Your Certificate of Participation for '{$this->activity->name}' is now available on your youth portal.";
     }
 
     /**

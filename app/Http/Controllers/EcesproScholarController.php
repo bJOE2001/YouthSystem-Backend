@@ -89,7 +89,7 @@ class EcesproScholarController extends Controller
             if ($user = $ecesproScholar->user) {
                 $status = $validated['status'];
                 $remarks = $validated['remarks'] ?? '';
-                
+
                 $message = null;
                 if ($remarks) {
                     // Start with a generic or empty message if we append remarks
@@ -120,7 +120,7 @@ class EcesproScholarController extends Controller
         if ($user) {
             $message = null; // Let the notification class handle the default message
             if ($reason) {
-                $message = "Your ECESPRO Scholarship has been terminated. Reason: " . $reason;
+                $message = 'Your ECESPRO Scholarship has been terminated. Reason: '.$reason;
             }
             if ($ecesproScholar->application) {
                 $user->notify(new EcesproScholarStatusNotification(

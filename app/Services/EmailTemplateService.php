@@ -36,6 +36,28 @@ class EmailTemplateService
                 ],
             ],
 
+            'reset_password' => [
+                'name' => 'Password Reset Request',
+                'description' => 'Sent to users when they request a password reset link from the login page.',
+                'subject' => 'Reset Your Password - Tagum City Youth Development Office',
+                'heading' => 'Hello {user_name},',
+                'body' => "We received a request to reset the password for your account.\n\nClick the button below to choose a new password. For security reasons, this link will safely expire in {expire_minutes} minutes.",
+                'button_text' => 'Reset Password →',
+                'security_notice' => 'If you did not request a password reset, you can safely ignore this email. Your password will not change until you access the link above and create a new one.',
+                'placeholders' => [
+                    '{user_name}' => 'Full name of the user',
+                    '{user_email}' => 'Registered email address',
+                    '{reset_url}' => 'Direct password reset link with token',
+                    '{expire_minutes}' => 'Token expiration duration in minutes (e.g. 60)',
+                ],
+                'sample_data' => [
+                    'user_name' => 'Juan Dela Cruz',
+                    'user_email' => 'juan.delacruz@gmail.com',
+                    'reset_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/#/reset-password?token=sample-token-12345&email=juan.delacruz@gmail.com',
+                    'expire_minutes' => '60',
+                ],
+            ],
+
             'booking_confirmed' => [
                 'name' => 'Facility Booking Confirmed',
                 'description' => 'Sent to users when their facility reservation is directly booked and confirmed.',

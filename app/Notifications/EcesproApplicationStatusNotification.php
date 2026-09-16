@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Channels\SmsChannel;
 use App\Mail\EcesproApplicationStatusEmail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -29,7 +30,7 @@ class EcesproApplicationStatusNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ['database', 'mail', SmsChannel::class];
     }
 
     public function toMail(object $notifiable): Mailable
@@ -41,6 +42,31 @@ class EcesproApplicationStatusNotification extends Notification
             $this->customMessage,
             $this->metadata
         ))->to($notifiable->email ?? ($this->application->email ?? null));
+    }
+
+    public function toSms(object $notifiable): string
+    {
+        $messages = [
+            'Submitted' => 'Your ECESPRO scholarship application has been received and submitted for review.',
+            'Under Review' => 'Your ECESPRO scholarship application and documents are under review.',
+            'Qualified for Exam' => 'Congratulations! You qualified for the ECESPRO Qualifying Exam.',
+            'Exam Scheduled' => 'Your ECESPRO Exam has been scheduled! Please check your portal for schedule details.',
+            'Failed Exam' => 'Update on your ECESPRO application: Examination completed — Did not meet qualifying score.',
+            'Failed in Exam' => 'Update on your ECESPRO application: Examination completed — Did not meet qualifying score.',
+            'Qualified for Interview' => 'Congratulations! You passed the exam and qualified for the ECESPRO Panel Interview.',
+            'Interview Scheduled' => 'Your ECESPRO Panel Interview has been scheduled! Please check your portal for schedule details.',
+            'Failed Interview' => 'Update on your ECESPRO application: Panel interview completed — Did not pass interview stage.',
+            'Failed in Interview' => 'Update on your ECESPRO application: Panel interview completed — Did not pass interview stage.',
+            'Qualified for Contract' => 'Congratulations! You qualified for ECESPRO Contract Signing & Orientation.',
+            'Contract Scheduled' => 'Your ECESPRO Contract Signing & Orientation schedule has been posted.',
+            'Approved' => 'Congratulations! Your ECESPRO Scholarship application is APPROVED! Your scholar account is active.',
+            'Rejected' => 'Update on your ECESPRO application: Your application was not approved.',
+            'For Revision' => 'Your ECESPRO requirement document requires revision. Please log in and re-upload.',
+        ];
+
+        $body = $this->customMessage ?? ($messages[$this->status] ?? "Your ECESPRO application status is now {$this->status}.");
+
+        return "TCYSDO ECESPRO: {$body}";
     }
 
     public function toArray(object $notifiable): array
