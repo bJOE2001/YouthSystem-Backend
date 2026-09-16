@@ -14,6 +14,15 @@ class EcesproExamination extends Model
         'ecespro_exam_batch_id',
         'score',
         'status',
+        'started_at',
+        'completed_at',
+        'time_extension_minutes'
+    ];
+
+    protected $casts = [
+        'started_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'time_extension_minutes' => 'integer'
     ];
 
     public function application()
@@ -24,5 +33,10 @@ class EcesproExamination extends Model
     public function batch()
     {
         return $this->belongsTo(EcesproExamBatch::class, 'ecespro_exam_batch_id');
+    }
+
+    public function answers()
+    {
+        return $this->hasMany(EcesproApplicantExamAnswer::class, 'ecespro_examination_id');
     }
 }

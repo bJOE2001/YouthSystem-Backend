@@ -1,0 +1,144 @@
+<?php
+namespace App\Http\Controllers\Api\Youth;
+
+use App\Http\Controllers\Controller;
+use App\Models\EcesproExamination;
+use App\Models\EcesproExaminationSetup;
+use App\Models\EcesproApplicantExamAnswer;
+use Illuminate\Http\Request;
+use Carbon\Carbon;
+
+class EcesproApplicantExamController extends Controller
+{
+    public function start(Request $request, $examination_id)
+    {
+        $exam = EcesproExamination::with('application.program.examinationSetup')->findOrFail($examination_id);
+        
+        if ($exam->application->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        if ($exam->status !== 'Pending' && $exam->status !== 'Scheduled') { // Assuming it could be Scheduled
+            return response()->json(['message' => 'Exam already taken or invalid state.'], 400);
+        }
+
+        if (!$exam->started_at) {
+            $exam->started_at = now();
+            $exam->status = 'In Progress'; // Or custom status
+            $exam->save();
+        }
+
+        $setup = $exam->application->program->examinationSetup;
+        if (!$setup) {
+            return response()->json(['message' => 'Examination setup not found for this program.'], 400);
+        }
+
+        $questionnaire = $setup->questionnaire()->with('questions.choices')->first();
+        $questions = $questionnaire->questions;
+
+        if ($setup->shuffle_questions) {
+            $questions = $questions->shuffle();
+        }
+
+        // Hide correct answers from the response
+        $questions->each(function ($question) {
+            $question->choices->each(function ($choice) {
+                $choice->makeHidden('is_correct');
+            });
+        });
+
+        return response()->json([
+            'examination' => $exam,
+            'setup' => $setup,
+            'questionnaire' => [
+                'title' => $questionnaire->title,
+                'description' => $questionnaire->description,
+                'questions' => $questions
+            ]
+        ]);
+    }
+
+    public function submit(Request $request, $examination_id)
+    {
+        $exam = EcesproExamination::with('application.program.examinationSetup')->findOrFail($examination_id);
+        
+        if ($exam->application->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        if ($exam->completed_at) {
+            return response()->json(['message' => 'Exam already submitted.'], 400);
+        }
+
+        $setup = $exam->application->program->examinationSetup;
+        $questions = $setup->questionnaire->questions()->with('choices')->get()->keyBy('id');
+
+        $answers = $request->input('answers', []); // array of {question_id: 1, selected_choices: [1,2], answer_text: "..."}
+        
+        $totalQuestions = $questions->count();
+        $correctCount = 0;
+
+        foreach ($answers as $ans) {
+            $question = $questions->get($ans['question_id']);
+            if (!$question) continue;
+
+            $isCorrect = false;
+
+            if ($question->type === 'multiple_choice') {
+                $selectedChoiceIds = $ans['selected_choices'] ?? [];
+                if (!is_array($selectedChoiceIds)) {
+                    $selectedChoiceIds = [$selectedChoiceIds];
+                }
+
+                $correctChoiceIds = $question->choices->where('is_correct', true)->pluck('id')->toArray();
+                
+                // Compare arrays for exact match
+                sort($selectedChoiceIds);
+                sort($correctChoiceIds);
+                $isCorrect = ($selectedChoiceIds === $correctChoiceIds);
+
+                // Save answers
+                foreach ($selectedChoiceIds as $choiceId) {
+                    EcesproApplicantExamAnswer::create([
+                        'ecespro_examination_id' => $exam->id,
+                        'question_id' => $question->id,
+                        'answer_choice_id' => $choiceId,
+                        'is_correct' => in_array($choiceId, $correctChoiceIds)
+                    ]);
+                }
+            } else if ($question->type === 'fill_in_blank') {
+                $textAns = strtolower(trim($ans['answer_text'] ?? ''));
+                $correctChoice = $question->choices->where('is_correct', true)->first();
+                $correctText = $correctChoice ? strtolower(trim($correctChoice->choice_text)) : '';
+                
+                $isCorrect = ($textAns === $correctText);
+
+                EcesproApplicantExamAnswer::create([
+                    'ecespro_examination_id' => $exam->id,
+                    'question_id' => $question->id,
+                    'answer_text' => $ans['answer_text'],
+                    'is_correct' => $isCorrect
+                ]);
+            }
+
+            if ($isCorrect) {
+                $correctCount++;
+            }
+        }
+
+        $percentage = $totalQuestions > 0 ? ($correctCount / $totalQuestions) * 100 : 0;
+        $passed = $percentage >= $setup->passing_percentage;
+
+        $exam->score = $correctCount . '/' . $totalQuestions;
+        $exam->status = $passed ? 'Passed' : 'Failed';
+        $exam->completed_at = now();
+        $exam->save();
+
+        return response()->json([
+            'message' => 'Exam submitted successfully.',
+            'score' => $exam->score,
+            'percentage' => $percentage,
+            'status' => $exam->status
+        ]);
+    }
+}

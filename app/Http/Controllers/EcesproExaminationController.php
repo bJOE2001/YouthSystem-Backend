@@ -86,6 +86,40 @@ class EcesproExaminationController extends Controller
     }
 
     /**
+     * Reactivate an examination for an applicant.
+     */
+    public function reactivate(EcesproExamination $ecesproExamination)
+    {
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            // Delete existing answers
+            \App\Models\EcesproApplicantExamAnswer::where('ecespro_examination_id', $ecesproExamination->id)->delete();
+            
+            // Reset examination stats
+            $ecesproExamination->update([
+                'status' => 'Pending',
+                'score' => null,
+                'started_at' => null,
+                'completed_at' => null
+            ]);
+            
+            // Reset application status
+            if ($ecesproExamination->application) {
+                $ecesproExamination->application->update([
+                    'application_status' => 'For Examination'
+                ]);
+            }
+            
+            \Illuminate\Support\Facades\DB::commit();
+            return response()->json(['message' => 'Examination reactivated successfully']);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('Reactivate exam error: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to reactivate examination'], 500);
+        }
+    }
+
+    /**
      * Bulk update scores/status for a batch of examinations.
      */
     public function bulkUpdate(Request $request)
@@ -159,3 +193,5 @@ class EcesproExaminationController extends Controller
         ]);
     }
 }
+
+

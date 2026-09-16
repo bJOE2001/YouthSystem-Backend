@@ -15,6 +15,11 @@ class EcesproExamBatch extends Model
         'time',
         'venue',
         'status',
+        'is_exam_enabled'
+    ];
+
+    protected $casts = [
+        'is_exam_enabled' => 'boolean',
     ];
 
     public function examinations()
