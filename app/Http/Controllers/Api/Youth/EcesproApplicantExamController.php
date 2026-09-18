@@ -75,8 +75,9 @@ class EcesproApplicantExamController extends Controller
 
         $answers = $request->input('answers', []); // array of {question_id: 1, selected_choices: [1,2], answer_text: "..."}
         
-        $totalQuestions = $questions->count();
-        $correctCount = 0;
+                $totalPoints = $questions->sum('points') ?? $questions->count();
+        if ($totalPoints == 0) { $totalPoints = $questions->count(); }
+        $earnedPoints = 0;
 
         foreach ($answers as $ans) {
             $question = $questions->get($ans['question_id']);
@@ -92,12 +93,10 @@ class EcesproApplicantExamController extends Controller
 
                 $correctChoiceIds = $question->choices->where('is_correct', true)->pluck('id')->toArray();
                 
-                // Compare arrays for exact match
                 sort($selectedChoiceIds);
                 sort($correctChoiceIds);
                 $isCorrect = ($selectedChoiceIds === $correctChoiceIds);
 
-                // Save answers
                 foreach ($selectedChoiceIds as $choiceId) {
                     EcesproApplicantExamAnswer::create([
                         'ecespro_examination_id' => $exam->id,
@@ -122,14 +121,14 @@ class EcesproApplicantExamController extends Controller
             }
 
             if ($isCorrect) {
-                $correctCount++;
+                $earnedPoints += $question->points ?? 1;
             }
         }
 
-        $percentage = $totalQuestions > 0 ? ($correctCount / $totalQuestions) * 100 : 0;
+        $percentage = $totalPoints > 0 ? ($earnedPoints / $totalPoints) * 100 : 0;
         $passed = $percentage >= $setup->passing_percentage;
 
-        $exam->score = $correctCount . '/' . $totalQuestions;
+        $exam->score = $earnedPoints . '/' . $totalPoints;
         $exam->status = $passed ? 'Passed' : 'Failed';
         $exam->completed_at = now();
         $exam->save();
@@ -142,3 +141,4 @@ class EcesproApplicantExamController extends Controller
         ]);
     }
 }
+

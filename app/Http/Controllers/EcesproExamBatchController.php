@@ -204,8 +204,14 @@ class EcesproExamBatchController extends Controller
             if ($setup) {
                 $totalPossiblePoints = \App\Models\EcesproExamQuestion::where('questionnaire_id', $setup->questionnaire_id)->sum('points');
                 $passingPercentage = $setup->passing_percentage ?? 50;
-                $passingScore = ($passingPercentage / 100) * $totalPossiblePoints;
-                $exam->status = $exam->score >= $passingScore ? 'Passed' : 'Failed';
+
+                // Capture the raw earned points before converting to slash format
+                $earnedPoints = (float) $exam->score;
+                $scorePercentage = $totalPossiblePoints > 0 ? ($earnedPoints / $totalPossiblePoints) * 100 : 0;
+
+                // Store score in slash format for consistency
+                $exam->score = $earnedPoints . '/' . $totalPossiblePoints;
+                $exam->status = $scorePercentage >= $passingPercentage ? 'Passed' : 'Failed';
                 $exam->save();
 
                 if ($exam->status === 'Passed') {

@@ -213,7 +213,7 @@ class EcesproExaminationController extends Controller
             }
 
             $examination->update([
-                'score' => $earnedPoints, // Raw score for now
+                'score' => $earnedPoints . '/' . $totalPoints,
                 'status' => $status,
                 'completed_at' => now(),
             ]);

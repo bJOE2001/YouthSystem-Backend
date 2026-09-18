@@ -16,7 +16,20 @@ class EcesproProgramController extends Controller
      */
     public function index()
     {
-        return EcesproProgram::with('examinationSetup.questionnaire')->withCount('applications')->orderBy('created_at', 'desc')->get();
+        return EcesproProgram::with('examinationSetup.questionnaire')
+            ->withCount('applications')
+            ->withCount(['applications as passed_count' => function ($query) {
+                $query->whereHas('examination', function ($q) {
+                    $q->where('status', 'Passed');
+                });
+            }])
+            ->withCount(['applications as failed_count' => function ($query) {
+                $query->whereHas('examination', function ($q) {
+                    $q->where('status', 'Failed');
+                });
+            }])
+            ->orderBy('created_at', 'desc')
+            ->get();
     }
 
     /**

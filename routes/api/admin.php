@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\EcesproGrantReleaseController;
 use App\Http\Controllers\Api\Admin\EcesproSettingController;
 use App\Http\Controllers\Api\Admin\LydcMemberController;
+use App\Http\Controllers\Api\Admin\TcydoDirectoryMemberController;
 use App\Http\Controllers\Api\Admin\OrganizationController;
 use App\Http\Controllers\Api\Admin\ResidentYouthController;
 use App\Http\Controllers\Api\Admin\ScholarPositionController;
@@ -100,6 +101,13 @@ Route::middleware([
             Route::get('/{lydcMember}', [LydcMemberController::class, 'show'])->name('show');
             Route::post('/', [LydcMemberController::class, 'store'])->name('store');
             Route::post('/{lydcMember}/delete', [LydcMemberController::class, 'destroy'])->name('destroy');
+        });
+
+        Route::middleware('module:sk_officials')->prefix('tcydo-directory-members')->name('tcydo-directory-members.')->group(function () {
+            Route::get('/', [TcydoDirectoryMemberController::class, 'index'])->name('index');
+            Route::get('/{tcydoDirectoryMember}', [TcydoDirectoryMemberController::class, 'show'])->name('show');
+            Route::post('/', [TcydoDirectoryMemberController::class, 'store'])->name('store');
+            Route::post('/{tcydoDirectoryMember}/delete', [TcydoDirectoryMemberController::class, 'destroy'])->name('destroy');
         });
 
         Route::middleware('module:youth_records')->prefix('resident-youth')->name('resident-youth.')->group(function () {

@@ -15,7 +15,7 @@ class EcesproInterviewBatchController extends Controller
      */
     public function index()
     {
-        return EcesproInterviewBatch::with('interviews.application.user.youthProfile')->latest('created_at')->get();
+        return EcesproInterviewBatch::with(['interviews.application.program', 'interviews.application.user.youthProfile'])->latest('created_at')->get();
     }
 
     /**
@@ -69,7 +69,7 @@ class EcesproInterviewBatchController extends Controller
             }
         }
 
-        return $batch->load(['interviews.application.user']);
+        return $batch->load(['interviews.application.program', 'interviews.application.user.youthProfile']);
     }
 
     /**
@@ -77,7 +77,7 @@ class EcesproInterviewBatchController extends Controller
      */
     public function show(EcesproInterviewBatch $ecesproInterviewBatch)
     {
-        return $ecesproInterviewBatch->load('interviews.application.user.youthProfile');
+        return $ecesproInterviewBatch->load(['interviews.application.program', 'interviews.application.user.youthProfile']);
     }
 
     /**
