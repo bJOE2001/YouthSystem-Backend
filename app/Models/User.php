@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
+use App\Mail\ResetPasswordEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Auth\Passwords\CanResetPassword;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,7 +13,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
@@ -187,6 +190,30 @@ class User extends Authenticatable
         }
 
         return $this->qr_code_token;
+    }
+
+    /**
+     * Route notifications for the SMS channel.
+     */
+    public function routeNotificationForSms(?Notification $notification = null): ?string
+    {
+        return $this->youthProfile?->mobile_number
+            ?? $this->skOfficial?->contact
+            ?? $this->lydcMember?->contact;
+    }
+
+    /**
+     * Send the password reset notification.
+     *
+     * @param  string  $token
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $baseUrl = config('app.frontend_url') ?: config('app.url', 'http://localhost:9000');
+        $resetUrl = rtrim($baseUrl, '/').'/#/reset-password?token='.$token.'&email='.urlencode($this->getEmailForPasswordReset());
+
+        Mail::to($this->getEmailForPasswordReset())
+            ->send(new ResetPasswordEmail($this, $token, $resetUrl));
     }
 
     /**

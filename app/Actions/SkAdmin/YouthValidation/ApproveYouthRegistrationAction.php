@@ -6,6 +6,7 @@ use App\Enums\UserStatus;
 use App\Enums\YouthProfileStatus;
 use App\Mail\YouthValidatedEmail;
 use App\Models\YouthProfile;
+use App\Services\SmsService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -36,6 +37,16 @@ class ApproveYouthRegistrationAction
                 ]);
 
                 Mail::to($user->email)->send(new YouthValidatedEmail($user, $plainPassword));
+
+                if (! empty($youthProfile->mobile_number)) {
+                    $smsMessage = "Welcome to TCYSDO! Your account has been approved. Email: {$user->email}, Temp Password: {$plainPassword}. Please login and change your password.";
+                    app(SmsService::class)->send(
+                        $youthProfile->mobile_number,
+                        $smsMessage,
+                        $user,
+                        'youth_validation'
+                    );
+                }
             }
 
             return $youthProfile;

@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Channels\SmsChannel;
 use App\Mail\BookingConfirmedEmail;
 use App\Models\BookingRequest;
 use App\Models\User;
@@ -27,7 +28,7 @@ class BookingConfirmedNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ['database', 'mail', SmsChannel::class];
     }
 
     /**
@@ -38,6 +39,17 @@ class BookingConfirmedNotification extends Notification
         /** @var User $notifiable */
         return (new BookingConfirmedEmail($notifiable, $this->booking))
             ->to($notifiable->email);
+    }
+
+    /**
+     * Get the SMS representation of the notification.
+     */
+    public function toSms(object $notifiable): string
+    {
+        $facilityName = $this->booking->facility->name ?? 'Facility';
+        $date = $this->booking->date ?? '';
+
+        return "TCYSDO: Your reservation for {$facilityName} on {$date} has been confirmed. Thank you!";
     }
 
     /**

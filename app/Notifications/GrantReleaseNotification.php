@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Channels\SmsChannel;
 use App\Models\EcesproGrantReleaseBatch;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -28,7 +29,19 @@ class GrantReleaseNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', SmsChannel::class];
+    }
+
+    /**
+     * Get the SMS representation of the notification.
+     */
+    public function toSms(object $notifiable): string
+    {
+        $formattedDate = $this->batch->release_date ? $this->batch->release_date->format('M d, Y') : '';
+        $time = $this->batch->time ?? '';
+        $venue = $this->batch->venue ?? '';
+
+        return "TCYSDO: ECESPRO Grant Release - Batch: {$this->batch->batch_name}, Date: {$formattedDate}, Time: {$time}, Venue: {$venue}. Please bring valid ID.";
     }
 
     /**
