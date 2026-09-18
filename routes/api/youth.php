@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Youth\DashboardController;
 use App\Http\Controllers\Api\Youth\ProfileController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\Youth\EcesproExaminationController;
 
 Route::middleware([
     'auth:sanctum',
@@ -29,4 +30,13 @@ Route::middleware([
         Route::post('/profile/picture', [ProfileController::class, 'uploadPicture'])->name('profile.picture');
         Route::post('/profile/picture/remove', [ProfileController::class, 'removePicture'])->name('profile.picture.remove');
 
+        /*
+        |--------------------------------------------------------------------------
+        | Youth ECESPRO Examinations
+        |--------------------------------------------------------------------------
+        */
+        Route::get('/ecespro/examinations/{examination}/start', [EcesproExaminationController::class, 'start'])->name('ecespro.examinations.start');
+        Route::post('/ecespro/examinations/{examination}/submit', [EcesproExaminationController::class, 'submit'])->name('ecespro.examinations.submit');
+
     });
+
