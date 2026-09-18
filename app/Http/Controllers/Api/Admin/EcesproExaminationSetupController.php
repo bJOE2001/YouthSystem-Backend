@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
@@ -35,9 +36,9 @@ class EcesproExaminationSetupController extends Controller
         $recalculableStatuses = ['For Examination', 'Failed Exam', 'Qualified for Interview'];
 
         $completedExams = \App\Models\EcesproExamination::with('application')
-            ->whereHas('application', function($q) use ($setup, $recalculableStatuses) {
+            ->whereHas('application', function ($q) use ($setup, $recalculableStatuses) {
                 $q->where('ecespro_program_id', $setup->ecespro_program_id)
-                  ->whereIn('application_status', $recalculableStatuses);
+                    ->whereIn('application_status', $recalculableStatuses);
             })
             ->whereNotNull('completed_at')
             ->get();
@@ -111,11 +112,28 @@ class EcesproExaminationSetupController extends Controller
     public function markAsDone($id)
     {
         $setup = \App\Models\EcesproExaminationSetup::with('program')->findOrFail($id);
+
+        $incompleteExamsCount = \App\Models\EcesproExamination::whereHas('application', function ($query) use ($setup) {
+            $query->where('ecespro_program_id', $setup->ecespro_program_id);
+        })->whereNull('completed_at')->count();
+
+        if ($incompleteExamsCount > 0) {
+            return response()->json(['message' => 'Cannot mark as done. ' . $incompleteExamsCount . ' applicant(s) have not finished their exam.'], 400);
+        }
+
+        $ungradedEssaysCount = \App\Models\EcesproApplicantExamAnswer::whereHas('question', function ($query) {
+            $query->where('type', 'essay');
+        })->whereHas('examination.application', function ($query) use ($setup) {
+            $query->where('ecespro_program_id', $setup->ecespro_program_id);
+        })->whereNull('awarded_points')->count();
+
+        if ($ungradedEssaysCount > 0) {
+            return response()->json(['message' => 'Cannot mark as done. ' . $ungradedEssaysCount . ' essay answer(s) are pending for grading.'], 400);
+        }
+
         if ($setup->program) {
             $setup->program->update(['status' => 'Exam Completed']);
         }
         return response()->json(['message' => 'Exam marked as done successfully.']);
     }
 }
-
-

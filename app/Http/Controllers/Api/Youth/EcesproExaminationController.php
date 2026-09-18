@@ -16,7 +16,7 @@ class EcesproExaminationController extends Controller
      */
     public function start(Request $request, $id)
     {
-        $user = auth()->user();
+        $user = $request->user();
         
         $examination = EcesproExamination::with([
             'application',
@@ -99,7 +99,7 @@ class EcesproExaminationController extends Controller
      */
     public function submit(Request $request, $id)
     {
-        $user = auth()->user();
+        $user = $request->user();
         
         $examination = EcesproExamination::with([
             'application.program.examinationSetup.questionnaire.questions.choices'
@@ -213,9 +213,11 @@ class EcesproExaminationController extends Controller
             }
 
             $examination->update([
-                'score' => $earnedPoints . '/' . $totalPoints,
+                // Use slash format only when no essays (final score is known).
+                // When essays exist, keep raw number so essay grading can increment it.
+                'score' => $hasEssay ? $earnedPoints : $earnedPoints . '/' . $totalPoints,
                 'status' => $status,
-                'completed_at' => now(),
+                'completed_at' => $hasEssay ? null : now(),
             ]);
             
             if ($status === 'Passed') {

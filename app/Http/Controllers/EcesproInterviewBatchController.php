@@ -34,27 +34,41 @@ class EcesproInterviewBatchController extends Controller
             'applicants.*.applicantId' => 'required|exists:ecespro_applications,id',
         ]);
 
-        $batch = EcesproInterviewBatch::create([
-            'batch_name' => $validated['batch_name'],
-            'interview_date' => $validated['interview_date'],
-            'time' => $validated['time'] ?? null,
-            'panel' => $validated['panel'] ?? null,
-            'mode' => $validated['mode'] ?? null,
-            'status' => $validated['status'] ?? 'Scheduled',
-        ]);
+        // Use a transaction so everything rolls back if something fails
+        $batch = \Illuminate\Support\Facades\DB::transaction(function () use ($validated) {
+            $batch = EcesproInterviewBatch::create([
+                'batch_name' => $validated['batch_name'],
+                'interview_date' => $validated['interview_date'],
+                'time' => $validated['time'] ?? null,
+                'panel' => $validated['panel'] ?? null,
+                'mode' => $validated['mode'] ?? null,
+                'status' => $validated['status'] ?? 'Scheduled',
+            ]);
 
+            if (isset($validated['applicants'])) {
+                foreach ($validated['applicants'] as $applicant) {
+                    EcesproInterview::create([
+                        'ecespro_interview_batch_id' => $batch->id,
+                        'ecespro_application_id' => $applicant['applicantId'],
+                        'status' => 'Pending',
+                    ]);
+
+                    $app = EcesproApplication::find($applicant['applicantId']);
+                    if ($app) {
+                        $app->update(['application_status' => 'Interview Scheduled']);
+                    }
+                }
+            }
+
+            return $batch;
+        });
+
+        // Send notifications AFTER the transaction commits (so a notification failure doesn't roll back the batch)
         if (isset($validated['applicants'])) {
             foreach ($validated['applicants'] as $applicant) {
-                EcesproInterview::create([
-                    'ecespro_interview_batch_id' => $batch->id,
-                    'ecespro_application_id' => $applicant['applicantId'],
-                    'status' => 'Pending',
-                ]);
-
-                $app = EcesproApplication::find($applicant['applicantId']);
-                if ($app) {
-                    $app->update(['application_status' => 'Interview Scheduled']);
-                    if ($user = $app->user) {
+                try {
+                    $app = EcesproApplication::find($applicant['applicantId']);
+                    if ($app && $user = $app->user) {
                         $msg = "Your ECESPRO Panel Interview has been scheduled! Date: {$batch->interview_date}, Time: {$batch->time}, Panel: {$batch->panel}, Mode: {$batch->mode} (Batch: {$batch->batch_name}).";
                         $metadata = [
                             'batch_name' => $batch->batch_name,
@@ -65,6 +79,8 @@ class EcesproInterviewBatchController extends Controller
                         ];
                         $user->notify(new EcesproApplicationStatusNotification($app, 'Interview Scheduled', $msg, $metadata));
                     }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning('Interview notification failed for application ' . $applicant['applicantId'] . ': ' . $e->getMessage());
                 }
             }
         }

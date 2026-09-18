@@ -212,6 +212,7 @@ class EcesproExamBatchController extends Controller
                 // Store score in slash format for consistency
                 $exam->score = $earnedPoints . '/' . $totalPossiblePoints;
                 $exam->status = $scorePercentage >= $passingPercentage ? 'Passed' : 'Failed';
+                $exam->completed_at = now();
                 $exam->save();
 
                 if ($exam->status === 'Passed') {
