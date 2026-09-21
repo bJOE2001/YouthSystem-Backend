@@ -42,6 +42,7 @@ class EcesproApplicantExamController extends Controller
 
         // Hide correct answers from the response
         $questions->each(function ($question) {
+            $question->max_answers = $question->choices->where('is_correct', true)->count();
             $question->choices->each(function ($choice) {
                 $choice->makeHidden('is_correct');
             });
@@ -85,7 +86,7 @@ class EcesproApplicantExamController extends Controller
 
             $isCorrect = false;
 
-            if ($question->type === 'multiple_choice') {
+            if ($question->type === 'multiple_choice' || $question->type === 'fill_in_blank') {
                 $selectedChoiceIds = $ans['selected_choices'] ?? [];
                 if (!is_array($selectedChoiceIds)) {
                     $selectedChoiceIds = [$selectedChoiceIds];
@@ -105,22 +106,7 @@ class EcesproApplicantExamController extends Controller
                         'is_correct' => in_array($choiceId, $correctChoiceIds)
                     ]);
                 }
-            } else if ($question->type === 'fill_in_blank') {
-                $textAns = strtolower(trim($ans['answer_text'] ?? ''));
-                $correctChoice = $question->choices->where('is_correct', true)->first();
-                $correctText = $correctChoice ? strtolower(trim($correctChoice->choice_text)) : '';
-                
-                $isCorrect = ($textAns === $correctText);
-
-                EcesproApplicantExamAnswer::create([
-                    'ecespro_examination_id' => $exam->id,
-                    'question_id' => $question->id,
-                    'answer_text' => $ans['answer_text'],
-                    'is_correct' => $isCorrect
-                ]);
-            }
-
-            if ($isCorrect) {
+            } if ($isCorrect) {
                 $earnedPoints += $question->points ?? 1;
             }
         }
@@ -141,4 +127,6 @@ class EcesproApplicantExamController extends Controller
         ]);
     }
 }
+
+
 

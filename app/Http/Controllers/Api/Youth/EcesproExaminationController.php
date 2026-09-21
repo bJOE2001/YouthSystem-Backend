@@ -63,6 +63,7 @@ class EcesproExaminationController extends Controller
                 'points' => $q->points,
                 'image_path' => $q->image_path,
                 'allow_multiple_answers' => $q->allow_multiple_answers,
+                'max_answers' => $q->choices->where('is_correct', true)->count(),
                 'choices' => $q->choices->map(function ($c) {
                     return [
                         'id' => $c->id,
@@ -149,24 +150,7 @@ class EcesproExaminationController extends Controller
                         'is_correct' => false // Set to false instead of null since DB column is not nullable
                     ]);
                 } 
-                else if ($type === 'fill_in_blank') {
-                    $correctChoice = $question->choices->firstWhere('is_correct', true);
-                    $userAnswer = strtolower(trim($ans['answer_text'] ?? ''));
-                    $correctAnswer = strtolower(trim($correctChoice ? $correctChoice->choice_text : ''));
-                    
-                    if ($userAnswer === $correctAnswer && !empty($correctAnswer)) {
-                        $isCorrect = true;
-                        $earnedPoints += $pointsForQuestion;
-                    }
-
-                    EcesproApplicantExamAnswer::create([
-                        'ecespro_examination_id' => $examination->id,
-                        'question_id' => $qId,
-                        'answer_text' => $ans['answer_text'] ?? null,
-                        'is_correct' => $isCorrect
-                    ]);
-                }
-                else if ($type === 'multiple_choice' || $type === 'true_false') {
+                else if ($type === 'multiple_choice' || $type === 'true_false' || $type === 'fill_in_blank') {
                     $selectedIds = $ans['selected_choices'] ?? [];
                     if (!is_array($selectedIds)) {
                         $selectedIds = [$selectedIds];
@@ -247,6 +231,9 @@ class EcesproExaminationController extends Controller
         }
     }
 }
+
+
+
 
 
 
