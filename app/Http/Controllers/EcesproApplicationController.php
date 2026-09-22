@@ -202,7 +202,7 @@ class EcesproApplicationController extends Controller
             return response()->json(['message' => 'Document not found in application'], 404);
         }
 
-        $ecesproApplication->update(['submitted_requirements' => $requirements]);
+        if ($validated['status'] === 'For Revision') { $ecesproApplication->update(['submitted_requirements' => $requirements, 'application_status' => 'Revision']); } else { $ecesproApplication->update(['submitted_requirements' => $requirements]); }
 
         if ($validated['status'] === 'For Revision') {
             if ($user = $ecesproApplication->user) {
@@ -221,3 +221,5 @@ class EcesproApplicationController extends Controller
         return response()->json($updatedDoc);
     }
 }
+
+

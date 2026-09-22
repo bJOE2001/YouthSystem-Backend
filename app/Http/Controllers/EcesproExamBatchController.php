@@ -7,6 +7,7 @@ use App\Models\EcesproExamBatch;
 use App\Models\EcesproExamination;
 use App\Notifications\EcesproApplicationStatusNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class EcesproExamBatchController extends Controller
 {
@@ -33,40 +34,99 @@ class EcesproExamBatchController extends Controller
             'applicants.*.applicantId' => 'required|exists:ecespro_applications,id',
         ]);
 
-        $batch = EcesproExamBatch::create([
-            'batch_name' => $validated['batch_name'],
-            'exam_date' => $validated['exam_date'],
-            'time' => $validated['time'] ?? null,
-            'venue' => $validated['venue'] ?? null,
-            'status' => $validated['status'] ?? 'Scheduled',
-        ]);
+        $batch = DB::transaction(function () use ($validated) {
 
-        if (isset($validated['applicants'])) {
-            foreach ($validated['applicants'] as $applicant) {
-                EcesproExamination::create([
+            // 1. Create the exam batch
+            $batch = EcesproExamBatch::create([
+                'batch_name' => $validated['batch_name'],
+                'exam_date' => $validated['exam_date'],
+                'time' => $validated['time'] ?? null,
+                'venue' => $validated['venue'] ?? null,
+                'status' => $validated['status'] ?? 'Scheduled',
+            ]);
+
+            $applicantIds = collect($validated['applicants'] ?? [])
+                ->pluck('applicantId')
+                ->unique()
+                ->values();
+
+            if ($applicantIds->isEmpty()) {
+                return $batch;
+            }
+
+            /*
+         * 2. Load all applications + users at once.
+         * Instead of SELECT for every applicant.
+         */
+            $applications = EcesproApplication::with('user')
+                ->whereIn('id', $applicantIds)
+                ->get()
+                ->keyBy('id');
+
+            /*
+         * 3. Insert all examinations at once.
+         */
+            $now = now();
+
+            $examinations = $applicantIds->map(function ($applicantId) use ($batch, $now) {
+                return [
                     'ecespro_exam_batch_id' => $batch->id,
-                    'ecespro_application_id' => $applicant['applicantId'],
+                    'ecespro_application_id' => $applicantId,
                     'status' => 'Pending',
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            })->toArray();
+
+            EcesproExamination::insert($examinations);
+
+            /*
+         * 4. Update all applications at once.
+         */
+            EcesproApplication::whereIn('id', $applicantIds)
+                ->update([
+                    'application_status' => 'Exam Scheduled',
+                    'updated_at' => $now,
                 ]);
 
-                $app = EcesproApplication::find($applicant['applicantId']);
-                if ($app) {
-                    $app->update(['application_status' => 'Exam Scheduled']);
-                    if ($user = $app->user) {
-                        $msg = "Your ECESPRO Qualifying Examination has been scheduled! Date: {$batch->exam_date}, Time: {$batch->time}, Venue: {$batch->venue} (Batch: {$batch->batch_name}).";
-                        $metadata = [
-                            'batch_name' => $batch->batch_name,
-                            'exam_date' => $batch->exam_date,
-                            'time' => $batch->time,
-                            'venue' => $batch->venue,
-                        ];
-                        $user->notify(new EcesproApplicationStatusNotification($app, 'Exam Scheduled', $msg, $metadata));
-                    }
-                }
-            }
-        }
+            /*
+         * 5. Send notifications.
+         *
+         * This is still synchronous, as you requested.
+         */
+            foreach ($applications as $app) {
 
-        return $batch;
+                if (!$app->user) {
+                    continue;
+                }
+
+                $msg = "Your ECESPRO Qualifying Examination has been scheduled! "
+                    . "Date: {$batch->exam_date}, "
+                    . "Time: {$batch->time}, "
+                    . "Venue: {$batch->venue} "
+                    . "(Batch: {$batch->batch_name}).";
+
+                $metadata = [
+                    'batch_name' => $batch->batch_name,
+                    'exam_date' => $batch->exam_date,
+                    'time' => $batch->time,
+                    'venue' => $batch->venue,
+                ];
+
+                $app->user->notify(
+                    new EcesproApplicationStatusNotification(
+                        $app,
+                        'Exam Scheduled',
+                        $msg,
+                        $metadata
+                    )
+                );
+            }
+
+            return $batch;
+        });
+
+        return response()->json($batch);
     }
 
     /**
@@ -100,6 +160,22 @@ class EcesproExamBatchController extends Controller
      */
     public function destroy(EcesproExamBatch $ecesproExamBatch)
     {
+        if ($ecesproExamBatch->status === 'Exam Completed') {
+            return response()->json(['message' => 'Cannot delete a completed exam batch.'], 403);
+        }
+        
+        if ($ecesproExamBatch->is_exam_enabled) {
+            return response()->json(['message' => 'Cannot delete an active exam batch. Disable the exam first.'], 403);
+        }
+
+        $hasNonPending = $ecesproExamBatch->examinations()->where('status', '!=', 'Pending')->exists();
+        if ($hasNonPending) {
+            return response()->json(['message' => 'Cannot delete batch because some applicants have already started or finished their exam.'], 403);
+        }
+
+        $appIds = $ecesproExamBatch->examinations()->pluck('ecespro_application_id');
+        \App\Models\EcesproApplication::whereIn('id', $appIds)->update(['application_status' => 'Qualified for Exam']);
+
         $ecesproExamBatch->examinations()->delete();
         $ecesproExamBatch->delete();
 
@@ -114,10 +190,10 @@ class EcesproExamBatchController extends Controller
 
         return response()->json($ecesproExamBatch);
     }
-        public function getEssayQuestions($id)
+    public function getEssayQuestions($id)
     {
-        $batch = EcesproExamBatch::with(['examinations.answers' => function($q) {
-            $q->whereHas('question', function($q2) {
+        $batch = EcesproExamBatch::with(['examinations.answers' => function ($q) {
+            $q->whereHas('question', function ($q2) {
                 $q2->where('type', 'essay');
             })->whereNull('awarded_points')->with('question');
         }])->findOrFail($id);
@@ -133,7 +209,7 @@ class EcesproExamBatchController extends Controller
                         'pending_count' => 0
                     ]);
                 }
-                
+
                 $qData = $questions->get($qId);
                 $qData['pending_count']++;
                 $questions->put($qId, $qData);
@@ -145,8 +221,8 @@ class EcesproExamBatchController extends Controller
 
     public function getPendingAnswersForQuestion($batchId, $questionId)
     {
-        $batch = EcesproExamBatch::with(['examinations' => function($q) use ($questionId) {
-            $q->with(['application.user.youthProfile', 'answers' => function($q2) use ($questionId) {
+        $batch = EcesproExamBatch::with(['examinations' => function ($q) use ($questionId) {
+            $q->with(['application.user.youthProfile', 'answers' => function ($q2) use ($questionId) {
                 $q2->where('question_id', $questionId)->whereNull('awarded_points')->with('question');
             }]);
         }])->findOrFail($batchId);
@@ -169,14 +245,14 @@ class EcesproExamBatchController extends Controller
         return response()->json($answers);
     }
 
-        public function gradeSingleAnswer(Request $request, $batchId, $answerId)
+    public function gradeSingleAnswer(Request $request, $batchId, $answerId)
     {
         $request->validate([
             'awarded_points' => 'required|numeric|min:0'
         ]);
 
         $answer = \App\Models\EcesproApplicantExamAnswer::with('examination')->findOrFail($answerId);
-        
+
         if ($answer->awarded_points !== null) {
             return response()->json(['message' => 'Answer is already graded'], 400);
         }
@@ -192,7 +268,7 @@ class EcesproExamBatchController extends Controller
 
         // Check if there are any pending essays left for this examination
         $pendingCount = \App\Models\EcesproApplicantExamAnswer::where('ecespro_examination_id', $exam->id)
-            ->whereHas('question', function($q) {
+            ->whereHas('question', function ($q) {
                 $q->where('type', 'essay');
             })
             ->whereNull('awarded_points')
@@ -228,5 +304,31 @@ class EcesproExamBatchController extends Controller
         }
 
         return response()->json(['message' => 'Answer graded successfully', 'remaining_pending' => $pendingCount, 'new_status' => $exam->status]);
+    }
+
+    public function markAsComplete($id)
+    {
+        $batch = \App\Models\EcesproExamBatch::findOrFail($id);
+
+        // Check if there are any pending ungraded essays or unfinished exams in this batch
+        $incompleteExamsCount = \App\Models\EcesproExamination::where('ecespro_exam_batch_id', $batch->id)
+            ->whereNull('completed_at')->count();
+
+        if ($incompleteExamsCount > 0) {
+            return response()->json(['message' => 'Cannot mark as complete. ' . $incompleteExamsCount . ' applicant(s) have not finished their exam.'], 400);
+        }
+
+        $ungradedEssaysCount = \App\Models\EcesproApplicantExamAnswer::whereHas('question', function ($query) {
+            $query->where('type', 'essay');
+        })->whereHas('examination', function ($query) use ($batch) {
+            $query->where('ecespro_exam_batch_id', $batch->id);
+        })->whereNull('awarded_points')->count();
+
+        if ($ungradedEssaysCount > 0) {
+            return response()->json(['message' => 'Cannot mark as complete. ' . $ungradedEssaysCount . ' essay answer(s) are pending for grading.'], 400);
+        }
+
+        $batch->update(['application_status' => 'Exam Completed']);
+        return response()->json(['message' => 'Exam batch marked as completed successfully.']);
     }
 }

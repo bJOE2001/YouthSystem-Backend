@@ -120,9 +120,38 @@ class EcesproInterviewBatchController extends Controller
      */
     public function destroy(EcesproInterviewBatch $ecesproInterviewBatch)
     {
+        if ($ecesproInterviewBatch->status === 'Interview Completed') {
+            return response()->json(['message' => 'Cannot delete a completed interview batch.'], 403);
+        }
+
+        $hasNonPending = $ecesproInterviewBatch->interviews()->where('status', '!=', 'Pending')->exists();
+        if ($hasNonPending) {
+            return response()->json(['message' => 'Cannot delete batch because some applicants already have an interview result.'], 403);
+        }
+
+        $appIds = $ecesproInterviewBatch->interviews()->pluck('ecespro_application_id');
+        \App\Models\EcesproApplication::whereIn('id', $appIds)->update(['application_status' => 'Qualified for Interview']);
+
         $ecesproInterviewBatch->interviews()->delete();
         $ecesproInterviewBatch->delete();
 
         return response()->noContent();
     }
+
+    public function markAsComplete($id)
+    {
+        $batch = \App\Models\EcesproInterviewBatch::findOrFail($id);
+
+        // Check if any applicant has Pending status
+        $pendingApplicantsCount = \App\Models\EcesproInterview::where('ecespro_interview_batch_id', $batch->id)
+            ->where('status', 'Pending')->count();
+
+        if ($pendingApplicantsCount > 0) {
+            return response()->json(['message' => 'Cannot mark as complete. ' . $pendingApplicantsCount . ' applicant(s) still have a Pending status. Please grade or modify them first.'], 400);
+        }
+
+        $batch->update(['application_status' => 'Interview Completed']);
+        return response()->json(['message' => 'Interview batch marked as completed successfully.']);
+    }
 }
+

@@ -86,7 +86,7 @@ class EcesproApplicantExamController extends Controller
 
             $isCorrect = false;
 
-            if ($question->type === 'multiple_choice' || $question->type === 'fill_in_blank') {
+            if (in_array($question->type, ['multiple_choice', 'true_false'])) {
                 $selectedChoiceIds = $ans['selected_choices'] ?? [];
                 if (!is_array($selectedChoiceIds)) {
                     $selectedChoiceIds = [$selectedChoiceIds];
@@ -106,7 +106,57 @@ class EcesproApplicantExamController extends Controller
                         'is_correct' => in_array($choiceId, $correctChoiceIds)
                     ]);
                 }
-            } if ($isCorrect) {
+            } elseif ($question->type === 'fill_in_blank') {
+                $applicantText = trim($ans['answer_text'] ?? '');
+                $correctText = trim($question->correct_answer_text ?? '');
+                $isCorrect = (strtolower($applicantText) === strtolower($correctText));
+
+                EcesproApplicantExamAnswer::create([
+                    'ecespro_examination_id' => $exam->id,
+                    'question_id' => $question->id,
+                    'answer_text' => $applicantText,
+                    'is_correct' => $isCorrect
+                ]);
+            } elseif ($question->type === 'modified_true_false') {
+                $selectedChoiceIds = $ans['selected_choices'] ?? [];
+                if (!is_array($selectedChoiceIds)) {
+                    $selectedChoiceIds = [$selectedChoiceIds];
+                }
+                
+                $correctChoiceIds = $question->choices->where('is_correct', true)->pluck('id')->toArray();
+                
+                sort($selectedChoiceIds);
+                sort($correctChoiceIds);
+                
+                $choiceIsCorrect = ($selectedChoiceIds === $correctChoiceIds);
+                
+                if ($choiceIsCorrect) {
+                    $correctChoiceTexts = $question->choices->whereIn('id', $correctChoiceIds)->pluck('choice_text')->map(fn($t) => strtolower(trim($t)))->toArray();
+                    
+                    if (in_array('false', $correctChoiceTexts)) {
+                        $applicantText = trim($ans['answer_text'] ?? '');
+                        $correctText = trim($question->correct_answer_text ?? '');
+                        $isCorrect = (strtolower($applicantText) === strtolower($correctText));
+                    } else {
+                        $isCorrect = true;
+                    }
+                } else {
+                    $isCorrect = false;
+                }
+
+                $applicantText = trim($ans['answer_text'] ?? '');
+                foreach ($selectedChoiceIds as $choiceId) {
+                    EcesproApplicantExamAnswer::create([
+                        'ecespro_examination_id' => $exam->id,
+                        'question_id' => $question->id,
+                        'answer_choice_id' => $choiceId,
+                        'answer_text' => $applicantText,
+                        'is_correct' => $isCorrect
+                    ]);
+                }
+            }
+
+            if ($isCorrect) {
                 $earnedPoints += $question->points ?? 1;
             }
         }
@@ -127,6 +177,7 @@ class EcesproApplicantExamController extends Controller
         ]);
     }
 }
+
 
 
 

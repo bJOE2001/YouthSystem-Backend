@@ -106,10 +106,16 @@ class EventController extends Controller
             });
         }
 
-        $all = $events->get()->concat($sports->get());
+        // Fetch just the fields needed for sorting and pagination, mapping to stdClass to save memory
+        $eventsBase = collect($events->select('id', 'name', 'created_at', DB::raw("'event' as model_type"))->getQuery()->get());
+        $sportsBase = collect($sports->select('id', 'name', 'created_at', DB::raw("'sport' as model_type"))->getQuery()->get());
+
+        $all = $eventsBase->concat($sportsBase);
 
         if ($request->has('sort_by') && ! empty($request->sort_by)) {
             $sortBy = Str::camel($request->sort_by);
+            // Fallback for standard created_at since stdClass property remains snake_case
+            $sortBy = $sortBy === 'createdAt' ? 'created_at' : $sortBy;
             $sortOrder = $request->input('sort_order', 'asc');
             $all = $sortOrder === 'desc' ? $all->sortByDesc($sortBy) : $all->sortBy($sortBy);
         } else {
@@ -119,8 +125,21 @@ class EventController extends Controller
         $perPage = (int) $request->input('per_page', 10);
         $page = (int) $request->input('page', 1);
 
+        $slice = $all->forPage($page, $perPage);
+
+        // Now load ONLY the full Eloquent models for the current page
+        $eventIds = $slice->where('model_type', 'event')->pluck('id');
+        $sportIds = $slice->where('model_type', 'sport')->pluck('id');
+
+        $fullEvents = $eventIds->isNotEmpty() ? Event::whereIn('id', $eventIds)->get()->keyBy('id') : collect();
+        $fullSports = $sportIds->isNotEmpty() ? SportsProgram::whereIn('id', $sportIds)->get()->keyBy('id') : collect();
+
+        $resolvedItems = $slice->map(function ($item) use ($fullEvents, $fullSports) {
+            return $item->model_type === 'event' ? $fullEvents->get($item->id) : $fullSports->get($item->id);
+        })->filter()->values();
+
         $paginated = new LengthAwarePaginator(
-            $all->forPage($page, $perPage)->values(),
+            $resolvedItems,
             $all->count(),
             $perPage,
             $page,
@@ -275,10 +294,16 @@ class EventController extends Controller
             });
         }
 
-        $all = $events->get()->concat($sports->get());
+        // Fetch just the fields needed for sorting and pagination, mapping to stdClass to save memory
+        $eventsBase = collect($events->select('events.id', 'name', 'events.created_at', DB::raw("'event' as model_type"))->getQuery()->get());
+        $sportsBase = collect($sports->select('sports_programs.id', 'name', 'sports_programs.created_at', DB::raw("'sport' as model_type"))->getQuery()->get());
+
+        $all = $eventsBase->concat($sportsBase);
 
         if ($request->has('sort_by') && ! empty($request->sort_by)) {
             $sortBy = Str::camel($request->sort_by);
+            // Fallback for standard created_at since stdClass property remains snake_case
+            $sortBy = $sortBy === 'createdAt' ? 'created_at' : $sortBy;
             $sortOrder = $request->input('sort_order', 'asc');
             $all = $sortOrder === 'desc' ? $all->sortByDesc($sortBy) : $all->sortBy($sortBy);
         } else {
@@ -288,8 +313,21 @@ class EventController extends Controller
         $perPage = (int) $request->input('per_page', 10);
         $page = (int) $request->input('page', 1);
 
+        $slice = $all->forPage($page, $perPage);
+
+        // Now load ONLY the full Eloquent models for the current page
+        $eventIds = $slice->where('model_type', 'event')->pluck('id');
+        $sportIds = $slice->where('model_type', 'sport')->pluck('id');
+
+        $fullEvents = $eventIds->isNotEmpty() ? Event::whereIn('id', $eventIds)->get()->keyBy('id') : collect();
+        $fullSports = $sportIds->isNotEmpty() ? SportsProgram::whereIn('id', $sportIds)->get()->keyBy('id') : collect();
+
+        $resolvedItems = $slice->map(function ($item) use ($fullEvents, $fullSports) {
+            return $item->model_type === 'event' ? $fullEvents->get($item->id) : $fullSports->get($item->id);
+        })->filter()->values();
+
         $paginated = new LengthAwarePaginator(
-            $all->forPage($page, $perPage)->values(),
+            $resolvedItems,
             $all->count(),
             $perPage,
             $page,

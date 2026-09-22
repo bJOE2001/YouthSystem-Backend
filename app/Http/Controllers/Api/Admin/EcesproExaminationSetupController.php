@@ -136,4 +136,31 @@ class EcesproExaminationSetupController extends Controller
         }
         return response()->json(['message' => 'Exam marked as done successfully.']);
     }
+
+    public function destroy($id)
+    {
+        $setup = \App\Models\EcesproExaminationSetup::findOrFail($id);
+        
+        $hasEnabledBatch = \App\Models\EcesproExamBatch::where('is_exam_enabled', true)
+            ->whereHas('examinations', function ($q) use ($setup) {
+                $q->whereHas('application', function ($appQ) use ($setup) {
+                    $appQ->where('ecespro_program_id', $setup->ecespro_program_id);
+                });
+            })->exists();
+            
+        if ($hasEnabledBatch) {
+            return response()->json(['message' => 'Cannot remove setup. The examination is currently enabled for a batch under this program. Please close the online exam first.'], 400);
+        }
+        
+        $hasStartedExam = \App\Models\EcesproExamination::whereHas('application', function ($q) use ($setup) {
+            $q->where('ecespro_program_id', $setup->ecespro_program_id);
+        })->whereNotNull('started_at')->exists();
+        
+        if ($hasStartedExam) {
+            return response()->json(['message' => 'Cannot remove setup. Applicants have already started or completed their exams.'], 400);
+        }
+
+        $setup->delete();
+        return response()->json(['message' => 'Examination setup removed successfully']);
+    }
 }

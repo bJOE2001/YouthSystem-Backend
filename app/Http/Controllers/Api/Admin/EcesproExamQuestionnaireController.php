@@ -18,12 +18,9 @@ class EcesproExamQuestionnaireController extends Controller
         $paginated = $query->orderBy('created_at', 'desc')->paginate($request->input('per_page', 10));
         
         $paginated->getCollection()->transform(function ($questionnaire) {
-            $questionnaire->is_locked = \App\Models\EcesproExamBatch::where('is_exam_enabled', true)
-                ->whereHas('examinations.application.program', function ($query) use ($questionnaire) {
-                    $query->where('status', '!=', 'Exam Completed')
-                          ->whereHas('examinationSetup', function($q2) use ($questionnaire) {
-                              $q2->where('questionnaire_id', $questionnaire->id);
-                          });
+            $questionnaire->is_locked = \App\Models\EcesproExamination::where('status', 'Pending')
+                ->whereHas('application.program.examinationSetup', function ($query) use ($questionnaire) {
+                    $query->where('questionnaire_id', $questionnaire->id);
                 })->exists();
             return $questionnaire;
         });
@@ -66,11 +63,12 @@ class EcesproExamQuestionnaireController extends Controller
         $questionnaire = EcesproExamQuestionnaire::findOrFail($id);
         
         $request->validate([
-            'type' => 'required|in:multiple_choice,fill_in_blank,essay,true_false',
+            'type' => 'required|in:multiple_choice,fill_in_blank,essay,true_false,modified_true_false',
             'question_text' => 'required|string',
             'allow_multiple_answers' => 'boolean',
             'choices' => 'array',
             'points' => 'integer|min:1',
+            'correct_answer_text' => 'nullable|string',
         ]);
 
         $image_path = null;
@@ -114,11 +112,12 @@ class EcesproExamQuestionnaireController extends Controller
         $question = $questionnaire->questions()->findOrFail($question_id);
         
         $request->validate([
-            'type' => 'required|in:multiple_choice,fill_in_blank,essay,true_false',
+            'type' => 'required|in:multiple_choice,fill_in_blank,essay,true_false,modified_true_false',
             'question_text' => 'required|string',
             'points' => 'integer|min:1',
             'allow_multiple_answers' => 'boolean',
             'choices' => 'array',
+            'correct_answer_text' => 'nullable|string'
         ]);
 
         $image_path = $question->image_path;
@@ -134,17 +133,34 @@ class EcesproExamQuestionnaireController extends Controller
             'points' => $request->points ?? 1,
             'allow_multiple_answers' => $request->allow_multiple_answers ?? false,
             'image_path' => $image_path,
+            'correct_answer_text' => $request->correct_answer_text,
         ]);
 
         if ($request->has('choices')) {
-            $question->choices()->delete();
+            $existingIds = [];
             foreach ($request->choices as $choiceData) {
                 $choice = is_string($choiceData) ? json_decode($choiceData, true) : $choiceData;
                 if ($choice) {
-                    $question->choices()->create([
-                        'choice_text' => $choice['choice_text'],
-                        'is_correct' => $choice['is_correct'] ?? false,
-                    ]);
+                    if (isset($choice['id'])) {
+                        $question->choices()->where('id', $choice['id'])->update([
+                            'choice_text' => $choice['choice_text'],
+                            'is_correct' => $choice['is_correct'] ?? false,
+                        ]);
+                        $existingIds[] = $choice['id'];
+                    } else {
+                        $newChoice = $question->choices()->create([
+                            'choice_text' => $choice['choice_text'],
+                            'is_correct' => $choice['is_correct'] ?? false,
+                        ]);
+                        $existingIds[] = $newChoice->id;
+                    }
+                }
+            }
+            $choicesToDelete = $question->choices()->whereNotIn('id', $existingIds)->get();
+            foreach ($choicesToDelete as $choiceToDelete) {
+                $hasAnswers = \App\Models\EcesproApplicantExamAnswer::where('answer_choice_id', $choiceToDelete->id)->exists();
+                if (!$hasAnswers) {
+                    $choiceToDelete->delete();
                 }
             }
         }
@@ -152,4 +168,10 @@ class EcesproExamQuestionnaireController extends Controller
         return response()->json($question->load('choices'), 200);
     }
 }
+
+
+
+
+
+
 

@@ -94,9 +94,31 @@ class EcesproContractBatchController extends Controller
      */
     public function destroy(EcesproContractBatch $ecesproContractBatch)
     {
+
+        if ($ecesproContractBatch->status === 'Contract Completed') {
+            return response()->json(['message' => 'Cannot delete a completed contract signing batch.'], 403);
+        }
+
+        $hasNonPending = $ecesproContractBatch->contracts()->where('status', '!=', 'Pending')->exists();
+        if ($hasNonPending) {
+            return response()->json(['message' => 'Cannot delete batch because some applicants already have a contract result.'], 403);
+        }
+
+        $appIds = $ecesproContractBatch->contracts()->pluck('ecespro_application_id');
+        \App\Models\EcesproApplication::whereIn('id', $appIds)->update(['application_status' => 'Qualified for Contract']);
+
         $ecesproContractBatch->contracts()->delete();
         $ecesproContractBatch->delete();
 
         return response()->noContent();
     }
+
+    public function markAsComplete($id)
+    {
+        $batch = \App\Models\EcesproContractBatch::findOrFail($id);
+
+        $batch->update(['application_status' => 'Contract Completed']);
+        return response()->json(['message' => 'Contract signing batch marked as completed successfully.']);
+    }
 }
+
