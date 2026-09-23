@@ -6,6 +6,7 @@ use App\Models\EcesproApplication;
 use App\Models\EcesproExamBatch;
 use App\Models\EcesproExamination;
 use App\Notifications\EcesproApplicationStatusNotification;
+use App\Notifications\BatchCancelledNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -27,8 +28,8 @@ class EcesproExamBatchController extends Controller
         $validated = $request->validate([
             'batch_name' => 'required|string|max:255',
             'exam_date' => 'required|date',
-            'time' => 'nullable|string',
-            'venue' => 'nullable|string',
+            'time' => 'required|string',
+            'venue' => 'required|string',
             'status' => 'nullable|string',
             'applicants' => 'nullable|array',
             'applicants.*.applicantId' => 'required|exists:ecespro_applications,id',
@@ -73,6 +74,7 @@ class EcesproExamBatchController extends Controller
                     'ecespro_exam_batch_id' => $batch->id,
                     'ecespro_application_id' => $applicantId,
                     'status' => 'Pending',
+                    'attempts_used' => 0,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
@@ -113,14 +115,18 @@ class EcesproExamBatchController extends Controller
                     'venue' => $batch->venue,
                 ];
 
-                $app->user->notify(
-                    new EcesproApplicationStatusNotification(
-                        $app,
-                        'Exam Scheduled',
-                        $msg,
-                        $metadata
-                    )
-                );
+                try {
+                    $app->user->notify(
+                        new EcesproApplicationStatusNotification(
+                            $app,
+                            'Exam Scheduled',
+                            $msg,
+                            $metadata
+                        )
+                    );
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Failed to send notification: ' . $e->getMessage());
+                }
             }
 
             return $batch;
@@ -145,8 +151,8 @@ class EcesproExamBatchController extends Controller
         $validated = $request->validate([
             'batch_name' => 'sometimes|string|max:255',
             'exam_date' => 'sometimes|date',
-            'time' => 'nullable|string',
-            'venue' => 'nullable|string',
+            'time' => 'sometimes|required|string',
+            'venue' => 'sometimes|required|string',
             'status' => 'nullable|string',
         ]);
 
@@ -158,7 +164,7 @@ class EcesproExamBatchController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(EcesproExamBatch $ecesproExamBatch)
+    public function destroy(Request $request, EcesproExamBatch $ecesproExamBatch)
     {
         if ($ecesproExamBatch->status === 'Exam Completed') {
             return response()->json(['message' => 'Cannot delete a completed exam batch.'], 403);
@@ -173,7 +179,21 @@ class EcesproExamBatchController extends Controller
             return response()->json(['message' => 'Cannot delete batch because some applicants have already started or finished their exam.'], 403);
         }
 
+        $reason = $request->input('remarks') ?? 'No reason provided';
+        
         $appIds = $ecesproExamBatch->examinations()->pluck('ecespro_application_id');
+        $applications = \App\Models\EcesproApplication::with('user')->whereIn('id', $appIds)->get();
+        
+        foreach ($applications as $app) {
+            if ($app->user) {
+                $app->user->notify(new BatchCancelledNotification(
+                    $ecesproExamBatch->batch_name,
+                    'Exam',
+                    $reason
+                ));
+            }
+        }
+
         \App\Models\EcesproApplication::whereIn('id', $appIds)->update(['application_status' => 'Qualified for Exam']);
 
         $ecesproExamBatch->examinations()->delete();
@@ -328,7 +348,7 @@ class EcesproExamBatchController extends Controller
             return response()->json(['message' => 'Cannot mark as complete. ' . $ungradedEssaysCount . ' essay answer(s) are pending for grading.'], 400);
         }
 
-        $batch->update(['application_status' => 'Exam Completed']);
+        $batch->update(['status' => 'Exam Completed']);
         return response()->json(['message' => 'Exam batch marked as completed successfully.']);
     }
 }

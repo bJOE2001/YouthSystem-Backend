@@ -7,6 +7,7 @@ use App\Models\EcesproGrantRelease;
 use App\Models\EcesproGrantReleaseBatch;
 use App\Models\EcesproScholar;
 use App\Notifications\GrantReleaseNotification;
+use App\Notifications\BatchCancelledNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -80,9 +81,25 @@ class EcesproGrantReleaseController extends Controller
         return response()->json($batch);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $batch = EcesproGrantReleaseBatch::findOrFail($id);
+
+        $reason = $request->input('remarks') ?? 'No reason provided';
+        
+        $scholarIds = EcesproGrantRelease::where('batch_id', $batch->id)->pluck('scholar_id');
+        $scholars = EcesproScholar::with('user')->whereIn('id', $scholarIds)->get();
+        
+        foreach ($scholars as $scholar) {
+            if ($scholar->user) {
+                $scholar->user->notify(new BatchCancelledNotification(
+                    $batch->batch_name,
+                    'Grant Release',
+                    $reason
+                ));
+            }
+        }
+
         $batch->delete(); // Cascades grants due to DB foreign key cascade
 
         return response()->json(['message' => 'Batch deleted successfully']);

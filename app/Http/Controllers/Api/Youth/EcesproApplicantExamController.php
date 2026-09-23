@@ -80,6 +80,9 @@ class EcesproApplicantExamController extends Controller
         if ($totalPoints == 0) { $totalPoints = $questions->count(); }
         $earnedPoints = 0;
 
+        $insertData = [];
+        $now = now();
+
         foreach ($answers as $ans) {
             $question = $questions->get($ans['question_id']);
             if (!$question) continue;
@@ -99,24 +102,28 @@ class EcesproApplicantExamController extends Controller
                 $isCorrect = ($selectedChoiceIds === $correctChoiceIds);
 
                 foreach ($selectedChoiceIds as $choiceId) {
-                    EcesproApplicantExamAnswer::create([
+                    $insertData[] = [
                         'ecespro_examination_id' => $exam->id,
                         'question_id' => $question->id,
                         'answer_choice_id' => $choiceId,
-                        'is_correct' => in_array($choiceId, $correctChoiceIds)
-                    ]);
+                        'is_correct' => in_array($choiceId, $correctChoiceIds),
+                        'created_at' => $now,
+                        'updated_at' => $now
+                    ];
                 }
             } elseif ($question->type === 'fill_in_blank') {
                 $applicantText = trim($ans['answer_text'] ?? '');
                 $correctText = trim($question->correct_answer_text ?? '');
                 $isCorrect = (strtolower($applicantText) === strtolower($correctText));
 
-                EcesproApplicantExamAnswer::create([
+                $insertData[] = [
                     'ecespro_examination_id' => $exam->id,
                     'question_id' => $question->id,
                     'answer_text' => $applicantText,
-                    'is_correct' => $isCorrect
-                ]);
+                    'is_correct' => $isCorrect,
+                    'created_at' => $now,
+                    'updated_at' => $now
+                ];
             } elseif ($question->type === 'modified_true_false') {
                 $selectedChoiceIds = $ans['selected_choices'] ?? [];
                 if (!is_array($selectedChoiceIds)) {
@@ -146,19 +153,25 @@ class EcesproApplicantExamController extends Controller
 
                 $applicantText = trim($ans['answer_text'] ?? '');
                 foreach ($selectedChoiceIds as $choiceId) {
-                    EcesproApplicantExamAnswer::create([
+                    $insertData[] = [
                         'ecespro_examination_id' => $exam->id,
                         'question_id' => $question->id,
                         'answer_choice_id' => $choiceId,
                         'answer_text' => $applicantText,
-                        'is_correct' => $isCorrect
-                    ]);
+                        'is_correct' => $isCorrect,
+                        'created_at' => $now,
+                        'updated_at' => $now
+                    ];
                 }
             }
 
             if ($isCorrect) {
                 $earnedPoints += $question->points ?? 1;
             }
+        }
+
+        if (!empty($insertData)) {
+            EcesproApplicantExamAnswer::insert($insertData);
         }
 
         $percentage = $totalPoints > 0 ? ($earnedPoints / $totalPoints) * 100 : 0;

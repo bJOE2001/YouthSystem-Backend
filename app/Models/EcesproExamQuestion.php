@@ -19,8 +19,7 @@ class EcesproExamQuestion extends Model
     ];
 
     protected $casts = [
-        'allow_multiple_answers',
-        'correct_answer_text' => 'boolean',
+        'allow_multiple_answers' => 'boolean',
     ];
 
     public function questionnaire()
@@ -33,5 +32,6 @@ class EcesproExamQuestion extends Model
         return $this->hasMany(EcesproExamAnswerChoice::class, 'question_id');
     }
 }
+
 
 

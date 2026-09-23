@@ -81,6 +81,8 @@ class EcesproExamQuestionnaireController extends Controller
             'question_text' => $request->question_text,
             'allow_multiple_answers' => $request->allow_multiple_answers ?? false,
             'image_path' => $image_path,
+            'points' => $request->points ?? 1,
+            'correct_answer_text' => $request->correct_answer_text,
         ]);
 
         if ($request->has('choices')) {
@@ -168,6 +170,7 @@ class EcesproExamQuestionnaireController extends Controller
         return response()->json($question->load('choices'), 200);
     }
 }
+
 
 
 

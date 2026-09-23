@@ -25,11 +25,12 @@ class EcesproExaminationSetupController extends Controller
             'passing_percentage' => 'numeric|min:0|max:100',
             'shuffle_questions' => 'boolean',
             'time_limit_minutes' => 'integer|min:1',
+            'attempts_allowed' => 'integer|min:1',
         ]);
 
         $setup = EcesproExaminationSetup::updateOrCreate(
             ['ecespro_program_id' => $request->ecespro_program_id],
-            $request->only('questionnaire_id', 'passing_percentage', 'shuffle_questions', 'time_limit_minutes')
+            $request->only('questionnaire_id', 'passing_percentage', 'shuffle_questions', 'time_limit_minutes', 'attempts_allowed')
         );
 
         // Recalculate statuses for completed exams based on the new passing percentage

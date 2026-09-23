@@ -16,6 +16,7 @@ class EcesproExamination extends Model
         'status',
         'started_at',
         'completed_at',
+        'attempts_used',
         'time_extension_minutes'
     ];
 

@@ -54,7 +54,7 @@ class YouthEcesproController extends Controller
      */
     public function myApplication(Request $request)
     {
-        $application = EcesproApplication::with(['examination.batch', 'interview.batch', 'contract'])
+        $application = EcesproApplication::with(['program.examinationSetup', 'examination.batch', 'interview.batch', 'contract'])
             ->where('user_id', $request->user()->id)
             ->latest()
             ->first();
