@@ -363,21 +363,59 @@ class SportsProgramController extends Controller
         }
 
         $formattedTeammates = [];
+
+        // Pre-fetch all teammate user records to avoid N+1 queries
+        $memberUserIdsToFetch = [];
+        $memberEmailsToFetch = [];
+        foreach ($rawTeammates as $t) {
+            $memberUserId = $t['user_id'] ?? $t['id'] ?? null;
+            if ($memberUserId) $memberUserIdsToFetch[] = $memberUserId;
+            if (!empty($t['email'])) $memberEmailsToFetch[] = $t['email'];
+        }
+
+        $fetchedUsersById = [];
+        $fetchedUsersByEmail = [];
+        if (!empty($memberUserIdsToFetch) || !empty($memberEmailsToFetch)) {
+            $usersQuery = User::query();
+            
+            if (!empty($memberUserIdsToFetch)) {
+                $usersQuery->where(function($q) use ($memberUserIdsToFetch) {
+                    $q->whereIn('id', $memberUserIdsToFetch)
+                      ->orWhereHas('youthProfile', function ($ypq) use ($memberUserIdsToFetch) {
+                          $ypq->whereIn('id', $memberUserIdsToFetch);
+                      });
+                });
+            }
+            if (!empty($memberEmailsToFetch)) {
+                if (!empty($memberUserIdsToFetch)) {
+                    $usersQuery->orWhereIn('email', $memberEmailsToFetch);
+                } else {
+                    $usersQuery->whereIn('email', $memberEmailsToFetch);
+                }
+            }
+            
+            $allFetchedUsers = $usersQuery->with('youthProfile')->get();
+            foreach ($allFetchedUsers as $fu) {
+                $fetchedUsersById[$fu->id] = $fu;
+                if ($fu->youthProfile && $fu->youthProfile->id) {
+                    $fetchedUsersById[$fu->youthProfile->id] = $fu;
+                }
+                if (!empty($fu->email)) {
+                    $fetchedUsersByEmail[$fu->email] = $fu;
+                }
+            }
+        }
+
         foreach ($rawTeammates as $t) {
             $tRole = $t['role'] ?? 'Member';
             $memberUserId = $t['user_id'] ?? $t['id'] ?? null;
 
             $memberUser = null;
             if ($memberUserId) {
-                $memberUser = User::find($memberUserId);
-                if (! $memberUser) {
-                    $memberUser = User::whereHas('youthProfile', function ($q) use ($memberUserId) {
-                        $q->where('id', $memberUserId);
-                    })->first();
-                }
+                $memberUser = $fetchedUsersById[$memberUserId] ?? null;
             }
             if (! $memberUser && ! empty($t['email'])) {
-                $memberUser = User::where('email', $t['email'])->first();
+                $memberUser = $fetchedUsersByEmail[$t['email']] ?? null;
             }
 
             $realMemberUserId = $memberUser ? $memberUser->id : $memberUserId;
@@ -408,29 +446,27 @@ class SportsProgramController extends Controller
         $allRoster = array_merge([$captainInfo], $formattedTeammates);
         $encodedRoster = json_encode($allRoster);
 
-        // 1. Attach Team Leader
-        $leaderUser->joinedSportsPrograms()->syncWithoutDetaching([
-            $sportsProgram->id => [
-                'team_name' => $teamName,
-                'teammates' => $encodedRoster,
-            ],
-        ]);
+        // Gather all users to sync to the sports program
+        $syncData = [];
+        $pivotAttributes = [
+            'team_name' => $teamName,
+            'teammates' => $encodedRoster,
+        ];
+        
+        $syncData[$leaderUser->id] = $pivotAttributes;
 
-        // 2. Automatically register / attach all added teammates who have an account
         foreach ($formattedTeammates as $member) {
             $memberUserId = $member['user_id'] ?? null;
             if ($memberUserId && $memberUserId != $leaderUser->id) {
-                $memberUser = User::find($memberUserId);
-                if ($memberUser) {
-                    $memberUser->joinedSportsPrograms()->syncWithoutDetaching([
-                        $sportsProgram->id => [
-                            'team_name' => $teamName,
-                            'teammates' => $encodedRoster,
-                        ],
-                    ]);
+                // If they are in the fetched users array, they exist
+                if (isset($fetchedUsersById[$memberUserId])) {
+                    $syncData[$memberUserId] = $pivotAttributes;
                 }
             }
         }
+
+        // Consolidated sync without detaching
+        $sportsProgram->participants()->syncWithoutDetaching($syncData);
 
         return new UnifiedEventResource($sportsProgram);
     }

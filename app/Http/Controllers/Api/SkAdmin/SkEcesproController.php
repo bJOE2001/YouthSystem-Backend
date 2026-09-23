@@ -220,7 +220,7 @@ class SkEcesproController extends Controller
 
             'user_id' => $request->user()->id,
             'ecespro_program_id' => $program->id,
-            'application_status' => 'Submitted',
+            'application_status' => 'Under Review',
             'submitted_requirements' => $submittedRequirements,
         ];
 
@@ -565,3 +565,4 @@ class SkEcesproController extends Controller
         ]);
     }
 }
+

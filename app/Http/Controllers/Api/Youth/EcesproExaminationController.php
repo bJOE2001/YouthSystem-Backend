@@ -43,7 +43,12 @@ class EcesproExaminationController extends Controller
 
         // Check if already completed
         if ($examination->status != 'Pending' && $examination->status != 'In Progress') {
-            return response()->json(['message' => 'You have already completed this examination.'], 403);
+            return response()->json([
+                'message' => 'You have already completed this examination.',
+                'attempts_used' => $examination->attempts_used,
+                'attempts_allowed' => $setup->attempts_allowed,
+                'can_retake' => $examination->attempts_used < $setup->attempts_allowed
+            ], 403);
         }
 
         // Mark as started if not yet
@@ -63,6 +68,7 @@ class EcesproExaminationController extends Controller
                 'points' => $q->points,
                 'image_path' => $q->image_path,
                 'allow_multiple_answers' => $q->allow_multiple_answers,
+                'max_answers' => $q->choices->where('is_correct', true)->count(),
                 'choices' => $q->choices->map(function ($c) {
                     return [
                         'id' => $c->id,
@@ -80,7 +86,7 @@ class EcesproExaminationController extends Controller
         return response()->json([
             'examination' => [
                 'id' => $examination->id,
-                'started_at' => $examination->started_at,
+                'started_at' => $examination->started_at ? \Carbon\Carbon::parse($examination->started_at)->toIso8601String() : null,
                 'time_extension_minutes' => $examination->time_extension_minutes,
             ],
             'setup' => [
@@ -97,6 +103,43 @@ class EcesproExaminationController extends Controller
     /**
      * Submit answers and auto-grade.
      */
+    public function retake(Request $request, $id)
+    {
+        $user = $request->user();
+        
+        $examination = EcesproExamination::with([
+            'application.program.examinationSetup'
+        ])->findOrFail($id);
+
+        if ($examination->application->user_id != $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $setup = $examination->application->program->examinationSetup;
+        if ($examination->attempts_used >= $setup->attempts_allowed) {
+            return response()->json(['message' => 'You have consumed all your attempts.'], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            EcesproApplicantExamAnswer::where('ecespro_examination_id', $examination->id)->delete();
+
+            $examination->update([
+                'status' => 'Pending',
+                'score' => null,
+                'started_at' => null,
+                'completed_at' => null,
+            ]);
+
+            DB::commit();
+            return response()->json(['message' => 'Exam reset successfully.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Retake exam error: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to retake exam.'], 500);
+        }
+    }
+
     public function submit(Request $request, $id)
     {
         $user = $request->user();
@@ -129,6 +172,9 @@ class EcesproExaminationController extends Controller
             // Delete previous answers just in case of multiple submissions during 'In Progress'
             EcesproApplicantExamAnswer::where('ecespro_examination_id', $examination->id)->delete();
 
+            $insertData = [];
+            $now = now();
+
             foreach ($payload as $ans) {
                 $qId = $ans['question_id'] ?? null;
                 if (!$qId || !isset($questions[$qId])) continue;
@@ -142,30 +188,16 @@ class EcesproExaminationController extends Controller
 
                 if ($type === 'essay') {
                     $hasEssay = true;
-                    EcesproApplicantExamAnswer::create([
+                    $insertData[] = [
                         'ecespro_examination_id' => $examination->id,
                         'question_id' => $qId,
+                        'answer_choice_id' => null,
                         'answer_text' => $ans['answer_text'] ?? null,
-                        'is_correct' => false // Set to false instead of null since DB column is not nullable
-                    ]);
+                        'is_correct' => false,
+                        'created_at' => $now,
+                        'updated_at' => $now
+                    ];
                 } 
-                else if ($type === 'fill_in_blank') {
-                    $correctChoice = $question->choices->firstWhere('is_correct', true);
-                    $userAnswer = strtolower(trim($ans['answer_text'] ?? ''));
-                    $correctAnswer = strtolower(trim($correctChoice ? $correctChoice->choice_text : ''));
-                    
-                    if ($userAnswer === $correctAnswer && !empty($correctAnswer)) {
-                        $isCorrect = true;
-                        $earnedPoints += $pointsForQuestion;
-                    }
-
-                    EcesproApplicantExamAnswer::create([
-                        'ecespro_examination_id' => $examination->id,
-                        'question_id' => $qId,
-                        'answer_text' => $ans['answer_text'] ?? null,
-                        'is_correct' => $isCorrect
-                    ]);
-                }
                 else if ($type === 'multiple_choice' || $type === 'true_false') {
                     $selectedIds = $ans['selected_choices'] ?? [];
                     if (!is_array($selectedIds)) {
@@ -183,23 +215,85 @@ class EcesproExaminationController extends Controller
                     }
 
                     if (empty($selectedIds)) {
-                        EcesproApplicantExamAnswer::create([
+                        $insertData[] = [
                             'ecespro_examination_id' => $examination->id,
                             'question_id' => $qId,
                             'answer_choice_id' => null,
-                            'is_correct' => false
-                        ]);
+                            'answer_text' => null,
+                            'is_correct' => false,
+                            'created_at' => $now,
+                            'updated_at' => $now
+                        ];
                     } else {
                         foreach ($selectedIds as $sId) {
-                            EcesproApplicantExamAnswer::create([
+                            $insertData[] = [
                                 'ecespro_examination_id' => $examination->id,
                                 'question_id' => $qId,
                                 'answer_choice_id' => $sId,
-                                'is_correct' => $isCorrect
-                            ]);
+                                'answer_text' => null,
+                                'is_correct' => $isCorrect,
+                                'created_at' => $now,
+                                'updated_at' => $now
+                            ];
                         }
                     }
                 }
+                else if ($type === 'fill_in_blank') {
+                    $userAnswerText = strtolower(trim($ans['answer_text'] ?? ''));
+                    $correctAnswerText = strtolower(trim($question->correct_answer_text ?? ''));
+                    
+                    if ($userAnswerText !== '' && $userAnswerText === $correctAnswerText) {
+                        $isCorrect = true;
+                        $earnedPoints += $pointsForQuestion;
+                    }
+
+                    $insertData[] = [
+                        'ecespro_examination_id' => $examination->id,
+                        'question_id' => $qId,
+                        'answer_choice_id' => null,
+                        'answer_text' => $ans['answer_text'] ?? null,
+                        'is_correct' => $isCorrect,
+                        'created_at' => $now,
+                        'updated_at' => $now
+                    ];
+                }
+                else if ($type === 'modified_true_false') {
+                    $selectedIds = $ans['selected_choices'] ?? [];
+                    if (!is_array($selectedIds)) {
+                        $selectedIds = [$selectedIds];
+                    }
+
+                    $selectedChoiceId = !empty($selectedIds) ? $selectedIds[0] : null;
+                    $correctChoice = $question->choices->where('is_correct', true)->first();
+
+                    if ($correctChoice && $selectedChoiceId == $correctChoice->id) {
+                        if (strtolower(trim($correctChoice->choice_text)) === 'false') {
+                            $userAnswerText = strtolower(trim($ans['answer_text'] ?? ''));
+                            $correctAnswerText = strtolower(trim($question->correct_answer_text ?? ''));
+                            if ($userAnswerText !== '' && $userAnswerText === $correctAnswerText) {
+                                $isCorrect = true;
+                                $earnedPoints += $pointsForQuestion;
+                            }
+                        } else {
+                            $isCorrect = true;
+                            $earnedPoints += $pointsForQuestion;
+                        }
+                    }
+
+                    $insertData[] = [
+                        'ecespro_examination_id' => $examination->id,
+                        'question_id' => $qId,
+                        'answer_choice_id' => $selectedChoiceId,
+                        'answer_text' => $ans['answer_text'] ?? null,
+                        'is_correct' => $isCorrect,
+                        'created_at' => $now,
+                        'updated_at' => $now
+                    ];
+                }
+            }
+
+            if (!empty($insertData)) {
+                EcesproApplicantExamAnswer::insert($insertData);
             }
 
             // Calculate status
@@ -218,6 +312,7 @@ class EcesproExaminationController extends Controller
                 'score' => $hasEssay ? $earnedPoints : $earnedPoints . '/' . $totalPoints,
                 'status' => $status,
                 'completed_at' => $hasEssay ? null : now(),
+                'attempts_used' => $examination->attempts_used + 1,
             ]);
             
             if ($status === 'Passed') {
@@ -247,6 +342,9 @@ class EcesproExaminationController extends Controller
         }
     }
 }
+
+
+
 
 
 

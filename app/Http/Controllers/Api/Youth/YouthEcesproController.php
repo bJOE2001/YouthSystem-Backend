@@ -54,7 +54,7 @@ class YouthEcesproController extends Controller
      */
     public function myApplication(Request $request)
     {
-        $application = EcesproApplication::with(['examination.batch', 'interview.batch', 'contract'])
+        $application = EcesproApplication::with(['program.examinationSetup', 'examination.batch', 'interview.batch', 'contract'])
             ->where('user_id', $request->user()->id)
             ->latest()
             ->first();
@@ -220,7 +220,7 @@ class YouthEcesproController extends Controller
 
             'user_id' => $request->user()->id,
             'ecespro_program_id' => $program->id,
-            'application_status' => 'Submitted',
+            'application_status' => 'Under Review',
             'submitted_requirements' => $submittedRequirements,
         ];
 
@@ -673,3 +673,4 @@ class YouthEcesproController extends Controller
         ]);
     }
 }
+

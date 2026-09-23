@@ -6,6 +6,7 @@ use App\Models\EcesproApplication;
 use App\Models\EcesproContract;
 use App\Models\EcesproContractBatch;
 use App\Notifications\EcesproApplicationStatusNotification;
+use App\Notifications\BatchCancelledNotification;
 use Illuminate\Http\Request;
 
 class EcesproContractBatchController extends Controller
@@ -26,8 +27,8 @@ class EcesproContractBatchController extends Controller
         $validated = $request->validate([
             'batch_name' => 'required|string|max:255',
             'signing_date' => 'required|date',
-            'time' => 'nullable|string',
-            'venue' => 'nullable|string',
+            'time' => 'required|string',
+            'venue' => 'required|string',
             'status' => 'nullable|string',
             'applicants' => 'nullable|array',
             'applicants.*.applicantId' => 'required|exists:ecespro_applications,id',
@@ -41,21 +42,32 @@ class EcesproContractBatchController extends Controller
             'status' => $validated['status'] ?? null,
         ]);
 
-        if (isset($validated['applicants'])) {
+        if (isset($validated['applicants']) && !empty($validated['applicants'])) {
+            $now = now();
+            $insertData = [];
+            $applicantIds = [];
+
             foreach ($validated['applicants'] as $applicant) {
-                EcesproContract::create([
+                $insertData[] = [
                     'ecespro_contract_batch_id' => $batch->id,
                     'ecespro_application_id' => $applicant['applicantId'],
                     'status' => 'Pending',
-                ]);
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+                $applicantIds[] = $applicant['applicantId'];
+            }
 
-                $app = EcesproApplication::find($applicant['applicantId']);
-                if ($app) {
-                    $app->update(['application_status' => 'Contract Scheduled']);
-                    if ($user = $app->user) {
-                        $msg = "Your ECESPRO Contract Signing & Orientation has been scheduled! Date: {$batch->signing_date}, Time: {$batch->time}, Venue: {$batch->venue} (Batch: {$batch->batch_name}).";
-                        $user->notify(new EcesproApplicationStatusNotification($app, 'Contract Scheduled', $msg));
-                    }
+            EcesproContract::insert($insertData);
+
+            EcesproApplication::whereIn('id', $applicantIds)
+                ->update(['application_status' => 'Contract Scheduled']);
+
+            $applications = EcesproApplication::with('user')->whereIn('id', $applicantIds)->get();
+            foreach ($applications as $app) {
+                if ($user = $app->user) {
+                    $msg = "Your ECESPRO Contract Signing & Orientation has been scheduled! Date: {$batch->signing_date}, Time: {$batch->time}, Venue: {$batch->venue} (Batch: {$batch->batch_name}).";
+                    $user->notify(new EcesproApplicationStatusNotification($app, 'Contract Scheduled', $msg));
                 }
             }
         }
@@ -79,8 +91,8 @@ class EcesproContractBatchController extends Controller
         $validated = $request->validate([
             'batch_name' => 'sometimes|string|max:255',
             'signing_date' => 'sometimes|date',
-            'time' => 'nullable|string',
-            'venue' => 'nullable|string',
+            'time' => 'sometimes|required|string',
+            'venue' => 'sometimes|required|string',
             'status' => 'nullable|string',
         ]);
 
@@ -92,11 +104,47 @@ class EcesproContractBatchController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(EcesproContractBatch $ecesproContractBatch)
+    public function destroy(Request $request, EcesproContractBatch $ecesproContractBatch)
     {
+
+        if ($ecesproContractBatch->status === 'Contract Completed') {
+            return response()->json(['message' => 'Cannot delete a completed contract signing batch.'], 403);
+        }
+
+        $hasNonPending = $ecesproContractBatch->contracts()->where('status', '!=', 'Pending')->exists();
+        if ($hasNonPending) {
+            return response()->json(['message' => 'Cannot delete batch because some applicants already have a contract result.'], 403);
+        }
+
+        $reason = $request->input('remarks') ?? 'No reason provided';
+
+        $appIds = $ecesproContractBatch->contracts()->pluck('ecespro_application_id');
+        $applications = \App\Models\EcesproApplication::with('user')->whereIn('id', $appIds)->get();
+
+        foreach ($applications as $app) {
+            if ($app->user) {
+                $app->user->notify(new BatchCancelledNotification(
+                    $ecesproContractBatch->batch_name,
+                    'Contract Signing',
+                    $reason
+                ));
+            }
+        }
+
+        \App\Models\EcesproApplication::whereIn('id', $appIds)->update(['application_status' => 'Qualified for Contract']);
+
         $ecesproContractBatch->contracts()->delete();
         $ecesproContractBatch->delete();
 
         return response()->noContent();
     }
+
+    public function markAsComplete($id)
+    {
+        $batch = \App\Models\EcesproContractBatch::findOrFail($id);
+
+        $batch->update(['status' => 'Contract Completed']);
+        return response()->json(['message' => 'Contract signing batch marked as completed successfully.']);
+    }
 }
+

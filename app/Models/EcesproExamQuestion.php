@@ -14,7 +14,8 @@ class EcesproExamQuestion extends Model
         'question_text',
         'points',
         'image_path',
-        'allow_multiple_answers'
+        'allow_multiple_answers',
+        'correct_answer_text'
     ];
 
     protected $casts = [
@@ -31,4 +32,6 @@ class EcesproExamQuestion extends Model
         return $this->hasMany(EcesproExamAnswerChoice::class, 'question_id');
     }
 }
+
+
 

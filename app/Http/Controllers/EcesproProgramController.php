@@ -16,7 +16,7 @@ class EcesproProgramController extends Controller
      */
     public function index()
     {
-        return EcesproProgram::with('examinationSetup.questionnaire')
+        $programs = EcesproProgram::with('examinationSetup.questionnaire')
             ->withCount('applications')
             ->withCount(['applications as passed_count' => function ($query) {
                 $query->whereHas('examination', function ($q) {
@@ -30,6 +30,27 @@ class EcesproProgramController extends Controller
             }])
             ->orderBy('created_at', 'desc')
             ->get();
+
+        foreach ($programs as $program) {
+            $batchesCount = \App\Models\EcesproExamBatch::whereHas('examinations.application', function($q) use ($program) {
+                $q->where('ecespro_program_id', $program->id);
+            })->count();
+
+            $has_completed_batch = \App\Models\EcesproExamBatch::where('status', 'Exam Completed')
+                ->whereHas('examinations.application', function($q) use ($program) {
+                    $q->where('ecespro_program_id', $program->id);
+                })->exists();
+
+            $has_started_exam = \App\Models\EcesproExamination::whereHas('application', function($q) use ($program) {
+                $q->where('ecespro_program_id', $program->id);
+            })->whereNotNull('started_at')->exists();
+
+            $program->setAttribute('has_completed_batch', $has_completed_batch);
+            $program->setAttribute('batch_count', $batchesCount);
+            $program->setAttribute('has_started_exam', $has_started_exam);
+        }
+
+        return $programs;
     }
 
     /**
