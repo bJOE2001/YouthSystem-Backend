@@ -141,9 +141,27 @@ class EcesproContractBatchController extends Controller
 
     public function markAsComplete($id)
     {
-        $batch = \App\Models\EcesproContractBatch::findOrFail($id);
+        $batch = \App\Models\EcesproContractBatch::with('contracts.application.program')->findOrFail($id);
 
         $batch->update(['status' => 'Contract Completed']);
+
+        $programs = collect();
+        foreach ($batch->contracts as $contract) {
+            if ($contract->application && $contract->application->program) {
+                $programs->put($contract->application->program->id, $contract->application->program);
+            }
+        }
+
+        foreach ($programs as $program) {
+            $hasIncompleteBatches = \App\Models\EcesproContractBatch::whereHas('contracts.application', function ($query) use ($program) {
+                $query->where('ecespro_program_id', $program->id);
+            })->where('status', '!=', 'Contract Completed')->exists();
+
+            if (!$hasIncompleteBatches) {
+                $program->update(['status' => 'Closed']);
+            }
+        }
+
         return response()->json(['message' => 'Contract signing batch marked as completed successfully.']);
     }
 }

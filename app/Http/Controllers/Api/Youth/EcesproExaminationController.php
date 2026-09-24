@@ -153,8 +153,8 @@ class EcesproExaminationController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if ($examination->status === 'Passed' || $examination->status === 'Failed') {
-            return response()->json(['message' => 'Examination already submitted.'], 400);
+        if ($examination->status !== 'In Progress') {
+            return response()->json(['message' => 'Examination is not in progress or already submitted.'], 400);
         }
 
         $setup = $examination->application->program->examinationSetup;

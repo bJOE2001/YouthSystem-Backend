@@ -133,7 +133,7 @@ class EcesproExaminationSetupController extends Controller
         }
 
         if ($setup->program) {
-            $setup->program->update(['status' => 'Exam Completed']);
+            // Program status is not updated here.
         }
         return response()->json(['message' => 'Exam marked as done successfully.']);
     }
