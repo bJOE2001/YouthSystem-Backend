@@ -45,9 +45,17 @@ class EcesproProgramController extends Controller
                 $q->where('ecespro_program_id', $program->id);
             })->whereNotNull('started_at')->exists();
 
+            $incompleteBatchesCount = \App\Models\EcesproExamBatch::where('status', '!=', 'Exam Completed')
+                ->whereHas('examinations.application', function($q) use ($program) {
+                    $q->where('ecespro_program_id', $program->id);
+                })->count();
+
+            $all_exam_batches_completed = ($batchesCount > 0 && $incompleteBatchesCount === 0);
+
             $program->setAttribute('has_completed_batch', $has_completed_batch);
             $program->setAttribute('batch_count', $batchesCount);
             $program->setAttribute('has_started_exam', $has_started_exam);
+            $program->setAttribute('all_exam_batches_completed', $all_exam_batches_completed);
         }
 
         return $programs;
