@@ -18,19 +18,19 @@ class EcesproApplication extends Model
         // Educational Info
         'previous_grade_college_year_level', 'general_average', 'school_attended_to_enroll',
         'school_address', 'course_intended_to_enroll', 'type_of_school', 'school_year',
-        'school_citizenship', 'school', 'year_level', 'course', 'school_zip_code',
+        'school_citizenship', 'school', 'year_level', 'school_zip_code',
 
         // Father's Info
         'father_last_name', 'father_middle_name', 'father_first_name', 'father_address', 'father_occupation',
-        'father_educational_attainment',
+        'father_educational_attainment', 'father_status',
 
         // Mother's Info
-        'mother_first_name', 'mother_maiden_middle_name', 'mother_maiden_last_name', 'mother_occupation',
-        'mother_educational_attainment',
+        'mother_first_name', 'mother_maiden_middle_name', 'mother_maiden_last_name', 'mother_address', 'mother_occupation',
+        'mother_educational_attainment', 'mother_status',
 
         // Guardian's Info
-        'guardian_first_name', 'guardian_maiden_middle_name', 'guardian_maiden_last_name', 'guardian_occupation',
-        'guardian_educational_attainment',
+        'guardian_first_name', 'guardian_maiden_middle_name', 'guardian_maiden_last_name', 'guardian_address', 'guardian_occupation',
+        'guardian_educational_attainment', 'guardian_status',
 
         // Other Family Info
         'parents_guardian_total_income',
