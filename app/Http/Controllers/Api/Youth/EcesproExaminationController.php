@@ -42,7 +42,11 @@ class EcesproExaminationController extends Controller
         }
 
         // Check if already completed
-        if ($examination->status != 'Pending' && $examination->status != 'In Progress') {
+        // An exam is completed if status is Passed/Failed/Completed, OR if status is Pending but it already has a started_at (waiting for essay grading)
+        $isCompleted = ($examination->status !== 'Pending' && $examination->status !== 'In Progress') || 
+                       ($examination->status === 'Pending' && $examination->started_at !== null);
+                       
+        if ($isCompleted) {
             return response()->json([
                 'message' => 'You have already completed this examination.',
                 'attempts_used' => $examination->attempts_used,
