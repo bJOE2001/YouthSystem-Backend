@@ -11,14 +11,13 @@ class EcesproApplication extends Model
         'ecespro_program_id',
 
         // Personal Info
-        'first_name', 'middle_name', 'last_name', 'suffix', 'gender', 'birthdate', 'age',
+        'first_name', 'middle_name', 'last_name', 'suffix', 'birthdate', 'age',
         'place_of_birth', 'sex', 'civil_status', 'citizenship', 'personal_zip_code', 'ip_or_muslim',
         'type_of_disability', 'mobile_number', 'email_address', 'permanent_mailing_address',
 
         // Educational Info
-        'previous_grade_college_year_level', 'general_average', 'school_attended_to_enroll',
+        'year_level', 'general_average', 'school_intended_to_enroll',
         'school_address', 'course_intended_to_enroll', 'type_of_school', 'school_year',
-        'school_citizenship', 'school', 'year_level', 'school_zip_code',
 
         // Father's Info
         'father_last_name', 'father_middle_name', 'father_first_name', 'father_address', 'father_occupation',

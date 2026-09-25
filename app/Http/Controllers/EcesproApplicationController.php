@@ -44,6 +44,10 @@ class EcesproApplicationController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge([
+            'user_id' => auth()->id(),
+        ]);
+
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
             'ecespro_program_id' => 'required|exists:ecespro_programs,id',
@@ -53,7 +57,6 @@ class EcesproApplicationController extends Controller
             'middle_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:50',
-            'gender' => 'required|string|max:50',
             'birthdate' => 'required|string|max:255',
             'age' => 'required|string|max:50',
             'place_of_birth' => 'required|string|max:255',
@@ -68,17 +71,13 @@ class EcesproApplicationController extends Controller
             'permanent_mailing_address' => 'required|string|max:1000',
 
             // Educational Info
-            'previous_grade_college_year_level' => 'required|string|max:255',
+            'year_level' => 'required|string|max:255',
             'general_average' => 'required|string|max:50',
-            'school_attended_to_enroll' => 'required|string|max:255',
+            'school_intended_to_enroll' => 'required|string|max:255',
             'school_address' => 'required|string|max:1000',
             'course_intended_to_enroll' => 'required|string|max:255',
             'type_of_school' => 'required|string|max:100',
             'school_year' => 'required|string|max:50',
-            'school_citizenship' => 'nullable|string|max:100',
-            'school' => 'nullable|string|max:255',
-            'year_level' => 'nullable|string|max:100',
-            'school_zip_code' => 'nullable|string|max:50',
 
             // Father's Info
             'father_status' => 'required|string|max:50',
@@ -149,7 +148,7 @@ class EcesproApplicationController extends Controller
                 [
                     'user_id' => $ecesproApplication->user_id,
                     'scholar_no' => 'PENDING',
-                    'school' => $ecesproApplication->school_intended_to_enroll ?? $ecesproApplication->school_attended_to_enroll ?? 'N/A',
+                    'school' => $ecesproApplication->school_intended_to_enroll ?? 'N/A',
                     'course' => $ecesproApplication->course_intended_to_enroll ?? 'N/A',
                     'status' => 'Active',
                     'compliance_status' => 'Compliant',
