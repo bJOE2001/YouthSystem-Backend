@@ -108,7 +108,7 @@ class EcesproExaminationController extends Controller
             // Reset application status
             if ($ecesproExamination->application) {
                 $ecesproExamination->application->update([
-                    'application_status' => 'For Examination'
+                    'application_status' => 'Exam Scheduled'
                 ]);
             }
             
