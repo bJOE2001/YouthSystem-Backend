@@ -7,10 +7,12 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class UnifiedEventResource extends JsonResource
 {
     protected static array $userJoinedEvents = [];
+
     protected static array $userJoinedSports = [];
 
     public static function clearCache(): void
@@ -52,10 +54,10 @@ class UnifiedEventResource extends JsonResource
                 $attendedAt = $this->pivot->attended_at ? Carbon::parse($this->pivot->attended_at)->toISOString() : null;
             } else {
                 $userKey = (string) $user->id;
-                
+
                 if ($isEvent) {
-                    if (!isset(static::$userJoinedEvents[$userKey])) {
-                        static::$userJoinedEvents[$userKey] = \Illuminate\Support\Facades\DB::table('event_user')
+                    if (! isset(static::$userJoinedEvents[$userKey])) {
+                        static::$userJoinedEvents[$userKey] = DB::table('event_user')
                             ->where('user_id', $user->id)
                             ->get()
                             ->keyBy('event_id')
@@ -65,8 +67,8 @@ class UnifiedEventResource extends JsonResource
                         $pivotRecord = static::$userJoinedEvents[$userKey][$this->id];
                     }
                 } else {
-                    if (!isset(static::$userJoinedSports[$userKey])) {
-                        static::$userJoinedSports[$userKey] = \Illuminate\Support\Facades\DB::table('sports_program_user')
+                    if (! isset(static::$userJoinedSports[$userKey])) {
+                        static::$userJoinedSports[$userKey] = DB::table('sports_program_user')
                             ->where('user_id', $user->id)
                             ->get()
                             ->keyBy('sports_program_id')
@@ -155,8 +157,8 @@ class UnifiedEventResource extends JsonResource
             'can_download' => $canDownloadCertificate,
             'certificateUrl' => $certDownloadUrl,
             'certificate_url' => $certDownloadUrl,
-            'shareUrl' => rtrim(config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost'), '/')."/#/activities/{$unifiedId}",
-            'share_url' => rtrim(config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost'), '/')."/#/activities/{$unifiedId}",
+            'shareUrl' => rtrim(config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost'), '/')."/activities/{$unifiedId}",
+            'share_url' => rtrim(config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost'), '/')."/activities/{$unifiedId}",
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
         ];
