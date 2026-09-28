@@ -44,7 +44,7 @@ class EventResource extends JsonResource
         $canDownloadCertificate = (bool) ($attended && $hasCertificate && $isCompleted);
 
         $frontendUrl = config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost');
-        $shareUrl = rtrim($frontendUrl, '/')."/#/activities/event_{$this->id}";
+        $shareUrl = rtrim($frontendUrl, '/')."/activities/event_{$this->id}";
 
         return [
             'id' => $this->id,

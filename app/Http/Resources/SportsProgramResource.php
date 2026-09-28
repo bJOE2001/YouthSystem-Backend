@@ -50,7 +50,7 @@ class SportsProgramResource extends JsonResource
         $certDownloadUrl = $canDownloadCertificate ? url("/api/events/sport_{$this->id}/certificate") : null;
 
         $frontendUrl = config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost');
-        $shareUrl = rtrim($frontendUrl, '/')."/#/activities/sport_{$this->id}";
+        $shareUrl = rtrim($frontendUrl, '/')."/activities/sport_{$this->id}";
 
         return [
             'id' => $this->id,
