@@ -15,6 +15,8 @@ class EcesproApplicationController extends Controller
 
         if ($request->has('status')) {
             $query->where('application_status', $request->status);
+        } else {
+            $query->where('application_status', '!=', 'Terminated');
         }
 
         if ($request->has('program_id')) {
@@ -42,66 +44,69 @@ class EcesproApplicationController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge([
+            'user_id' => auth()->id(),
+        ]);
+
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
             'ecespro_program_id' => 'required|exists:ecespro_programs,id',
 
             // Personal Info
-            'first_name' => 'nullable|string|max:255',
-            'middle_name' => 'nullable|string|max:255',
-            'last_name' => 'nullable|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:50',
-            'gender' => 'nullable|string|max:50',
-            'birthdate' => 'nullable|string|max:255',
-            'age' => 'nullable|string|max:50',
-            'place_of_birth' => 'nullable|string|max:255',
-            'sex' => 'nullable|string|max:50',
-            'civil_status' => 'nullable|string|max:50',
-            'citizenship' => 'nullable|string|max:100',
-            'personal_zip_code' => 'nullable|string|max:50',
-            'ip_or_muslim' => 'nullable|string|max:50',
+            'birthdate' => 'required|string|max:255',
+            'age' => 'required|string|max:50',
+            'place_of_birth' => 'required|string|max:255',
+            'sex' => 'required|string|max:50',
+            'civil_status' => 'required|string|max:50',
+            'citizenship' => 'required|string|max:100',
+            'personal_zip_code' => 'required|string|max:50',
+            'ip_or_muslim' => 'required|string|max:50',
             'type_of_disability' => 'nullable|string|max:255',
-            'mobile_number' => 'nullable|string|max:50',
-            'email_address' => 'nullable|string|email|max:255',
-            'permanent_mailing_address' => 'nullable|string|max:1000',
+            'mobile_number' => 'required|string|max:50',
+            'email_address' => 'required|string|email|max:255',
+            'permanent_mailing_address' => 'required|string|max:1000',
 
             // Educational Info
-            'previous_grade_college_year_level' => 'nullable|string|max:255',
-            'general_average' => 'nullable|string|max:50',
-            'school_attended_to_enroll' => 'nullable|string|max:255',
-            'school_address' => 'nullable|string|max:1000',
-            'course_intended_to_enroll' => 'nullable|string|max:255',
-            'type_of_school' => 'nullable|string|max:100',
-            'school_year' => 'nullable|string|max:50',
-            'school_citizenship' => 'nullable|string|max:100',
-            'school' => 'nullable|string|max:255',
-            'year_level' => 'nullable|string|max:100',
-            'course' => 'nullable|string|max:255',
-            'school_zip_code' => 'nullable|string|max:50',
+            'year_level' => 'required|string|max:255',
+            'general_average' => 'required|string|max:50',
+            'school_intended_to_enroll' => 'required|string|max:255',
+            'school_address' => 'required|string|max:1000',
+            'course_intended_to_enroll' => 'required|string|max:255',
+            'type_of_school' => 'required|string|max:100',
+            'school_year' => 'required|string|max:50',
 
             // Father's Info
-            'father_last_name' => 'nullable|string|max:255',
-            'father_first_name' => 'nullable|string|max:255',
-            'father_address' => 'nullable|string|max:1000',
-            'father_occupation' => 'nullable|string|max:255',
-            'father_educational_attainment' => 'nullable|string|max:255',
+            'father_status' => 'required|string|max:50',
+            'father_last_name' => 'required|string|max:255',
+            'father_first_name' => 'required|string|max:255',
+            'father_address' => 'required|string|max:1000',
+            'father_occupation' => 'required|string|max:255',
+            'father_educational_attainment' => 'required|string|max:255',
 
             // Mother's Info
-            'mother_maiden_middle_name' => 'nullable|string|max:255',
-            'mother_maiden_last_name' => 'nullable|string|max:255',
-            'mother_occupation' => 'nullable|string|max:255',
-            'mother_educational_attainment' => 'nullable|string|max:255',
+            'mother_status' => 'required|string|max:50',
+            'mother_maiden_middle_name' => 'required|string|max:255',
+            'mother_maiden_last_name' => 'required|string|max:255',
+            'mother_address' => 'required|string|max:1000',
+            'mother_occupation' => 'required|string|max:255',
+            'mother_educational_attainment' => 'required|string|max:255',
 
             // Guardian's Info
+            'guardian_status' => 'nullable|string|max:50',
             'guardian_maiden_middle_name' => 'nullable|string|max:255',
             'guardian_maiden_last_name' => 'nullable|string|max:255',
+            'guardian_address' => 'nullable|string|max:1000',
             'guardian_occupation' => 'nullable|string|max:255',
             'guardian_educational_attainment' => 'nullable|string|max:255',
 
             // Other Family Info
-            'parents_guardian_total_income' => 'nullable|string|max:255',
-            'number_of_siblings_in_family' => 'nullable|string|max:50',
-            'parents_marital_status' => 'nullable|string|max:100',
+            'parents_guardian_total_income' => 'required|string|max:255',
+            'number_of_siblings_in_family' => 'required|string|max:50',
+            'parents_marital_status' => 'required|string|max:100',
 
             // Requirements (Can be URLs or simple strings for now since frontend emits strings)
             'certificate_of_indigency' => 'nullable|string|max:1000',
@@ -143,8 +148,8 @@ class EcesproApplicationController extends Controller
                 [
                     'user_id' => $ecesproApplication->user_id,
                     'scholar_no' => 'PENDING',
-                    'school' => $ecesproApplication->school_intended_to_enroll ?? $ecesproApplication->school_attended_to_enroll ?? 'N/A',
-                    'course' => $ecesproApplication->course_intended_to_enroll ?? $ecesproApplication->course ?? 'N/A',
+                    'school' => $ecesproApplication->school_intended_to_enroll ?? 'N/A',
+                    'course' => $ecesproApplication->course_intended_to_enroll ?? 'N/A',
                     'status' => 'Active',
                     'compliance_status' => 'Compliant',
                     'requirements_history' => [],
@@ -202,7 +207,7 @@ class EcesproApplicationController extends Controller
             return response()->json(['message' => 'Document not found in application'], 404);
         }
 
-        $ecesproApplication->update(['submitted_requirements' => $requirements]);
+        if ($validated['status'] === 'For Revision') { $ecesproApplication->update(['submitted_requirements' => $requirements, 'application_status' => 'Revision']); } else { $ecesproApplication->update(['submitted_requirements' => $requirements]); }
 
         if ($validated['status'] === 'For Revision') {
             if ($user = $ecesproApplication->user) {
@@ -221,3 +226,5 @@ class EcesproApplicationController extends Controller
         return response()->json($updatedDoc);
     }
 }
+
+

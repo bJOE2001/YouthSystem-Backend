@@ -13,11 +13,11 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        $admin = User::where('email', 'admin.tcysdo@gmail.com')->first();
+        $admin = User::where('email', 'tcydo@tagumcity.gov.ph')->first();
         if (! $admin) {
             User::factory()->admin()->active()->create([
-                'name' => 'Admin',
-                'email' => 'admin.tcysdo@gmail.com',
+                'name' => 'TAGUM CITY YOUTH AND SPORTS DEVELOPMENT OFFICE',
+                'email' => 'tcydo@tagumcity.gov.ph',
                 'qr_code_token' => (string) Str::uuid(),
             ]);
         } elseif (empty($admin->qr_code_token)) {

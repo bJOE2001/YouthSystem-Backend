@@ -54,12 +54,12 @@ class YouthEcesproController extends Controller
      */
     public function myApplication(Request $request)
     {
-        $application = EcesproApplication::with(['examination.batch', 'interview.batch', 'contract'])
+        $application = EcesproApplication::with(['program.examinationSetup', 'examination.batch', 'interview.batch', 'contract'])
             ->where('user_id', $request->user()->id)
             ->latest()
             ->first();
 
-        $scholar = EcesproScholar::where('user_id', $request->user()->id)->first();
+        $scholar = EcesproScholar::where('user_id', $request->user()->id)->latest()->first();
 
         return response()->json([
             'application' => $application,
@@ -88,60 +88,63 @@ class YouthEcesproController extends Controller
 
         $validated = $request->validate([
             // Personal
-            'first_name' => 'nullable|string',
-            'middle_name' => 'nullable|string',
-            'last_name' => 'nullable|string',
+            'first_name' => 'required|string',
+            'middle_name' => 'required|string',
+            'last_name' => 'required|string',
             'suffix' => 'nullable|string',
-            'gender' => 'nullable|string',
-            'birthdate' => 'nullable|string',
-            'age' => 'nullable|string',
-            'place_of_birth' => 'nullable|string',
-            'sex' => 'nullable|string',
-            'civil_status' => 'nullable|string',
-            'citizenship' => 'nullable|string',
-            'personal_zip_code' => 'nullable|string',
-            'ip_or_muslim' => 'nullable|string',
+            'birthdate' => 'required|string',
+            'age' => 'required|string',
+            'place_of_birth' => 'required|string',
+            'sex' => 'required|string',
+            'civil_status' => 'required|string',
+            'citizenship' => 'required|string',
+            'personal_zip_code' => 'required|string',
+            'ip_or_muslim' => 'required|string',
             'type_of_disability' => 'nullable|string',
-            'mobile_number' => 'nullable|string',
-            'email_address' => 'nullable|string',
-            'permanent_mailing_address' => 'nullable|string',
+            'mobile_number' => 'required|string',
+            'email_address' => 'required|string',
+            'permanent_mailing_address' => 'required|string',
 
             // Educational
-            'year_level' => 'nullable|string',
-            'general_average' => 'nullable|string',
-            'school_intended_to_enroll' => 'nullable|string',
-            'school_address' => 'nullable|string',
-            'course_intended_to_enroll' => 'nullable|string',
-            'type_of_school' => 'nullable|string',
-            'school_year' => 'nullable|string',
-            'course' => 'nullable|string',
+            'year_level' => 'required|string',
+            'general_average' => 'required|string',
+            'school_intended_to_enroll' => 'required|string',
+            'school_address' => 'required|string',
+            'course_intended_to_enroll' => 'required|string',
+            'type_of_school' => 'required|string',
+            'school_year' => 'required|string',
 
             // Father
-            'father_last_name' => 'nullable|string',
-            'father_middle_name' => 'nullable|string',
-            'father_first_name' => 'nullable|string',
-            'father_address' => 'nullable|string',
-            'father_occupation' => 'nullable|string',
-            'father_educational_attainment' => 'nullable|string',
+            'father_last_name' => 'required|string',
+            'father_middle_name' => 'required|string',
+            'father_first_name' => 'required|string',
+            'father_address' => 'required|string',
+            'father_occupation' => 'required|string',
+            'father_educational_attainment' => 'required|string',
+            'father_status' => 'required|string',
 
             // Mother
-            'mother_first_name' => 'nullable|string',
-            'mother_maiden_middle_name' => 'nullable|string',
-            'mother_maiden_last_name' => 'nullable|string',
-            'mother_occupation' => 'nullable|string',
-            'mother_educational_attainment' => 'nullable|string',
+            'mother_first_name' => 'required|string',
+            'mother_maiden_middle_name' => 'required|string',
+            'mother_maiden_last_name' => 'required|string',
+            'mother_address' => 'required|string',
+            'mother_occupation' => 'required|string',
+            'mother_educational_attainment' => 'required|string',
+            'mother_status' => 'required|string',
 
             // Guardian
             'guardian_first_name' => 'nullable|string',
             'guardian_maiden_middle_name' => 'nullable|string',
             'guardian_maiden_last_name' => 'nullable|string',
+            'guardian_address' => 'nullable|string',
             'guardian_occupation' => 'nullable|string',
             'guardian_educational_attainment' => 'nullable|string',
+            'guardian_status' => 'nullable|string',
 
             // Other
-            'parents_guardian_total_income' => 'nullable|string',
-            'number_of_siblings_in_family' => 'nullable|string',
-            'parents_marital_status' => 'nullable|string',
+            'parents_guardian_total_income' => 'required|string',
+            'number_of_siblings_in_family' => 'required|string',
+            'parents_marital_status' => 'required|string',
         ]);
 
         $activeRequirements = $program->application_requirements ?? [];
@@ -175,7 +178,6 @@ class YouthEcesproController extends Controller
             'middle_name' => $validated['middle_name'] ?? null,
             'last_name' => $validated['last_name'] ?? null,
             'suffix' => $validated['suffix'] ?? null,
-            'gender' => $validated['gender'] ?? null,
             'birthdate' => $validated['birthdate'] ?? null,
             'age' => $validated['age'] ?? null,
             'place_of_birth' => $validated['place_of_birth'] ?? null,
@@ -189,30 +191,37 @@ class YouthEcesproController extends Controller
             'email_address' => $validated['email_address'] ?? null,
             'permanent_mailing_address' => $validated['permanent_mailing_address'] ?? null,
 
-            'previous_grade_college_year_level' => $validated['year_level'] ?? null,
+            'year_level' => $validated['year_level'] ?? null,
             'general_average' => $validated['general_average'] ?? null,
-            'school_attended_to_enroll' => $validated['school_intended_to_enroll'] ?? null,
+            'school_intended_to_enroll' => $validated['school_intended_to_enroll'] ?? null,
             'school_address' => $validated['school_address'] ?? null,
             'course_intended_to_enroll' => $validated['course_intended_to_enroll'] ?? null,
             'type_of_school' => $validated['type_of_school'] ?? null,
             'school_year' => $validated['school_year'] ?? null,
-            'course' => $validated['course'] ?? null,
 
             'father_last_name' => $validated['father_last_name'] ?? null,
             'father_first_name' => $validated['father_first_name'] ?? null,
+            'father_middle_name' => $validated['father_middle_name'] ?? null,
             'father_address' => $validated['father_address'] ?? null,
             'father_occupation' => $validated['father_occupation'] ?? null,
             'father_educational_attainment' => $validated['father_educational_attainment'] ?? null,
+            'father_status' => $validated['father_status'] ?? null,
 
+            'mother_first_name' => $validated['mother_first_name'] ?? null,
             'mother_maiden_middle_name' => $validated['mother_maiden_middle_name'] ?? null,
             'mother_maiden_last_name' => $validated['mother_maiden_last_name'] ?? null,
+            'mother_address' => $validated['mother_address'] ?? null,
             'mother_occupation' => $validated['mother_occupation'] ?? null,
             'mother_educational_attainment' => $validated['mother_educational_attainment'] ?? null,
+            'mother_status' => $validated['mother_status'] ?? null,
 
+            'guardian_first_name' => $validated['guardian_first_name'] ?? null,
             'guardian_maiden_middle_name' => $validated['guardian_maiden_middle_name'] ?? null,
             'guardian_maiden_last_name' => $validated['guardian_maiden_last_name'] ?? null,
+            'guardian_address' => $validated['guardian_address'] ?? null,
             'guardian_occupation' => $validated['guardian_occupation'] ?? null,
             'guardian_educational_attainment' => $validated['guardian_educational_attainment'] ?? null,
+            'guardian_status' => $validated['guardian_status'] ?? null,
 
             'parents_guardian_total_income' => $validated['parents_guardian_total_income'] ?? null,
             'number_of_siblings_in_family' => $validated['number_of_siblings_in_family'] ?? null,
@@ -220,7 +229,7 @@ class YouthEcesproController extends Controller
 
             'user_id' => $request->user()->id,
             'ecespro_program_id' => $program->id,
-            'application_status' => 'Submitted',
+            'application_status' => 'Under Review',
             'submitted_requirements' => $submittedRequirements,
         ];
 
@@ -673,3 +682,4 @@ class YouthEcesproController extends Controller
         ]);
     }
 }
+

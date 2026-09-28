@@ -10,6 +10,15 @@ use Illuminate\Support\Facades\Auth;
 
 class UnifiedEventResource extends JsonResource
 {
+    protected static array $userJoinedEvents = [];
+    protected static array $userJoinedSports = [];
+
+    public static function clearCache(): void
+    {
+        static::$userJoinedEvents = [];
+        static::$userJoinedSports = [];
+    }
+
     /**
      * Transform the resource into an array.
      *
@@ -34,6 +43,7 @@ class UnifiedEventResource extends JsonResource
         $joined = false;
         $attended = false;
         $attendedAt = null;
+        $pivotRecord = $this->pivot ?? null;
 
         if ($user) {
             if ($this->pivot) {
@@ -41,16 +51,41 @@ class UnifiedEventResource extends JsonResource
                 $attended = ! empty($this->pivot->attended_at);
                 $attendedAt = $this->pivot->attended_at ? Carbon::parse($this->pivot->attended_at)->toISOString() : null;
             } else {
-                $pivot = $this->participants()->where('user_id', $user->id)->first()?->pivot;
-                if ($pivot) {
+                $userKey = (string) $user->id;
+                
+                if ($isEvent) {
+                    if (!isset(static::$userJoinedEvents[$userKey])) {
+                        static::$userJoinedEvents[$userKey] = \Illuminate\Support\Facades\DB::table('event_user')
+                            ->where('user_id', $user->id)
+                            ->get()
+                            ->keyBy('event_id')
+                            ->toArray();
+                    }
+                    if (isset(static::$userJoinedEvents[$userKey][$this->id])) {
+                        $pivotRecord = static::$userJoinedEvents[$userKey][$this->id];
+                    }
+                } else {
+                    if (!isset(static::$userJoinedSports[$userKey])) {
+                        static::$userJoinedSports[$userKey] = \Illuminate\Support\Facades\DB::table('sports_program_user')
+                            ->where('user_id', $user->id)
+                            ->get()
+                            ->keyBy('sports_program_id')
+                            ->toArray();
+                    }
+                    if (isset(static::$userJoinedSports[$userKey][$this->id])) {
+                        $pivotRecord = static::$userJoinedSports[$userKey][$this->id];
+                    }
+                }
+
+                if ($pivotRecord) {
                     $joined = true;
-                    $attended = ! empty($pivot->attended_at);
-                    $attendedAt = $pivot->attended_at ? Carbon::parse($pivot->attended_at)->toISOString() : null;
+                    $attended = ! empty($pivotRecord->attended_at);
+                    $attendedAt = $pivotRecord->attended_at ? Carbon::parse($pivotRecord->attended_at)->toISOString() : null;
                 }
             }
         }
 
-        $certificatePath = $this->certificate_template_path ?? ($this->pivot?->certificate_path ?? null);
+        $certificatePath = $this->certificate_template_path ?? ($pivotRecord->certificate_path ?? null);
         $hasCertificate = ! empty($certificatePath);
         $isCompleted = strtolower((string) $this->status) === 'completed';
         $canDownloadCertificate = (bool) ($attended && $hasCertificate && $isCompleted);

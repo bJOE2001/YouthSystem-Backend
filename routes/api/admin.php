@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\EcesproGrantReleaseController;
 use App\Http\Controllers\Api\Admin\EcesproSettingController;
 use App\Http\Controllers\Api\Admin\LydcMemberController;
+use App\Http\Controllers\Api\Admin\TcydoDirectoryMemberController;
 use App\Http\Controllers\Api\Admin\OrganizationController;
 use App\Http\Controllers\Api\Admin\ResidentYouthController;
 use App\Http\Controllers\Api\Admin\ScholarPositionController;
@@ -103,6 +104,13 @@ Route::middleware([
             Route::post('/{lydcMember}/delete', [LydcMemberController::class, 'destroy'])->name('destroy');
         });
 
+        Route::middleware('module:sk_officials')->prefix('tcydo-directory-members')->name('tcydo-directory-members.')->group(function () {
+            Route::get('/', [TcydoDirectoryMemberController::class, 'index'])->name('index');
+            Route::get('/{tcydoDirectoryMember}', [TcydoDirectoryMemberController::class, 'show'])->name('show');
+            Route::post('/', [TcydoDirectoryMemberController::class, 'store'])->name('store');
+            Route::post('/{tcydoDirectoryMember}/delete', [TcydoDirectoryMemberController::class, 'destroy'])->name('destroy');
+        });
+
         Route::middleware('module:youth_records')->prefix('resident-youth')->name('resident-youth.')->group(function () {
             Route::get('/', [ResidentYouthController::class, 'index'])->name('index');
             Route::get('/{youthProfile}', [ResidentYouthController::class, 'show'])->name('show');
@@ -139,6 +147,7 @@ Route::middleware([
             Route::get('ecespro-exam-batches/{ecespro_exam_batch}', [EcesproExamBatchController::class, 'show'])->name('ecespro-exam-batches.show');
             Route::post('ecespro-exam-batches/{ecespro_exam_batch}', [EcesproExamBatchController::class, 'update'])->name('ecespro-exam-batches.update');
             Route::post('ecespro-exam-batches/{ecespro_exam_batch}/delete', [EcesproExamBatchController::class, 'destroy'])->name('ecespro-exam-batches.destroy');
+            Route::post('ecespro-exam-batches/{ecespro_exam_batch}/mark-complete', [EcesproExamBatchController::class, 'markAsComplete']);
             Route::post('ecespro-exam-batches/{ecespro_exam_batch}/toggle-exam', [EcesproExamBatchController::class, 'toggleExamStatus'])->name('ecespro-exam-batches.toggle-exam');
             Route::get('ecespro-exam-batches/{batch}/essay-questions', [EcesproExamBatchController::class, 'getEssayQuestions']);
             Route::get('ecespro-exam-batches/{batch}/questions/{question}/answers', [EcesproExamBatchController::class, 'getPendingAnswersForQuestion']);
@@ -159,6 +168,7 @@ Route::middleware([
             Route::get('ecespro-interview-batches/{ecespro_interview_batch}', [EcesproInterviewBatchController::class, 'show'])->name('ecespro-interview-batches.show')->whereNumber('ecespro_interview_batch');
             Route::post('ecespro-interview-batches/{ecespro_interview_batch}', [EcesproInterviewBatchController::class, 'update'])->name('ecespro-interview-batches.update')->whereNumber('ecespro_interview_batch');
             Route::post('ecespro-interview-batches/{ecespro_interview_batch}/delete', [EcesproInterviewBatchController::class, 'destroy'])->name('ecespro-interview-batches.destroy')->whereNumber('ecespro_interview_batch');
+            Route::post('ecespro-interview-batches/{ecespro_interview_batch}/mark-complete', [EcesproInterviewBatchController::class, 'markAsComplete']);
 
             // ECESPRO Interviews
             Route::get('ecespro-interviews', [EcesproInterviewController::class, 'index'])->name('ecespro-interviews.index');
@@ -182,6 +192,7 @@ Route::middleware([
             Route::get('ecespro-contract-signing-batches/{ecespro_contract_batch}', [EcesproContractBatchController::class, 'show'])->name('ecespro-contract-signing-batches.show');
             Route::post('ecespro-contract-signing-batches/{ecespro_contract_batch}', [EcesproContractBatchController::class, 'update'])->name('ecespro-contract-signing-batches.update');
             Route::post('ecespro-contract-signing-batches/{ecespro_contract_batch}/delete', [EcesproContractBatchController::class, 'destroy'])->name('ecespro-contract-signing-batches.destroy');
+            Route::post('ecespro-contract-signing-batches/{ecespro_contract_batch}/mark-complete', [EcesproContractBatchController::class, 'markAsComplete']);
 
             // ECESPRO Scholars
             Route::get('ecespro-scholars', [EcesproScholarController::class, 'index'])->name('ecespro-scholars.index');
@@ -214,15 +225,20 @@ Route::middleware([
             Route::get('ecespro-compliance-schedules/{schedule}/submissions', [EcesproComplianceScheduleController::class, 'submissions'])->name('ecespro-compliance-schedules.submissions');
 
             // Exam Questionnaires
-            Route::apiResource('ecespro-exam-questionnaires', EcesproExamQuestionnaireController::class);
+            Route::get('ecespro-exam-questionnaires', [EcesproExamQuestionnaireController::class, 'index']);
+            Route::post('ecespro-exam-questionnaires', [EcesproExamQuestionnaireController::class, 'store']);
+            Route::get('ecespro-exam-questionnaires/{questionnaire}', [EcesproExamQuestionnaireController::class, 'show']);
+            Route::post('ecespro-exam-questionnaires/{questionnaire}/update', [EcesproExamQuestionnaireController::class, 'update']);
+            Route::post('ecespro-exam-questionnaires/{questionnaire}/delete', [EcesproExamQuestionnaireController::class, 'destroy']);
             Route::post('ecespro-exam-questionnaires/{questionnaire}/questions', [EcesproExamQuestionnaireController::class, 'storeQuestion']);
             Route::post('ecespro-exam-questionnaires/{questionnaire}/questions/{question}/update', [EcesproExamQuestionnaireController::class, 'updateQuestion']);
-            Route::delete('ecespro-exam-questionnaires/{questionnaire}/questions/{question}', [EcesproExamQuestionnaireController::class, 'destroyQuestion']);
+            Route::post('ecespro-exam-questionnaires/{questionnaire}/questions/{question}/delete', [EcesproExamQuestionnaireController::class, 'destroyQuestion']);
 
             // Exam Setup
             Route::get('ecespro-examination-setups/program/{program}', [EcesproExaminationSetupController::class, 'showByProgram']);
             Route::post('ecespro-examination-setups', [EcesproExaminationSetupController::class, 'store']);
             Route::post('ecespro-examination-setups/{setup}/mark-done', [EcesproExaminationSetupController::class, 'markAsDone']);
+            Route::post('ecespro-examination-setups/{setup}/delete', [EcesproExaminationSetupController::class, 'destroy']);
 
             Route::get('ecespro-programs/{program}/examinations', function(App\Models\EcesproProgram $program) {
                 return App\Models\EcesproExamination::with(['application.user.youthProfile', 'batch'])->whereHas('application', function($q) use ($program) {
@@ -292,6 +308,10 @@ Route::middleware([
 
         Route::post('change-password', [SystemSettingController::class, 'changePassword'])->name('change-password');
     });
+
+
+
+
 
 
 

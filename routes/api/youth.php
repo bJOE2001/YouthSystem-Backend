@@ -37,6 +37,7 @@ Route::middleware([
         */
         Route::get('/ecespro/examinations/{examination}/start', [EcesproExaminationController::class, 'start'])->name('ecespro.examinations.start');
         Route::post('/ecespro/examinations/{examination}/submit', [EcesproExaminationController::class, 'submit'])->name('ecespro.examinations.submit');
+        Route::post('/ecespro/examinations/{examination}/retake', [EcesproExaminationController::class, 'retake'])->name('ecespro.examinations.retake');
 
     });
 

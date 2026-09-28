@@ -53,7 +53,7 @@ class AnnouncementResource extends JsonResource
             'datePosted' => $this->created_at ? $this->created_at->format('Y-m-d') : null,
             'author_role' => $this->user?->role,
             'author_name' => $this->user?->name,
-            'barangay' => $this->user?->barangay ?? $this->user?->profile?->barangay,
+            'barangay' => $this->user?->barangay ?? $this->user?->youthProfile?->barangay ?? $this->user?->skOfficial?->barangay,
             'is_read' => $isRead,
             'isNew' => ! $isRead,
             'createdAt' => $this->created_at,

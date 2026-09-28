@@ -131,7 +131,11 @@ class EcesproScholarController extends Controller
             }
         }
 
-        $ecesproScholar->delete();
+        if ($ecesproScholar->application) {
+            $ecesproScholar->application->update(['application_status' => 'Terminated']);
+        }
+
+        $ecesproScholar->update(['status' => 'Terminated']);
 
         return response()->noContent();
     }

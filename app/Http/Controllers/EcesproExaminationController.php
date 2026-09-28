@@ -30,6 +30,7 @@ class EcesproExaminationController extends Controller
             'status' => 'nullable|string',
         ]);
 
+        $validated['attempts_used'] = 0;
         return EcesproExamination::create($validated);
     }
 
@@ -100,13 +101,14 @@ class EcesproExaminationController extends Controller
                 'status' => 'Pending',
                 'score' => null,
                 'started_at' => null,
-                'completed_at' => null
+                'completed_at' => null,
+                'attempts_used' => 0
             ]);
             
             // Reset application status
             if ($ecesproExamination->application) {
                 $ecesproExamination->application->update([
-                    'application_status' => 'For Examination'
+                    'application_status' => 'Exam Scheduled'
                 ]);
             }
             

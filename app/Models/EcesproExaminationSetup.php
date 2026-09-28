@@ -13,13 +13,15 @@ class EcesproExaminationSetup extends Model
         'questionnaire_id',
         'passing_percentage',
         'shuffle_questions',
-        'time_limit_minutes'
+        'time_limit_minutes',
+        'attempts_allowed'
     ];
 
     protected $casts = [
         'shuffle_questions' => 'boolean',
         'passing_percentage' => 'float',
-        'time_limit_minutes' => 'integer',
+        'time_limit_minutes',
+        'attempts_allowed' => 'integer',
     ];
 
     public function program()

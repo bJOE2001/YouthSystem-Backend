@@ -24,7 +24,7 @@ class AnnouncementController extends Controller
             }
         }
 
-        $query = Announcement::query();
+        $query = Announcement::with(['user.youthProfile', 'user.skOfficial']);
 
         if ($request->filled('search')) {
             $search = $request->search;

@@ -21,4 +21,8 @@ Route::middleware([
         Route::post('/requirements-history/{index}/delete', [SkEcesproController::class, 'deleteRequirement']);
         Route::post('/requirements-history/{index}', [SkEcesproController::class, 'deleteRequirement']);
         Route::post('/reupload-application-document', [SkEcesproController::class, 'reuploadApplicationDocument']);
+
+        Route::get('/examinations/{examination}/start', [\App\Http\Controllers\Api\Youth\EcesproExaminationController::class, 'start']);
+        Route::post('/examinations/{examination}/submit', [\App\Http\Controllers\Api\Youth\EcesproExaminationController::class, 'submit']);
+        Route::post('/examinations/{examination}/retake', [\App\Http\Controllers\Api\Youth\EcesproExaminationController::class, 'retake']);
     });
