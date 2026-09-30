@@ -161,6 +161,15 @@ class AppServiceProvider extends ServiceProvider
                 if (isset($viewData['lastLoginFormatted'])) {
                     $variables['last_login_formatted'] = (string) $viewData['lastLoginFormatted'];
                 }
+                if (isset($viewData['batch'])) {
+                    $b = $viewData['batch'];
+                    $variables['batch_name'] = (string) ($b->batch_name ?? '');
+                    $variables['release_date'] = isset($b->release_date) && is_object($b->release_date) && method_exists($b->release_date, 'format')
+                        ? $b->release_date->format('F d, Y')
+                        : (string) ($b->release_date ?? '');
+                    $variables['time'] = (string) ($b->time ?? '');
+                    $variables['venue'] = (string) ($b->venue ?? '');
+                }
 
                 // Add any scalar parameters directly
                 foreach ($viewData as $k => $v) {
