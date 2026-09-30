@@ -32,6 +32,7 @@ class ResidentYouthDetailsResource extends JsonResource
             'placeOfBirth' => $this->place_of_birth,
             'contact' => $this->mobile_number,
             'mobileNumber' => $this->mobile_number,
+            'facebookAccount' => $this->facebook_account,
             'email' => $this->user ? $this->user->email : null,
             'fatherFirstName' => $this->father_first_name,
             'fatherMiddleName' => $this->father_middle_name,

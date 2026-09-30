@@ -41,6 +41,7 @@ class YouthProfileResource extends JsonResource
             'age' => $this->birth_date?->age,
             'place_of_birth' => $this->place_of_birth,
             'mobile_number' => $this->mobile_number,
+            'facebook_account' => $this->facebook_account,
             'father_first_name' => $this->father_first_name,
             'father_middle_name' => $this->father_middle_name,
             'father_last_name' => $this->father_last_name,

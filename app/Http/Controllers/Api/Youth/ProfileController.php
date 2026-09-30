@@ -107,4 +107,27 @@ class ProfileController extends Controller
 
         return new YouthProfileResource($profile->fresh());
     }
+
+    /**
+     * Update the authenticated user's facebook account.
+     */
+    public function updateFacebookAccount(Request $request): JsonResponse|YouthProfileResource
+    {
+        $request->validate([
+            'facebook_account' => 'required|string|max:255',
+        ]);
+
+        $user = $request->user();
+        $profile = $user->youthProfile;
+
+        if (! $profile) {
+            return response()->json(['message' => 'Profile not found.'], 404);
+        }
+
+        $profile->update([
+            'facebook_account' => $request->facebook_account,
+        ]);
+
+        return new YouthProfileResource($profile->fresh());
+    }
 }

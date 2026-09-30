@@ -78,14 +78,15 @@ class FacilityController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'required|string|max:255',
             'location' => 'required|string|max:255',
-            'available_time' => 'required|string|max:255',
-            'time_limit' => 'nullable|string|max:100',
             'image' => 'nullable|image|max:10240',
         ]);
 
         if ($request->hasFile('image')) {
             $validated['image'] = $request->file('image')->store('facilities', 'public');
         }
+
+        $validated['available_time'] = 'All Time Available';
+        $validated['time_limit'] = null;
 
         $facility = Facility::create($validated);
 
@@ -98,8 +99,6 @@ class FacilityController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'required|string|max:255',
             'location' => 'required|string|max:255',
-            'available_time' => 'required|string|max:255',
-            'time_limit' => 'nullable|string|max:100',
             'image' => 'nullable|image|max:10240',
         ]);
 
@@ -109,6 +108,9 @@ class FacilityController extends Controller
             }
             $validated['image'] = $request->file('image')->store('facilities', 'public');
         }
+
+        $validated['available_time'] = 'All Time Available';
+        $validated['time_limit'] = null;
 
         $facility->update($validated);
 
@@ -199,42 +201,7 @@ class FacilityController extends Controller
             ]);
         }
 
-        // 5. Operating Hours Enforcement
-        if ($facility->available_time) {
-            $availRange = $this->parseFacilityTimeRange($facility->available_time);
 
-            if ($availRange) {
-                [$availStart, $availEnd] = $availRange;
-
-                $availStartFormatted = Carbon::parse($availStart)->format('g:i A');
-                $availEndFormatted = Carbon::parse($availEnd)->format('g:i A');
-
-                if ($validated['start_time'] < $availStart || $validated['end_time'] > $availEnd) {
-                    throw ValidationException::withMessages([
-                        'start_time' => ["The requested booking time must be within the facility's available hours ({$availStartFormatted} - {$availEndFormatted})."],
-                    ]);
-                }
-            }
-        }
-
-        // 5.5 Per-Booking Time Limit Enforcement
-        if (! empty($facility->time_limit)) {
-            $limitMinutes = $this->parseTimeLimitToMinutes($facility->time_limit);
-
-            if ($limitMinutes !== null) {
-                $start = Carbon::parse($validated['start_time']);
-                $end = Carbon::parse($validated['end_time']);
-                $durationMinutes = $start->diffInMinutes($end);
-
-                if ($durationMinutes > $limitMinutes) {
-                    $limitLabel = trim((string) $facility->time_limit);
-
-                    throw ValidationException::withMessages([
-                        'end_time' => ["The booking duration cannot exceed the facility's time limit of {$limitLabel} hour(s) per booking."],
-                    ]);
-                }
-            }
-        }
 
         // 6. Overlapping Booking Conflict Guard
         $existingBooking = $facility->bookingRequests()
@@ -334,42 +301,7 @@ class FacilityController extends Controller
             ]);
         }
 
-        // 5. Operating Hours Enforcement
-        if ($facility->available_time) {
-            $availRange = $this->parseFacilityTimeRange($facility->available_time);
 
-            if ($availRange) {
-                [$availStart, $availEnd] = $availRange;
-
-                $availStartFormatted = Carbon::parse($availStart)->format('g:i A');
-                $availEndFormatted = Carbon::parse($availEnd)->format('g:i A');
-
-                if ($validated['start_time'] < $availStart || $validated['end_time'] > $availEnd) {
-                    throw ValidationException::withMessages([
-                        'start_time' => ["The requested booking time must be within the facility's available hours ({$availStartFormatted} - {$availEndFormatted})."],
-                    ]);
-                }
-            }
-        }
-
-        // 5.5 Per-Booking Time Limit Enforcement
-        if (! empty($facility->time_limit)) {
-            $limitMinutes = $this->parseTimeLimitToMinutes($facility->time_limit);
-
-            if ($limitMinutes !== null) {
-                $start = Carbon::parse($validated['start_time']);
-                $end = Carbon::parse($validated['end_time']);
-                $durationMinutes = $start->diffInMinutes($end);
-
-                if ($durationMinutes > $limitMinutes) {
-                    $limitLabel = trim((string) $facility->time_limit);
-
-                    throw ValidationException::withMessages([
-                        'end_time' => ["The booking duration cannot exceed the facility's time limit of {$limitLabel} hour(s) per booking."],
-                    ]);
-                }
-            }
-        }
 
         // 6. Overlapping Booking Conflict Guard
         $existingBooking = $facility->bookingRequests()
@@ -407,50 +339,7 @@ class FacilityController extends Controller
         ], 201);
     }
 
-    private function parseTimeLimitToMinutes(string $timeLimit): ?int
-    {
-        $timeLimit = strtolower(trim($timeLimit));
 
-        if (preg_match('/^(\d+(?:\.\d+)?)\s*hours?$/', $timeLimit, $m)) {
-            return (int) round((float) $m[1] * 60);
-        }
-
-        if (preg_match('/^(\d+(?:\.\d+)?)\s*h\b/', $timeLimit, $m)) {
-            return (int) round((float) $m[1] * 60);
-        }
-
-        if (preg_match('/^(\d+)\s*minutes?$/', $timeLimit, $m)) {
-            return (int) $m[1];
-        }
-
-        if (is_numeric($timeLimit)) {
-            // Plain numbers are treated as hours
-            return (int) round((float) $timeLimit * 60);
-        }
-
-        return null;
-    }
-
-    private function parseFacilityTimeRange(string $availableTime): ?array
-    {
-        if (empty($availableTime)) {
-            return null;
-        }
-
-        $parts = preg_split('/\s*(-|to)\s*/i', trim($availableTime));
-        if (count($parts) !== 2) {
-            return null;
-        }
-
-        try {
-            $start = Carbon::parse(trim($parts[0]))->format('H:i');
-            $end = Carbon::parse(trim($parts[1]))->format('H:i');
-
-            return [$start, $end];
-        } catch (\Throwable $e) {
-            return null;
-        }
-    }
 
     public function calendar(Facility $facility)
     {
