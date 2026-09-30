@@ -204,6 +204,56 @@ class EmailTemplateService
                     'portal_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/#/youth/dashboard',
                 ],
             ],
+
+            'batch_cancelled' => [
+                'name' => 'ECESPRO Batch Cancelled',
+                'description' => 'Sent to scholarship applicants or scholars when a scheduled batch (Exam, Panel Interview, Contract Signing, or Grant Release) is cancelled.',
+                'subject' => 'ECESPRO {stage} Schedule Cancelled - {batch_name}',
+                'heading' => 'ECESPRO {stage} Schedule Cancelled',
+                'body' => "Hello {user_name},\n\nWe are writing to inform you that the scheduled {stage} for batch \"{batch_name}\" has been cancelled.",
+                'button_text' => 'View Scholarship Portal →',
+                'footnote' => 'If you have any questions or require further assistance, please contact the TCYDO office or wait for further announcements on the portal.',
+                'placeholders' => [
+                    '{user_name}' => 'Full name of applicant or scholar',
+                    '{stage}' => 'Stage of the schedule (e.g. Exam, Panel Interview, Contract Signing, Grant Release)',
+                    '{batch_name}' => 'Batch title/name',
+                    '{reason}' => 'Cancellation reason or administrator remarks',
+                    '{portal_url}' => 'Link to scholarship portal',
+                ],
+                'sample_data' => [
+                    'user_name' => 'Juan Dela Cruz',
+                    'stage' => 'Qualifying Examination',
+                    'batch_name' => 'Batch 1 - Qualifying Exam',
+                    'reason' => 'Emergency venue maintenance and system rescheduling.',
+                    'portal_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/#/youth/scholarship/ecespro',
+                ],
+            ],
+
+            'grant_release' => [
+                'name' => 'ECESPRO Grant Release Schedule',
+                'description' => 'Sent to ECESPRO scholars when an official scholarship stipend / grant release distribution date is assigned to them.',
+                'subject' => 'ECESPRO Grant Release Schedule - {batch_name}',
+                'heading' => 'ECESPRO Grant Release Schedule',
+                'body' => "Hello {user_name},\n\nYou have been scheduled to receive your ECESPRO scholarship grant. Please review the distribution schedule details below.",
+                'button_text' => 'View in Scholarship Portal →',
+                'security_notice' => 'Important: Please bring a valid government-issued or student ID, and your official scholar identification when claiming your grant stipend.',
+                'placeholders' => [
+                    '{user_name}' => 'Full name of the scholar',
+                    '{batch_name}' => 'Grant release batch name',
+                    '{release_date}' => 'Distribution date (e.g. October 25, 2026)',
+                    '{time}' => 'Scheduled time slot (e.g. 09:00 AM - 11:30 AM)',
+                    '{venue}' => 'Distribution venue / room',
+                    '{portal_url}' => 'Link to scholarship portal',
+                ],
+                'sample_data' => [
+                    'user_name' => 'Maria Santos',
+                    'batch_name' => 'Batch 1 - 1st Semester S.Y. 2026-2027',
+                    'release_date' => 'October 25, 2026',
+                    'time' => '09:00 AM - 11:30 AM',
+                    'venue' => 'Tagum City Atrium Ground Floor',
+                    'portal_url' => config('app.frontend_url', config('app.url', 'http://localhost')).'/#/youth/scholarship/ecespro',
+                ],
+            ],
         ];
     }
 
