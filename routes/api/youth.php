@@ -29,6 +29,7 @@ Route::middleware([
         Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
         Route::post('/profile/picture', [ProfileController::class, 'uploadPicture'])->name('profile.picture');
         Route::post('/profile/picture/remove', [ProfileController::class, 'removePicture'])->name('profile.picture.remove');
+        Route::post('/profile/facebook', [ProfileController::class, 'updateFacebookAccount'])->name('profile.facebook.update');
 
         /*
         |--------------------------------------------------------------------------

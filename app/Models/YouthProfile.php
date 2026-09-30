@@ -33,6 +33,7 @@ class YouthProfile extends Model
         'birth_date',
         'place_of_birth',
         'mobile_number',
+        'facebook_account',
         'father_first_name',
         'father_middle_name',
         'father_last_name',

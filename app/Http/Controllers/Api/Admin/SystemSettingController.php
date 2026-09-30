@@ -27,7 +27,7 @@ class SystemSettingController extends Controller
         if ($imagePath) {
             $imageUrl = filter_var($imagePath, FILTER_VALIDATE_URL)
                 ? $imagePath
-                : url('storage/'.$imagePath);
+                : url('storage/' . $imagePath);
         }
 
         return response()->json([
@@ -118,7 +118,7 @@ class SystemSettingController extends Controller
 
         $imageUrl = null;
         if ($imagePath) {
-            $imageUrl = url('storage/'.$imagePath);
+            $imageUrl = url('storage/' . $imagePath);
         }
 
         return response()->json([
@@ -140,7 +140,7 @@ class SystemSettingController extends Controller
         if ($imagePath) {
             $imageUrl = filter_var($imagePath, FILTER_VALIDATE_URL)
                 ? $imagePath
-                : url('storage/'.$imagePath);
+                : url('storage/' . $imagePath);
         }
 
         return response()->json([
@@ -212,7 +212,7 @@ class SystemSettingController extends Controller
 
         $imageUrl = null;
         if ($imagePath) {
-            $imageUrl = url('storage/'.$imagePath);
+            $imageUrl = url('storage/' . $imagePath);
         }
 
         return response()->json([
