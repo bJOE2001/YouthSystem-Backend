@@ -39,8 +39,7 @@ class AuthController extends Controller
         $user = $request->user();
         $user->forceFill(['last_login_at' => now()])->save();
 
-        // Single Session Enforcement: Revoke previous tokens & sessions
-        $user->tokens()->delete();
+        // Single Session Enforcement: Revoke previous sessions
         if (config('session.driver') === 'database') {
             DB::table(config('session.table', 'sessions'))
                 ->where('user_id', $user->id)
@@ -48,11 +47,8 @@ class AuthController extends Controller
                 ->delete();
         }
 
-        $token = $user->createToken('auth-token')->plainTextToken;
-
         return response()->json([
             'user' => UserResource::make($user),
-            'token' => $token,
         ]);
     }
 
