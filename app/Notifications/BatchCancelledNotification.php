@@ -3,8 +3,9 @@
 namespace App\Notifications;
 
 use App\Channels\SmsChannel;
+use App\Mail\BatchCancelledEmail;
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Mail\Mailable;
 use Illuminate\Notifications\Notification;
 
 class BatchCancelledNotification extends Notification
@@ -12,15 +13,15 @@ class BatchCancelledNotification extends Notification
     use Queueable;
 
     public $batchName;
+
     public $stage;
+
     public $reason;
 
     /**
      * Create a new notification instance.
      *
-     * @param string $batchName
-     * @param string $stage e.g., "Exam", "Panel Interview", "Contract Signing", "Grant Release"
-     * @param string $reason
+     * @param  string  $stage  e.g., "Exam", "Panel Interview", "Contract Signing", "Grant Release"
      */
     public function __construct(string $batchName, string $stage, string $reason)
     {
@@ -42,15 +43,14 @@ class BatchCancelledNotification extends Notification
     /**
      * Get the mail representation of the notification.
      */
-    public function toMail(object $notifiable): MailMessage
+    public function toMail(object $notifiable): Mailable
     {
-        return (new MailMessage)
-                    ->subject("ECESPRO {$this->stage} Schedule Cancelled")
-                    ->greeting("Hello " . ($notifiable->first_name ?? $notifiable->name ?? 'Applicant') . "!")
-                    ->line("Your scheduled {$this->stage} for batch '{$this->batchName}' has been cancelled.")
-                    ->line("Reason: {$this->reason}")
-                    ->action('View Youth Portal', url('/'))
-                    ->line('Thank you!');
+        return (new BatchCancelledEmail(
+            $notifiable,
+            $this->batchName,
+            $this->stage,
+            $this->reason
+        ))->to($notifiable->email);
     }
 
     /**
@@ -75,7 +75,7 @@ class BatchCancelledNotification extends Notification
             'metadata' => [
                 'batch_name' => $this->batchName,
                 'stage' => $this->stage,
-                'reason' => $this->reason
+                'reason' => $this->reason,
             ],
         ];
     }
