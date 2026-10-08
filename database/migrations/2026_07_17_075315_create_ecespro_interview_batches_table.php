@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('batch_name');
             $table->date('interview_date');
             $table->string('time')->nullable();
-            $table->string('panel')->nullable();
+
             $table->string('mode')->default('In-Person'); // In-Person, Online
             $table->string('status')->default('Upcoming'); // Upcoming, Ongoing, Completed, Cancelled
             $table->timestamps();

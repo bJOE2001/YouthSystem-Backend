@@ -28,7 +28,7 @@ class EcesproInterviewBatchController extends Controller
             'batch_name' => 'required|string|max:255',
             'interview_date' => 'required|date',
             'time' => 'required|string',
-            'panel' => 'required|string',
+
             'mode' => 'required|string',
             'status' => 'nullable|string',
             'applicants' => 'nullable|array',
@@ -41,7 +41,7 @@ class EcesproInterviewBatchController extends Controller
                 'batch_name' => $validated['batch_name'],
                 'interview_date' => $validated['interview_date'],
                 'time' => $validated['time'] ?? null,
-                'panel' => $validated['panel'] ?? null,
+
                 'mode' => $validated['mode'] ?? null,
                 'status' => $validated['status'] ?? 'Scheduled',
             ]);
@@ -79,12 +79,12 @@ class EcesproInterviewBatchController extends Controller
             foreach ($applications as $app) {
                 try {
                     if ($app && $user = $app->user) {
-                        $msg = "Your ECESPRO Panel Interview has been scheduled! Date: {$batch->interview_date}, Time: {$batch->time}, Panel: {$batch->panel}, Mode: {$batch->mode} (Batch: {$batch->batch_name}).";
+                        $msg = "Your ECESPRO Panel Interview has been scheduled! Date: {$batch->interview_date}, Time: {$batch->time}, Mode: {$batch->mode} (Batch: {$batch->batch_name}).";
                         $metadata = [
                             'batch_name' => $batch->batch_name,
                             'interview_date' => $batch->interview_date,
                             'time' => $batch->time,
-                            'panel' => $batch->panel,
+
                             'mode' => $batch->mode,
                         ];
                         $user->notify(new EcesproApplicationStatusNotification($app, 'Interview Scheduled', $msg, $metadata));
@@ -115,7 +115,7 @@ class EcesproInterviewBatchController extends Controller
             'batch_name' => 'sometimes|string|max:255',
             'interview_date' => 'sometimes|date',
             'time' => 'sometimes|required|string',
-            'panel' => 'sometimes|required|string',
+
             'mode' => 'sometimes|required|string',
             'status' => 'nullable|string',
         ]);

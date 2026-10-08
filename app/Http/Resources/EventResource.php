@@ -19,13 +19,13 @@ class EventResource extends JsonResource
         $start = Carbon::parse($this->start_date);
         $end = $this->end_date ? Carbon::parse($this->end_date) : null;
 
-        $dateFormatted = $end ? $start->format('M d, Y').' - '.$end->format('M d, Y') : $start->format('M d, Y');
+        $dateFormatted = $end ? $start->format('M d, Y') . ' - ' . $end->format('M d, Y') : $start->format('M d, Y');
         $timeFormatted = $this->start_time ? Carbon::parse($this->start_time)->format('g:i A') : '';
         if ($this->end_time) {
-            $timeFormatted .= ' - '.Carbon::parse($this->end_time)->format('g:i A');
+            $timeFormatted .= ' - ' . Carbon::parse($this->end_time)->format('g:i A');
         }
 
-        $dateTime = trim($dateFormatted.' '.$timeFormatted);
+        $dateTime = trim($dateFormatted . ' ' . $timeFormatted);
 
         $user = Auth::guard('sanctum')->user() ?? Auth::user();
         $attended = false;
@@ -44,7 +44,9 @@ class EventResource extends JsonResource
         $canDownloadCertificate = (bool) ($attended && $hasCertificate && $isCompleted);
 
         $frontendUrl = config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost');
-        $shareUrl = rtrim($frontendUrl, '/')."/activities/event_{$this->id}";
+        $shareUrl = rtrim($frontendUrl, '/') . "/activities/event_{$this->id}";
+
+        $isList = $request->routeIs('*.index') || $request->routeIs('public.*') || $request->routeIs('*.my');
 
         return [
             'id' => $this->id,
@@ -61,44 +63,25 @@ class EventResource extends JsonResource
             'time' => $this->start_time ? Carbon::parse($this->start_time)->format('H:i') : null,
             'dateTime' => $dateTime,
             'location' => $this->location,
-            'hasNoAllocatedBudget' => (bool) $this->has_no_allocated_budget,
-            'noBudgetReason' => $this->no_budget_reason,
-            'budgetAllocated' => $this->budget_allocated ? (float) $this->budget_allocated : null,
-            'budgetUtilized' => $this->budget_utilized ? (float) $this->budget_utilized : null,
-            'performanceIndicator' => $this->performance_indicator,
-            'description' => $this->performance_indicator, // frontend alias
-            'primaryObjective1' => $this->primary_objective_1,
-            'primaryObjective2' => $this->primary_objective_2,
-            'primaryObjective3' => $this->primary_objective_3,
+            'hasNoAllocatedBudget' => $this->when(! $isList, (bool) $this->has_no_allocated_budget),
+            'noBudgetReason' => $this->when(! $isList, $this->no_budget_reason),
+            'performanceIndicator' => $this->when(! $isList, $this->performance_indicator),
+            'description' => $this->when(! $isList, $this->performance_indicator), // frontend alias
+            'primaryObjective1' => $this->when(! $isList, $this->primary_objective_1),
+            'primaryObjective2' => $this->when(! $isList, $this->primary_objective_2),
+            'primaryObjective3' => $this->when(! $isList, $this->primary_objective_3),
             'status' => ucfirst(strtolower($this->status)),
-            'rawStatus' => $this->status,
-            'raw_status' => $this->status,
             'joined' => $user ? ($this->pivot ? true : $this->participants()->where('user_id', $user->id)->exists()) : false,
-            'attended' => $attended,
-            'isAttended' => $attended,
-            'is_attended' => $attended,
-            'attendanceStatus' => $attended ? 'Attended' : 'Not Attended',
-            'attendance_status' => $attended ? 'Attended' : 'Not Attended',
-            'hasCertificate' => $hasCertificate,
-            'has_certificate' => $hasCertificate,
-            'certificate' => $certificatePath ?: ($hasCertificate ? true : null),
-            'certificates' => $hasCertificate,
-            'certificatePath' => $certificatePath,
-            'certificate_path' => $certificatePath,
-            'certificateTemplatePath' => $this->certificate_template_path,
-            'certificate_template_path' => $this->certificate_template_path,
-            'certificateTemplateUrl' => $this->certificate_template_path ? url('storage/'.$this->certificate_template_path) : null,
-            'certificate_template_url' => $this->certificate_template_path ? url('storage/'.$this->certificate_template_path) : null,
-            'certificateSettings' => $this->certificate_settings,
-            'certificate_settings' => $this->certificate_settings,
-            'canDownloadCertificate' => $canDownloadCertificate,
-            'can_download_certificate' => $canDownloadCertificate,
-            'canDownload' => $canDownloadCertificate,
-            'can_download' => $canDownloadCertificate,
-            'certificateUrl' => $canDownloadCertificate ? url("/api/events/event_{$this->id}/certificate") : null,
-            'certificate_url' => $canDownloadCertificate ? url("/api/events/event_{$this->id}/certificate") : null,
-            'shareUrl' => $shareUrl,
-            'share_url' => $shareUrl,
+            'attendanceStatus' => $this->when(! $isList, $attended ? 'Attended' : 'Not Attended'),
+            'hasCertificate' => $this->when(! $isList, $hasCertificate),
+            'certificate' => $this->when(! $isList, $certificatePath ?: ($hasCertificate ? true : null)),
+            'certificatePath' => $this->when(! $isList, $certificatePath),
+            'certificateTemplatePath' => $this->when(! $isList, $this->certificate_template_path),
+            'certificateTemplateUrl' => $this->when(! $isList, $this->certificate_template_path ? url('storage/' . $this->certificate_template_path) : null),
+            'certificateSettings' => $this->when(! $isList, $this->certificate_settings),
+            'canDownloadCertificate' => $this->when(! $isList, $canDownloadCertificate),
+            'certificateUrl' => $this->when(! $isList, $canDownloadCertificate ? url("/api/events/event_{$this->id}/certificate") : null),
+            'shareUrl' => $this->when(! $isList, $shareUrl),
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
         ];

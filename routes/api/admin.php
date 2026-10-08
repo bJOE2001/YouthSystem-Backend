@@ -211,9 +211,11 @@ Route::middleware([
             // ECESPRO Grant Releases
             Route::get('ecespro-grant-release-batches', [EcesproGrantReleaseController::class, 'index']);
             Route::post('ecespro-grant-release-batches', [EcesproGrantReleaseController::class, 'store']);
+            Route::get('ecespro-grant-release-batches/eligibility', [EcesproGrantReleaseController::class, 'eligibility']);
             Route::get('ecespro-grant-release-batches/{id}', [EcesproGrantReleaseController::class, 'show']);
             Route::post('ecespro-grant-release-batches/{id}/delete', [EcesproGrantReleaseController::class, 'destroy']);
             Route::post('ecespro-grant-releases/{grantReleaseId}/remove-from-batch', [EcesproGrantReleaseController::class, 'removeFromBatch']);
+            Route::post('ecespro-grant-releases/{grantReleaseId}/mark-released', [EcesproGrantReleaseController::class, 'markReleased']);
 
             // ECESPRO Compliance Schedules
             Route::get('ecespro-compliance-schedules', [EcesproComplianceScheduleController::class, 'index'])->name('ecespro-compliance-schedules.index');

@@ -13,7 +13,7 @@ class EcesproInterviewBatch extends Model
         'batch_name',
         'interview_date',
         'time',
-        'panel',
+
         'mode',
         'status',
     ];
