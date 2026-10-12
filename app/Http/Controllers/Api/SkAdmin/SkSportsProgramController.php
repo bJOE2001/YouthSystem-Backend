@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\SkAdmin;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreSportsProgramRequest;
 use App\Http\Requests\UpdateSportsProgramRequest;
@@ -9,22 +10,46 @@ use App\Http\Resources\EventParticipantResource;
 use App\Http\Resources\SportsProgramResource;
 use App\Models\SkOfficial;
 use App\Models\SportsProgram;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class SkSportsProgramController extends Controller
 {
+    protected function authorizeBarangayProgram(User $user, SportsProgram $sportsProgram): void
+    {
+        $skBarangay = $user->getBarangay();
+        $programBarangay = $sportsProgram->barangay ?: $sportsProgram->user?->getBarangay();
+        if (! $skBarangay || strtolower(trim((string) $programBarangay)) !== strtolower(trim((string) $skBarangay))) {
+            abort(403, 'You are not authorized to access sports programs outside your assigned barangay.');
+        }
+    }
+
     /**
      * Get list of sports programs for SK Admin.
      */
     public function index(Request $request)
     {
         $query = SportsProgram::query();
-        $user = auth('sanctum')->user();
+        /** @var User|null $user */
+        $user = auth('sanctum')->user() ?? auth()->user();
+        $skBarangay = $user?->getBarangay();
 
-        // Filter by user's programs if requested or by default for SK management
-        if ($request->input('owner') === 'me' || ! $request->has('all')) {
-            $query->where('user_id', $user->id);
+        // Filter by the SK Admin's assigned barangay
+        if ($skBarangay) {
+            $query->where(function ($q) use ($skBarangay) {
+                $q->where(function ($bq) use ($skBarangay) {
+                    $bq->whereNotNull('barangay')
+                        ->whereRaw('LOWER(barangay) = ?', [strtolower(trim($skBarangay))]);
+                })->orWhereHas('user', function ($uq) use ($skBarangay) {
+                    $uq->whereIn('role', [UserRole::SkAdmin->value, 'sk_admin'])
+                        ->whereHas('skOfficial', function ($oq) use ($skBarangay) {
+                            $oq->whereRaw('LOWER(barangay) = ?', [strtolower(trim($skBarangay))]);
+                        });
+                });
+            });
+        } elseif ($request->input('owner') === 'me' || ! $request->has('all')) {
+            $query->where('user_id', $user?->id);
         }
 
         if ($request->has('search') && ! empty($request->search)) {
@@ -57,6 +82,7 @@ class SkSportsProgramController extends Controller
      */
     public function store(StoreSportsProgramRequest $request)
     {
+        /** @var User $user */
         $user = auth()->user();
         $data = $this->mapToSnakeCase($request->validated());
         $data['user_id'] = $user->id;
@@ -66,12 +92,7 @@ class SkSportsProgramController extends Controller
 
         $isOpenToAll = filter_var($request->input('openToAll', $request->input('open_to_all_barangays', true)), FILTER_VALIDATE_BOOLEAN);
         $data['open_to_all_barangays'] = $isOpenToAll;
-
-        if (! $isOpenToAll) {
-            $data['barangay'] = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
-        } else {
-            $data['barangay'] = null;
-        }
+        $data['barangay'] = $user->getBarangay();
 
         $program = SportsProgram::create($data);
 
@@ -83,6 +104,10 @@ class SkSportsProgramController extends Controller
      */
     public function show(SportsProgram $sportsProgram)
     {
+        /** @var User $user */
+        $user = auth('sanctum')->user() ?? auth()->user();
+        $this->authorizeBarangayProgram($user, $sportsProgram);
+
         return new SportsProgramResource($sportsProgram);
     }
 
@@ -91,18 +116,16 @@ class SkSportsProgramController extends Controller
      */
     public function update(UpdateSportsProgramRequest $request, SportsProgram $sportsProgram)
     {
-        $user = auth()->user();
+        /** @var User $user */
+        $user = auth('sanctum')->user() ?? auth()->user();
+        $this->authorizeBarangayProgram($user, $sportsProgram);
+
         $data = $this->mapToSnakeCase($request->validated());
 
         if ($request->has('openToAll') || $request->has('open_to_all_barangays')) {
             $isOpenToAll = filter_var($request->input('openToAll', $request->input('open_to_all_barangays', true)), FILTER_VALIDATE_BOOLEAN);
             $data['open_to_all_barangays'] = $isOpenToAll;
-
-            if (! $isOpenToAll) {
-                $data['barangay'] = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
-            } else {
-                $data['barangay'] = null;
-            }
+            $data['barangay'] = $user->getBarangay();
         }
 
         $sportsProgram->update($data);
@@ -115,6 +138,10 @@ class SkSportsProgramController extends Controller
      */
     public function updateStatus(Request $request, SportsProgram $sportsProgram)
     {
+        /** @var User $user */
+        $user = auth('sanctum')->user() ?? auth()->user();
+        $this->authorizeBarangayProgram($user, $sportsProgram);
+
         $request->validate([
             'status' => 'required|string',
         ]);
@@ -130,6 +157,10 @@ class SkSportsProgramController extends Controller
      */
     public function destroy(SportsProgram $sportsProgram)
     {
+        /** @var User $user */
+        $user = auth('sanctum')->user() ?? auth()->user();
+        $this->authorizeBarangayProgram($user, $sportsProgram);
+
         $sportsProgram->delete();
 
         return response()->noContent();
@@ -140,6 +171,9 @@ class SkSportsProgramController extends Controller
      */
     public function participantsByBarangay(Request $request, SportsProgram $sportsProgram)
     {
+        /** @var User $user */
+        $user = auth('sanctum')->user() ?? auth()->user();
+        $this->authorizeBarangayProgram($user, $sportsProgram);
         $participants = $sportsProgram->participants()->with('youthProfile')->get();
         $resourceCollection = EventParticipantResource::collection($participants)->resolve($request);
 

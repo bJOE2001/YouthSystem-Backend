@@ -55,6 +55,8 @@ class SportsProgramResource extends JsonResource
         $isList = $request->routeIs('*.index') || $request->routeIs('public.*') || $request->routeIs('*.my');
 
         return [
+            'creatorRole' => $this->user?->role instanceof \BackedEnum ? $this->user->role->value : $this->user?->role,
+            'creatorBarangay' => $this->barangay ?? $this->user?->youthProfile?->barangay ?? \App\Models\SkOfficial::where('email', $this->user?->email)->value('barangay'),
             'id' => $this->id,
             'name' => $this->name,
             'type' => $this->type,

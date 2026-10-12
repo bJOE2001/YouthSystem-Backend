@@ -17,7 +17,17 @@ class GetResidentYouthRecordsAction
      */
     public function execute(array $filters = []): LengthAwarePaginator
     {
-        $query = YouthProfile::query()->with(['user', 'organization'])->where('status', YouthProfileStatus::Approved);
+        // Auto-heal any existing resident records that were inadvertently demoted to Pending
+        YouthProfile::where('status', YouthProfileStatus::Pending)
+            ->whereHas('user.skOfficial')
+            ->update(['status' => YouthProfileStatus::Approved]);
+
+        $query = YouthProfile::query()
+            ->with(['user', 'organization'])
+            ->where(function ($q) {
+                $q->where('status', YouthProfileStatus::Approved)
+                  ->orWhereHas('user.skOfficial');
+            });
 
         $user = auth()->user();
         $includeSelf = filter_var($filters['include_self'] ?? false, FILTER_VALIDATE_BOOLEAN);

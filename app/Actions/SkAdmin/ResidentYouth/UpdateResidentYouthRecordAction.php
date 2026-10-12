@@ -6,6 +6,7 @@ use App\Actions\YouthProfile\UpdateYouthProfileAction;
 use App\Models\YouthProfile;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 class UpdateResidentYouthRecordAction
@@ -41,6 +42,7 @@ class UpdateResidentYouthRecordAction
                 'birth_date' => $data['birthdate'],
                 'place_of_birth' => $data['placeOfBirth'],
                 'mobile_number' => $data['mobileNumber'],
+                'facebook_account' => $data['facebookAccount'] ?? $data['facebook_account'] ?? $youthProfile->facebook_account,
                 'father_first_name' => $data['fatherFirstName'] ?? null,
                 'father_middle_name' => $data['fatherMiddleName'] ?? null,
                 'father_last_name' => $data['fatherLastName'] ?? null,
@@ -71,7 +73,32 @@ class UpdateResidentYouthRecordAction
                 'postal_code' => $data['zipcode'],
             ];
 
-            return $this->updateYouthProfileAction->execute($youthProfile, $mappedProfileData, $attachedId);
+            // If the resident youth is an active SK Official, sync their record so name/contact/barangay updates immediately
+            if (Schema::hasTable('sk_officials')) {
+                $parts = preg_split('/\s+/', trim($name));
+                $initials = count($parts) >= 2
+                    ? strtoupper(substr($parts[0], 0, 1).substr(end($parts), 0, 1))
+                    : strtoupper(substr($name, 0, 2));
+
+                DB::table('sk_officials')
+                    ->where(function ($q) use ($youthProfile) {
+                        $q->where('user_id', $youthProfile->user_id);
+                        if ($youthProfile->user && $youthProfile->user->email) {
+                            $q->orWhere('email', $youthProfile->user->email);
+                        }
+                    })
+                    ->update([
+                        'name' => $name,
+                        'initials' => $initials,
+                        'email' => $data['email'],
+                        'contact' => $data['mobileNumber'] ?? null,
+                        'barangay' => $data['barangay'] ?? null,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            // resetToPending is FALSE: preserve Approved status for resident youth
+            return $this->updateYouthProfileAction->execute($youthProfile, $mappedProfileData, $attachedId, false);
         });
     }
 }

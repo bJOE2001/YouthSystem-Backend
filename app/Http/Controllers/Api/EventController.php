@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class EventController extends Controller
 {
@@ -27,12 +28,52 @@ class EventController extends Controller
 
     public function index(Request $request)
     {
-        /** @var User|null $user */
-        $user = Auth::guard('sanctum')->user() ?? Auth::user();
-        $isOwnerRequest = $request->input('owner') === 'me';
+        if (! $request->user() && $request->bearerToken()) {
+            $token = PersonalAccessToken::findToken($request->bearerToken());
+            if ($token && $token->tokenable) {
+                auth()->setUser($token->tokenable);
+                $request->setUserResolver(fn () => $token->tokenable);
+            }
+        }
 
-        if ($isOwnerRequest && $user && ($user->role === UserRole::Admin || $user->role === UserRole::SkAdmin)) {
-            $query = Event::where('user_id', $user->id);
+        /** @var User|null $user */
+        $user = $request->user() ?? Auth::guard('sanctum')->user() ?? Auth::user();
+        $isOwnerRequest = $request->query('owner') === 'me';
+
+        if ($isOwnerRequest) {
+            if (! $user) {
+                abort(401, 'Unauthenticated.');
+            }
+
+            if ($user->isRootAdmin() || ($user->isSubAdmin() && $user->canAccessModule('events'))) {
+                // Citywide Admin-managed events created by any Admin or Sub-Admin
+                $query = Event::whereHas('user', function ($uq) {
+                    $uq->whereIn('role', [UserRole::Admin->value, UserRole::SubAdmin->value, 'admin', 'sub_admin']);
+                });
+            } elseif ($user->isSubAdmin()) {
+                abort(403, 'You do not have permission to access the events module.');
+            } elseif ($user->role === UserRole::SkAdmin) {
+                $skBarangay = $user->getBarangay();
+                if (! $skBarangay) {
+                    abort(403, 'No barangay assigned to this SK Admin account.');
+                }
+
+                // Shared events belonging to this SK Admin's barangay only
+                $query = Event::where(function ($q) use ($skBarangay) {
+                    $q->where(function ($bq) use ($skBarangay) {
+                        $bq->whereNotNull('barangay')
+                            ->whereRaw('LOWER(barangay) = ?', [strtolower(trim($skBarangay))]);
+                    })->orWhereHas('user', function ($uq) use ($skBarangay) {
+                        $uq->whereIn('role', [UserRole::SkAdmin->value, 'sk_admin'])
+                            ->whereHas('skOfficial', function ($oq) use ($skBarangay) {
+                                $oq->whereRaw('LOWER(barangay) = ?', [strtolower(trim($skBarangay))]);
+                            });
+                    });
+                });
+            } else {
+                abort(403, 'Unauthorized to view management events.');
+            }
+
             if ($request->has('search') && ! empty($request->search)) {
                 $query->where(function ($q) use ($request) {
                     $q->where('name', 'like', '%'.$request->search.'%')
@@ -149,6 +190,35 @@ class EventController extends Controller
         return UnifiedEventResource::collection($paginated);
     }
 
+    protected function authorizeEventModification(User $user, Event $event): void
+    {
+        if ($user->isRootAdmin()) {
+            return;
+        }
+
+        if ($user->isSubAdmin()) {
+            if (! $user->canAccessModule('events')) {
+                abort(403, 'You do not have permission to access the events module.');
+            }
+            $creatorRole = $event->user?->role;
+            if ($creatorRole === UserRole::SkAdmin || (! empty($event->barangay) && ! $event->open_to_all_barangays)) {
+                abort(403, 'Sub-Admins cannot modify barangay-managed SK events.');
+            }
+            return;
+        }
+
+        if ($user->role === UserRole::SkAdmin) {
+            $skBarangay = $user->getBarangay();
+            $eventBarangay = $event->barangay ?: $event->user?->getBarangay();
+            if (! $skBarangay || strtolower(trim((string) $eventBarangay)) !== strtolower(trim((string) $skBarangay))) {
+                abort(403, 'You are not authorized to modify events outside your assigned barangay.');
+            }
+            return;
+        }
+
+        abort(403, 'Unauthorized.');
+    }
+
     public function store(StoreEventRequest $request)
     {
         /** @var User $user */
@@ -158,8 +228,8 @@ class EventController extends Controller
 
         $isOpenToAll = filter_var($request->input('openToAll', $request->input('openToAllBarangays', $request->input('open_to_all_barangays', false))), FILTER_VALIDATE_BOOLEAN);
         $data['open_to_all_barangays'] = $isOpenToAll;
-        if (! $isOpenToAll) {
-            $data['barangay'] = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
+        if ($user->role === UserRole::SkAdmin) {
+            $data['barangay'] = $user->getBarangay();
         } else {
             $data['barangay'] = null;
         }
@@ -188,13 +258,15 @@ class EventController extends Controller
     {
         /** @var User $user */
         $user = Auth::guard('sanctum')->user() ?? Auth::user();
+        $this->authorizeEventModification($user, $event);
+
         $data = $this->mapToSnakeCase($request->validated());
 
         if ($request->has('openToAll') || $request->has('openToAllBarangays') || $request->has('open_to_all_barangays')) {
             $isOpenToAll = filter_var($request->input('openToAll', $request->input('openToAllBarangays', $request->input('open_to_all_barangays', false))), FILTER_VALIDATE_BOOLEAN);
             $data['open_to_all_barangays'] = $isOpenToAll;
-            if (! $isOpenToAll) {
-                $data['barangay'] = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
+            if ($user->role === UserRole::SkAdmin) {
+                $data['barangay'] = $user->getBarangay();
             } else {
                 $data['barangay'] = null;
             }
@@ -207,6 +279,10 @@ class EventController extends Controller
 
     public function updateStatus(Request $request, Event $event)
     {
+        /** @var User $user */
+        $user = Auth::guard('sanctum')->user() ?? Auth::user();
+        $this->authorizeEventModification($user, $event);
+
         $request->validate([
             'status' => 'required|string|in:draft,upcoming,ongoing,completed,cancelled',
         ]);
@@ -220,6 +296,10 @@ class EventController extends Controller
 
     public function destroy(Event $event)
     {
+        /** @var User $user */
+        $user = Auth::guard('sanctum')->user() ?? Auth::user();
+        $this->authorizeEventModification($user, $event);
+
         $event->delete();
 
         return response()->json(['message' => 'Event deleted successfully.']);
@@ -349,7 +429,38 @@ class EventController extends Controller
 
         $query = $model->participants()->with('youthProfile');
 
-        $perPage = $request->input('per_page', 10);
+        if ($request->boolean('unattended_only')) {
+            $query->wherePivotNull('attended_at');
+        }
+
+        if ($search = $request->input('search')) {
+            $searchTerm = '%' . trim($search) . '%';
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('users.name', 'like', $searchTerm)
+                    ->orWhere('users.email', 'like', $searchTerm)
+                    ->orWhereHas('youthProfile', function ($yq) use ($searchTerm) {
+                        $yq->where('first_name', 'like', $searchTerm)
+                            ->orWhere('last_name', 'like', $searchTerm)
+                            ->orWhere('middle_name', 'like', $searchTerm)
+                            ->orWhere('mobile_number', 'like', $searchTerm)
+                            ->orWhere('barangay', 'like', $searchTerm)
+                            ->orWhere('purok_sitio', 'like', $searchTerm)
+                            ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$searchTerm])
+                            ->orWhereRaw("CONCAT(first_name, ' ', middle_name, ' ', last_name) LIKE ?", [$searchTerm]);
+                    });
+            });
+        }
+
+        $sortBy = $request->input('sort_by');
+        $sortOrder = strtolower($request->input('sort_order', 'asc')) === 'desc' ? 'desc' : 'asc';
+        if ($sortBy === 'name') {
+            $query->orderBy('users.name', $sortOrder);
+        }
+
+        $rawPerPage = $request->input('per_page', 10);
+        $perPage = ($rawPerPage === 'all' || (int) $rawPerPage === -1)
+            ? 500
+            : (is_numeric($rawPerPage) && (int) $rawPerPage > 0 ? min((int) $rawPerPage, 500) : 10);
 
         return EventParticipantResource::collection($query->paginate($perPage));
     }

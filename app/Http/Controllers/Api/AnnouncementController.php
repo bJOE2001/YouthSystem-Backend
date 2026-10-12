@@ -35,7 +35,35 @@ class AnnouncementController extends Controller
         }
 
         if ($request->input('owner') === 'me') {
-            $query->where('user_id', auth('sanctum')->id());
+            /** @var User|null $user */
+            $user = $request->user() ?? auth('sanctum')->user();
+            if (! $user) {
+                abort(401, 'Unauthenticated.');
+            }
+
+            if ($user->isRootAdmin() || ($user->isSubAdmin() && $user->canAccessModule('announcements'))) {
+                // Citywide Admin announcements created by any Admin or Sub-Admin
+                $query->whereHas('user', function ($uq) {
+                    $uq->whereIn('role', [UserRole::Admin->value, UserRole::SubAdmin->value, 'admin', 'sub_admin']);
+                });
+            } elseif ($user->isSubAdmin()) {
+                abort(403, 'You do not have permission to access the announcements module.');
+            } elseif ($user->role === UserRole::SkAdmin) {
+                $skBarangay = $user->getBarangay();
+                if (! $skBarangay) {
+                    abort(403, 'No barangay assigned to this SK Admin account.');
+                }
+
+                // Shared announcements created by SK Admins of this barangay only
+                $query->whereHas('user', function ($uq) use ($skBarangay) {
+                    $uq->whereIn('role', [UserRole::SkAdmin->value, 'sk_admin'])
+                        ->whereHas('skOfficial', function ($oq) use ($skBarangay) {
+                            $oq->whereRaw('LOWER(barangay) = ?', [strtolower(trim($skBarangay))]);
+                        });
+                });
+            } else {
+                abort(403, 'Unauthorized to view management announcements.');
+            }
         }
 
         $sortBy = $request->input('sort_by', 'created_at');
@@ -54,6 +82,35 @@ class AnnouncementController extends Controller
         $announcements = $perPage > 0 ? $query->paginate($perPage) : $query->get();
 
         return AnnouncementResource::collection($announcements);
+    }
+
+    protected function authorizeAnnouncementModification(User $user, Announcement $announcement): void
+    {
+        if ($user->isRootAdmin()) {
+            return;
+        }
+
+        if ($user->isSubAdmin()) {
+            if (! $user->canAccessModule('announcements')) {
+                abort(403, 'You do not have permission to access the announcements module.');
+            }
+            $creatorRole = $announcement->user?->role;
+            if ($creatorRole === UserRole::SkAdmin) {
+                abort(403, 'Sub-Admins cannot modify barangay-managed SK announcements.');
+            }
+            return;
+        }
+
+        if ($user->role === UserRole::SkAdmin) {
+            $skBarangay = $user->getBarangay();
+            $creatorBarangay = $announcement->user?->getBarangay();
+            if (! $skBarangay || strtolower(trim((string) $creatorBarangay)) !== strtolower(trim((string) $skBarangay))) {
+                abort(403, 'You are not authorized to modify announcements outside your assigned barangay.');
+            }
+            return;
+        }
+
+        abort(403, 'Unauthorized.');
     }
 
     public function store(Request $request)
@@ -83,6 +140,10 @@ class AnnouncementController extends Controller
 
     public function update(Request $request, Announcement $announcement)
     {
+        /** @var User $user */
+        $user = $request->user() ?? auth('sanctum')->user();
+        $this->authorizeAnnouncementModification($user, $announcement);
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
@@ -95,6 +156,10 @@ class AnnouncementController extends Controller
 
     public function destroy(Announcement $announcement)
     {
+        /** @var User $user */
+        $user = request()->user() ?? auth('sanctum')->user();
+        $this->authorizeAnnouncementModification($user, $announcement);
+
         $announcement->delete();
 
         return response()->json(['message' => 'Announcement deleted successfully']);

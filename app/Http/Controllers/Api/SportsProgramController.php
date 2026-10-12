@@ -18,19 +18,58 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class SportsProgramController extends Controller
 {
     public function index(Request $request)
     {
+        if (! $request->user() && $request->bearerToken()) {
+            $token = PersonalAccessToken::findToken($request->bearerToken());
+            if ($token && $token->tokenable) {
+                auth()->setUser($token->tokenable);
+                $request->setUserResolver(fn () => $token->tokenable);
+            }
+        }
+
         $query = SportsProgram::query();
         /** @var User|null $user */
-        $user = Auth::guard('sanctum')->user() ?? Auth::user();
+        $user = $request->user() ?? Auth::guard('sanctum')->user() ?? Auth::user();
+        $isOwnerRequest = $request->query('owner') === 'me';
 
-        $isOwnerRequest = $request->input('owner') === 'me';
+        if ($isOwnerRequest) {
+            if (! $user) {
+                abort(401, 'Unauthenticated.');
+            }
 
-        if ($isOwnerRequest && $user && ($user->role === UserRole::Admin || $user->role === UserRole::SkAdmin)) {
-            $query->where('user_id', $user->id);
+            if ($user->isRootAdmin() || ($user->isSubAdmin() && $user->canAccessModule('sports_programs'))) {
+                // Citywide Admin-managed sports programs created by any Admin or Sub-Admin
+                $query->whereHas('user', function ($uq) {
+                    $uq->whereIn('role', [UserRole::Admin->value, UserRole::SubAdmin->value, 'admin', 'sub_admin']);
+                });
+            } elseif ($user->isSubAdmin()) {
+                abort(403, 'You do not have permission to access the sports programs module.');
+            } elseif ($user->role === UserRole::SkAdmin) {
+                $skBarangay = $user->getBarangay();
+                if (! $skBarangay) {
+                    abort(403, 'No barangay assigned to this SK Admin account.');
+                }
+
+                // Shared sports programs belonging to this SK Admin's barangay only
+                $query->where(function ($q) use ($skBarangay) {
+                    $q->where(function ($bq) use ($skBarangay) {
+                        $bq->whereNotNull('barangay')
+                            ->whereRaw('LOWER(barangay) = ?', [strtolower(trim($skBarangay))]);
+                    })->orWhereHas('user', function ($uq) use ($skBarangay) {
+                        $uq->whereIn('role', [UserRole::SkAdmin->value, 'sk_admin'])
+                            ->whereHas('skOfficial', function ($oq) use ($skBarangay) {
+                                $oq->whereRaw('LOWER(barangay) = ?', [strtolower(trim($skBarangay))]);
+                            });
+                    });
+                });
+            } else {
+                abort(403, 'Unauthorized to view management sports programs.');
+            }
         } else {
             $query->whereIn('status', ['Upcoming', 'Ongoing', 'upcoming', 'ongoing']);
 
@@ -70,6 +109,35 @@ class SportsProgramController extends Controller
         return SportsProgramResource::collection($query->paginate($perPage));
     }
 
+    protected function authorizeSportsProgramModification(User $user, SportsProgram $sportsProgram): void
+    {
+        if ($user->isRootAdmin()) {
+            return;
+        }
+
+        if ($user->isSubAdmin()) {
+            if (! $user->canAccessModule('sports_programs')) {
+                abort(403, 'You do not have permission to access the sports programs module.');
+            }
+            $creatorRole = $sportsProgram->user?->role;
+            if ($creatorRole === UserRole::SkAdmin || (! empty($sportsProgram->barangay) && ! $sportsProgram->open_to_all_barangays)) {
+                abort(403, 'Sub-Admins cannot modify barangay-managed SK sports programs.');
+            }
+            return;
+        }
+
+        if ($user->role === UserRole::SkAdmin) {
+            $skBarangay = $user->getBarangay();
+            $programBarangay = $sportsProgram->barangay ?: $sportsProgram->user?->getBarangay();
+            if (! $skBarangay || strtolower(trim((string) $programBarangay)) !== strtolower(trim((string) $skBarangay))) {
+                abort(403, 'You are not authorized to modify sports programs outside your assigned barangay.');
+            }
+            return;
+        }
+
+        abort(403, 'Unauthorized.');
+    }
+
     public function store(StoreSportsProgramRequest $request)
     {
         /** @var User $user */
@@ -79,9 +147,8 @@ class SportsProgramController extends Controller
 
         $isOpenToAll = filter_var($request->input('openToAll', $request->input('open_to_all_barangays', true)), FILTER_VALIDATE_BOOLEAN);
         $data['open_to_all_barangays'] = $isOpenToAll;
-
-        if (! $isOpenToAll) {
-            $data['barangay'] = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
+        if ($user->role === UserRole::SkAdmin) {
+            $data['barangay'] = $user->getBarangay();
         } else {
             $data['barangay'] = null;
         }
@@ -100,14 +167,15 @@ class SportsProgramController extends Controller
     {
         /** @var User $user */
         $user = $request->user() ?? Auth::guard('sanctum')->user() ?? Auth::user();
+        $this->authorizeSportsProgramModification($user, $sportsProgram);
+
         $data = $this->mapToSnakeCase($request->validated());
 
         if ($request->has('openToAll') || $request->has('open_to_all_barangays')) {
             $isOpenToAll = filter_var($request->input('openToAll', $request->input('open_to_all_barangays', true)), FILTER_VALIDATE_BOOLEAN);
             $data['open_to_all_barangays'] = $isOpenToAll;
-
-            if (! $isOpenToAll) {
-                $data['barangay'] = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
+            if ($user->role === UserRole::SkAdmin) {
+                $data['barangay'] = $user->getBarangay();
             } else {
                 $data['barangay'] = null;
             }
@@ -120,6 +188,10 @@ class SportsProgramController extends Controller
 
     public function updateStatus(Request $request, SportsProgram $sportsProgram)
     {
+        /** @var User $user */
+        $user = $request->user() ?? Auth::guard('sanctum')->user() ?? Auth::user();
+        $this->authorizeSportsProgramModification($user, $sportsProgram);
+
         $request->validate([
             'status' => 'required|string',
         ]);
@@ -132,6 +204,10 @@ class SportsProgramController extends Controller
 
     public function destroy(SportsProgram $sportsProgram)
     {
+        /** @var User $user */
+        $user = request()->user() ?? Auth::guard('sanctum')->user() ?? Auth::user();
+        $this->authorizeSportsProgramModification($user, $sportsProgram);
+
         $sportsProgram->delete();
 
         return response()->noContent();

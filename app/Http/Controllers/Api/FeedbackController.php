@@ -124,43 +124,49 @@ class FeedbackController extends Controller
 
         $query = Feedback::with(['user.youthProfile', 'event.user', 'sportsProgram.user']);
 
-        // Match feedbacks for this SK Admin or their barangay
-        $query->where(function ($q) use ($user, $barangay) {
-            // A: Event created by this SK admin
-            $q->whereHas('event', function ($eq) use ($user) {
-                $eq->where('user_id', $user->id);
-            });
-
-            // B: Sports program created by this SK admin
-            $q->orWhereHas('sportsProgram', function ($sq) use ($user) {
-                $sq->where('user_id', $user->id);
-            });
-
-            // C: Feedbacks belonging to the assigned barangay
+        // Match feedbacks for this SK Admin's barangay
+        $query->where(function ($q) use ($barangay) {
             if ($barangay) {
-                $q->orWhere('barangay', $barangay)
-                    ->orWhereHas('event', function ($eq) use ($barangay) {
-                        $eq->where('barangay', $barangay);
-                    })
-                    ->orWhereHas('sportsProgram', function ($sq) use ($barangay) {
-                        $sq->where('barangay', $barangay);
-                    })
-                    ->orWhere(function ($sub) use ($barangay) {
-                        $sub->where('target', 'sk')
-                            ->whereHas('user.youthProfile', function ($yq) use ($barangay) {
-                                $yq->where('barangay', $barangay);
+                // A: Direct barangay feedback or targeting SK youth of this barangay
+                $q->where(function ($sub) use ($barangay) {
+                    $sub->whereNotNull('barangay')
+                        ->whereRaw('LOWER(barangay) = ?', [strtolower(trim($barangay))]);
+                })->orWhere(function ($sub) use ($barangay) {
+                    $sub->where('target', 'sk')
+                        ->whereHas('user.youthProfile', function ($yq) use ($barangay) {
+                            $yq->whereNotNull('barangay')
+                                ->whereRaw('LOWER(barangay) = ?', [strtolower(trim($barangay))]);
+                        });
+                });
+
+                // B: Event belonging to this barangay or created by SK Admin of this barangay
+                $q->orWhereHas('event', function ($eq) use ($barangay) {
+                    $eq->where(function ($beq) use ($barangay) {
+                        $beq->whereNotNull('barangay')
+                            ->whereRaw('LOWER(barangay) = ?', [strtolower(trim($barangay))]);
+                    })->orWhereHas('user', function ($uq) use ($barangay) {
+                        $uq->whereIn('role', ['sk_admin', 'sk'])
+                            ->whereHas('skOfficial', function ($oq) use ($barangay) {
+                                $oq->whereRaw('LOWER(barangay) = ?', [strtolower(trim($barangay))]);
                             });
                     });
-            }
+                });
 
-            // D: Feedbacks explicitly targeting SK for this user's events/sports
-            $q->orWhere(function ($sub) use ($user) {
-                $sub->where('target', 'sk')
-                    ->where(function ($inner) use ($user) {
-                        $inner->whereHas('event', fn ($eq) => $eq->where('user_id', $user->id))
-                            ->orWhereHas('sportsProgram', fn ($sq) => $sq->where('user_id', $user->id));
+                // C: Sports program belonging to this barangay or created by SK Admin of this barangay
+                $q->orWhereHas('sportsProgram', function ($sq) use ($barangay) {
+                    $sq->where(function ($bsq) use ($barangay) {
+                        $bsq->whereNotNull('barangay')
+                            ->whereRaw('LOWER(barangay) = ?', [strtolower(trim($barangay))]);
+                    })->orWhereHas('user', function ($uq) use ($barangay) {
+                        $uq->whereIn('role', ['sk_admin', 'sk'])
+                            ->whereHas('skOfficial', function ($oq) use ($barangay) {
+                                $oq->whereRaw('LOWER(barangay) = ?', [strtolower(trim($barangay))]);
+                            });
                     });
-            });
+                });
+            } else {
+                $q->whereRaw('1 = 0');
+            }
         });
 
         if ($request->filled('type') && $request->type !== 'all') {

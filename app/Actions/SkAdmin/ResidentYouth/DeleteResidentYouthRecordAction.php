@@ -143,6 +143,7 @@ class DeleteResidentYouthRecordAction
             }
 
             if ($attachedIdPath !== null) {
+                Storage::disk('public')->delete($attachedIdPath);
                 Storage::disk('local')->delete($attachedIdPath);
             }
         });

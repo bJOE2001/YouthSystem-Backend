@@ -22,13 +22,13 @@ class SkOfficialController extends Controller
         $user = $request->user();
         $params = $request->all();
 
-        // Scope to SK admin's barangay if available
-        $official = $user?->skOfficial ?? ($user?->email ? SkOfficial::where('email', $user->email)->first() : null);
-        $barangay = $official?->barangay ?? $user?->youthProfile?->barangay;
-
-        if ($barangay && empty($params['barangay'])) {
-            $params['barangay'] = $barangay;
+        // Scope strictly to SK admin's barangay
+        $barangay = $user?->getBarangay();
+        if (! $barangay) {
+            abort(403, 'No barangay assigned to this SK Admin account.');
         }
+
+        $params['barangay'] = $barangay;
 
         $officials = $action->execute($params);
 
@@ -97,16 +97,29 @@ class SkOfficialController extends Controller
         ]);
     }
 
+    protected function authorizeBarangayOfficial(User $user, SkOfficial $skOfficial): void
+    {
+        $skBarangay = $user->getBarangay();
+        if (! $skBarangay || strtolower(trim((string) $skOfficial->barangay)) !== strtolower(trim((string) $skBarangay))) {
+            abort(403, 'You are not authorized to access SK officials outside your assigned barangay.');
+        }
+    }
+
     public function store(Request $request, CreateSkOfficialAction $action): JsonResponse
     {
+        $skBarangay = $request->user()?->getBarangay();
+
         $validated = $request->validate([
             'user_id' => [
                 'required',
                 'exists:users,id',
-                function ($attribute, $value, $fail) {
+                function ($attribute, $value, $fail) use ($skBarangay) {
                     $user = User::with('youthProfile')->find($value);
                     if (! $user || ! $user->youthProfile || $user->youthProfile->status !== YouthProfileStatus::Approved) {
                         $fail('The selected youth must have an approved youth profile.');
+                    }
+                    if ($skBarangay && $user?->youthProfile?->barangay && strtolower(trim($user->youthProfile->barangay)) !== strtolower(trim($skBarangay))) {
+                        $fail('The selected youth must belong to your assigned barangay.');
                     }
                     if (SkOfficial::where('user_id', $value)->exists()) {
                         $fail('The selected youth is already an active SK official.');
@@ -114,7 +127,30 @@ class SkOfficialController extends Controller
                 },
             ],
             'committee' => 'nullable|string|max:255',
-            'position' => 'required|string|max:255',
+            'position' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) use ($request) {
+                    $userId = $request->input('user_id');
+                    if (! $userId) return;
+                    $user = User::with('youthProfile')->find($userId);
+                    $barangay = $user?->youthProfile?->barangay;
+                    if (! $barangay) return;
+
+                    $count = SkOfficial::where('barangay', $barangay)->where('position', $value)->count();
+
+                    if ($value === 'SK Chairperson' && $count >= 1) {
+                        $fail("Barangay $barangay already has an SK Chairperson.");
+                    } elseif ($value === 'SK Secretary' && $count >= 1) {
+                        $fail("Barangay $barangay already has an SK Secretary.");
+                    } elseif ($value === 'SK Treasurer' && $count >= 1) {
+                        $fail("Barangay $barangay already has an SK Treasurer.");
+                    } elseif ($value === 'SK Kagawad' && $count >= 7) {
+                        $fail("Barangay $barangay already has the maximum of 7 SK Kagawads.");
+                    }
+                },
+            ],
             'responsibilities' => 'nullable|string',
             'term' => 'nullable|string|max:255',
         ]);
@@ -128,15 +164,17 @@ class SkOfficialController extends Controller
         ], 201);
     }
 
-    public function show(SkOfficial $skOfficial, GetSkOfficialDetailsAction $action): JsonResponse
+    public function show(Request $request, SkOfficial $skOfficial, GetSkOfficialDetailsAction $action): JsonResponse
     {
+        $this->authorizeBarangayOfficial($request->user(), $skOfficial);
         $official = $action->execute($skOfficial->loadMissing('user.youthProfile'));
 
         return response()->json(SkOfficialResource::make($official));
     }
 
-    public function destroy(SkOfficial $skOfficial, DeleteSkOfficialAction $action): JsonResponse
+    public function destroy(Request $request, SkOfficial $skOfficial, DeleteSkOfficialAction $action): JsonResponse
     {
+        $this->authorizeBarangayOfficial($request->user(), $skOfficial);
         $action->execute($skOfficial);
 
         return response()->json([
