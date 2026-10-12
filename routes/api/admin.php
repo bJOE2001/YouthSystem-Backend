@@ -4,6 +4,8 @@ use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\EcesproExamQuestionnaireController;
 use App\Http\Controllers\Api\Admin\EcesproExaminationSetupController;
 
+use App\Http\Controllers\Api\Admin\LibrarySdgController;
+use App\Http\Controllers\Api\Admin\CenterOfParticipationController;
 use App\Http\Controllers\Api\Admin\BarangayLibraryController;
 use App\Http\Controllers\Api\Admin\CommitteeLibraryController;
 use App\Http\Controllers\Api\Admin\DashboardController;
@@ -77,6 +79,20 @@ Route::middleware([
             Route::post('/', [OrganizationController::class, 'store'])->name('store');
             Route::post('/{organization}', [OrganizationController::class, 'update'])->name('update');
             Route::post('/{organization}/delete', [OrganizationController::class, 'destroy'])->name('destroy');
+        });
+
+        Route::middleware('module:youth_records')->prefix('library-sdgs')->name('library-sdgs.')->group(function () {
+            Route::get('/', [LibrarySdgController::class, 'index'])->name('index');
+            Route::post('/', [LibrarySdgController::class, 'store'])->name('store');
+            Route::post('/{library_sdg}', [LibrarySdgController::class, 'update'])->name('update');
+            Route::post('/{library_sdg}/delete', [LibrarySdgController::class, 'destroy'])->name('destroy');
+        });
+
+        Route::middleware('module:youth_records')->prefix('center-of-participation')->name('center-of-participation.')->group(function () {
+            Route::get('/', [CenterOfParticipationController::class, 'index'])->name('index');
+            Route::post('/', [CenterOfParticipationController::class, 'store'])->name('store');
+            Route::post('/{center_of_participation}', [CenterOfParticipationController::class, 'update'])->name('update');
+            Route::post('/{center_of_participation}/delete', [CenterOfParticipationController::class, 'destroy'])->name('destroy');
         });
 
         Route::middleware('module:youth_records')->prefix('scholar-positions')->name('scholar-positions.')->group(function () {
@@ -208,13 +224,6 @@ Route::middleware([
             Route::post('ecespro-compliance-validations/{ecesproScholar}/review', [EcesproScholarController::class, 'reviewCompliance'])->name('ecespro-compliance-validations.review')->whereNumber('ecesproScholar');
             Route::post('ecespro-compliance-validations/{ecesproScholar}/hard-copy', [EcesproScholarController::class, 'updateComplianceHardCopy'])->name('ecespro-compliance-validations.hard-copy')->whereNumber('ecesproScholar');
 
-            // ECESPRO Grant Releases
-            Route::get('ecespro-grant-release-batches', [EcesproGrantReleaseController::class, 'index']);
-            Route::post('ecespro-grant-release-batches', [EcesproGrantReleaseController::class, 'store']);
-            Route::get('ecespro-grant-release-batches/{id}', [EcesproGrantReleaseController::class, 'show']);
-            Route::post('ecespro-grant-release-batches/{id}/delete', [EcesproGrantReleaseController::class, 'destroy']);
-            Route::post('ecespro-grant-releases/{grantReleaseId}/remove-from-batch', [EcesproGrantReleaseController::class, 'removeFromBatch']);
-
             // ECESPRO Compliance Schedules
             Route::get('ecespro-compliance-schedules', [EcesproComplianceScheduleController::class, 'index'])->name('ecespro-compliance-schedules.index');
             Route::post('ecespro-compliance-schedules', [EcesproComplianceScheduleController::class, 'store'])->name('ecespro-compliance-schedules.store');
@@ -246,6 +255,14 @@ Route::middleware([
                 })->get();
             });
 
+            // ECESPRO Grant Releases
+            Route::get('ecespro-grant-release-batches', [EcesproGrantReleaseController::class, 'index']);
+            Route::post('ecespro-grant-release-batches', [EcesproGrantReleaseController::class, 'store']);
+            Route::get('ecespro-grant-release-batches/eligibility', [EcesproGrantReleaseController::class, 'eligibility']);
+            Route::get('ecespro-grant-release-batches/{id}', [EcesproGrantReleaseController::class, 'show']);
+            Route::post('ecespro-grant-release-batches/{id}/delete', [EcesproGrantReleaseController::class, 'destroy']);
+            Route::post('ecespro-grant-releases/{grantReleaseId}/remove-from-batch', [EcesproGrantReleaseController::class, 'removeFromBatch']);
+            Route::post('ecespro-grant-releases/{grantReleaseId}/mark-released', [EcesproGrantReleaseController::class, 'markReleased']);
         });
 
         // ECESPRO Settings
@@ -307,7 +324,18 @@ Route::middleware([
         });
 
         Route::post('change-password', [SystemSettingController::class, 'changePassword'])->name('change-password');
+
+        Route::get('/library-strategic-directions', [\App\Http\Controllers\Api\Admin\StrategicDirectionController::class, 'index']);
+        Route::post('/library-strategic-directions', [\App\Http\Controllers\Api\Admin\StrategicDirectionController::class, 'store']);
+        Route::post('/library-strategic-directions/{strategicDirection}', [\App\Http\Controllers\Api\Admin\StrategicDirectionController::class, 'update']);
+        Route::post('/library-strategic-directions/{strategicDirection}/delete', [\App\Http\Controllers\Api\Admin\StrategicDirectionController::class, 'destroy']);
+
+        Route::get('/library-no-budget-reasons', [\App\Http\Controllers\Api\Admin\NoBudgetReasonController::class, 'index']);
+        Route::post('/library-no-budget-reasons', [\App\Http\Controllers\Api\Admin\NoBudgetReasonController::class, 'store']);
+        Route::post('/library-no-budget-reasons/{noBudgetReason}', [\App\Http\Controllers\Api\Admin\NoBudgetReasonController::class, 'update']);
+        Route::post('/library-no-budget-reasons/{noBudgetReason}/delete', [\App\Http\Controllers\Api\Admin\NoBudgetReasonController::class, 'destroy']);
     });
+
 
 
 

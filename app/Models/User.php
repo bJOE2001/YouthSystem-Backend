@@ -122,7 +122,19 @@ class User extends Authenticatable
 
         $permissions = $this->permissions ?? [];
 
+        if ($module === 'release_grants') {
+            return in_array('release_grants', $permissions, true) || in_array('ecespro', $permissions, true);
+        }
+
         return in_array($module, $permissions, true);
+    }
+
+    public function getBarangay(): ?string
+    {
+        return $this->skOfficial?->barangay
+            ?? SkOfficial::where('user_id', $this->id)->value('barangay')
+            ?? (! empty($this->email) ? SkOfficial::where('email', $this->email)->value('barangay') : null)
+            ?? $this->youthProfile?->barangay;
     }
 
     public function youthProfile(): HasOne

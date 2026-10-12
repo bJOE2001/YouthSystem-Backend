@@ -88,12 +88,7 @@
                             <td style="padding: 5px 0; color: {{ $emailLayout['heading_color'] ?? '#0f172a' }}; font-size: 14px; font-weight: 600;">{{ $metadata['time'] }}</td>
                         </tr>
                         @endif
-                        @if(!empty($metadata['panel']))
-                        <tr>
-                            <td style="padding: 5px 0; color: #64748b; font-size: 13px;">Panel:</td>
-                            <td style="padding: 5px 0; color: {{ $emailLayout['heading_color'] ?? '#0f172a' }}; font-size: 14px; font-weight: 600;">{{ $metadata['panel'] }}</td>
-                        </tr>
-                        @endif
+
                         @if(!empty($metadata['mode']))
                         <tr>
                             <td style="padding: 5px 0; color: #64748b; font-size: 13px;">Mode/Venue:</td>

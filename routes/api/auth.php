@@ -20,11 +20,9 @@ Route::post('/register', [AuthController::class, 'register'])
     ->name('api.register');
 
 Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])
-    ->middleware('guest')
     ->name('password.email');
 
 Route::post('/reset-password', [ResetPasswordController::class, 'reset'])
-    ->middleware('guest')
     ->name('password.update');
 
 /*

@@ -20,7 +20,29 @@ class EcesproScholarController extends Controller
         $query = EcesproScholar::with(['user.youthProfile', 'application', 'scholarPosition']);
 
         if ($request->query('qualified_for_grant') === 'true') {
-            $query->where('compliance_status', 'Validated');
+            $schoolYear = $request->query('school_year');
+            $semester = $request->query('semester');
+
+            if ($schoolYear && $semester) {
+                // Filter by requirements_history matching the selected term regardless of status
+                $query->where(function ($q) use ($schoolYear, $semester) {
+                    $q->whereJsonContains('requirements_history', [
+                        'school_year' => $schoolYear,
+                        'semester' => $semester
+                    ])->orWhereJsonContains('requirements_history', [
+                        'schoolYear' => $schoolYear,
+                        'semester' => $semester
+                    ]);
+                });
+
+                // Exclude scholars who already have a grant release in a batch with this school_year and semester
+                $query->whereDoesntHave('grantReleases', function ($q) use ($schoolYear, $semester) {
+                    $q->whereHas('batch', function ($bq) use ($schoolYear, $semester) {
+                        $bq->where('school_year', $schoolYear)
+                           ->where('semester', $semester);
+                    });
+                });
+            }
         }
 
         return $query->get();

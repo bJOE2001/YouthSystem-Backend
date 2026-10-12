@@ -16,6 +16,10 @@ class DatabaseSeeder extends Seeder
             LibraryCommitteesSeeder::class,
             LibraryOrganizationsSeeder::class,
             LibraryScholarPositionsSeeder::class,
+            LibrarySdgSeeder::class,
+            LibraryCenterOfParticipationSeeder::class,
+            LibraryStrategicDirectionSeeder::class,
+            LibraryNoBudgetReasonSeeder::class,
             UserSeeder::class,
         ]);
     }

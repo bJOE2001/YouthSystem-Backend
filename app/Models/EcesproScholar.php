@@ -71,6 +71,11 @@ class EcesproScholar extends Model
         return $this->hasMany(EcesproVolunteerLog::class, 'scholar_id');
     }
 
+    public function grantReleases(): HasMany
+    {
+        return $this->hasMany(EcesproGrantRelease::class, 'scholar_id');
+    }
+
     public function getEffectiveRequiredVolunteerHoursAttribute(): float
     {
         return (float) ($this->required_volunteer_hours ?: EcesproSetting::get('required_volunteer_hours', 36.00));

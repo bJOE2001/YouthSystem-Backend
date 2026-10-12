@@ -4,6 +4,7 @@ namespace App\Http\Resources\SkAdmin;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ResidentYouthDetailsResource extends JsonResource
 {
@@ -28,6 +29,7 @@ class ResidentYouthDetailsResource extends JsonResource
             'suffix' => $this->suffix,
             'gender' => $this->gender,
             'birthdate' => $this->birth_date ? $this->birth_date->format('F j, Y') : null,
+            'birthdateRaw' => $this->birth_date ? $this->birth_date->format('Y-m-d') : null,
             'age' => $this->birth_date ? $this->birth_date->age : null,
             'placeOfBirth' => $this->place_of_birth,
             'contact' => $this->mobile_number,
@@ -55,6 +57,8 @@ class ResidentYouthDetailsResource extends JsonResource
             'lgbtqMember' => $this->lgbtq_member ? 'Yes' : 'No',
             'specialYouthSector' => $this->special_youth_sector,
             'attachedId' => $this->attached_id_path ? 'View ID' : null,
+            'attachedIdImage' => $this->attached_id_path ? Storage::disk('public')->url($this->attached_id_path) : null,
+            'attachedIdUrl' => $this->attached_id_path ? Storage::disk('public')->url($this->attached_id_path) : null,
             'birthRegistered' => $this->birth_registered ? 'Yes' : 'No',
             'civilStatus' => $this->civil_status,
             'soloParent' => $this->solo_parent ? 'Yes' : 'No',
@@ -63,6 +67,8 @@ class ResidentYouthDetailsResource extends JsonResource
             'purokSitio' => $this->purok_sitio,
             'city' => $this->city,
             'province' => $this->province,
+            'zipcode' => $this->postal_code,
+            'postalCode' => $this->postal_code,
             'organization_id' => $this->organization_id,
             'organization_name' => $this->organization?->name ?? 'None',
             'status' => $this->organization?->name ?? 'None',

@@ -16,6 +16,8 @@ class EcesproGrantReleaseBatch extends Model
         'venue',
         'status',
         'notify_scholars',
+        'school_year',
+        'semester',
     ];
 
     protected $casts = [

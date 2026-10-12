@@ -19,7 +19,7 @@ class CreateYouthProfileAction
      */
     public function execute(User $user, array $attributes, UploadedFile $attachedId): YouthProfile
     {
-        $attachedIdPath = $attachedId->store('youth-identification', 'local');
+        $attachedIdPath = $attachedId->store('youth-identification', 'public');
 
         if ($attachedIdPath === false) {
             throw new RuntimeException('The identification file could not be stored.');
@@ -35,7 +35,7 @@ class CreateYouthProfileAction
                 return $youthProfile;
             });
         } catch (Throwable $exception) {
-            Storage::disk('local')->delete($attachedIdPath);
+            Storage::disk('public')->delete($attachedIdPath);
 
             throw $exception;
         }

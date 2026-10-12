@@ -101,7 +101,30 @@ class SkOfficialController extends Controller
                 },
             ],
             'committee' => 'nullable|string|max:255',
-            'position' => 'required|string|max:255',
+            'position' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) use ($request) {
+                    $userId = $request->input('user_id');
+                    if (! $userId) return;
+                    $user = User::with('youthProfile')->find($userId);
+                    $barangay = $user?->youthProfile?->barangay;
+                    if (! $barangay) return;
+
+                    $count = SkOfficial::where('barangay', $barangay)->where('position', $value)->count();
+
+                    if ($value === 'SK Chairperson' && $count >= 1) {
+                        $fail("Barangay $barangay already has an SK Chairperson.");
+                    } elseif ($value === 'SK Secretary' && $count >= 1) {
+                        $fail("Barangay $barangay already has an SK Secretary.");
+                    } elseif ($value === 'SK Treasurer' && $count >= 1) {
+                        $fail("Barangay $barangay already has an SK Treasurer.");
+                    } elseif ($value === 'SK Kagawad' && $count >= 7) {
+                        $fail("Barangay $barangay already has the maximum of 7 SK Kagawads.");
+                    }
+                },
+            ],
             'responsibilities' => 'nullable|string',
             'term' => 'nullable|string|max:255',
         ]);
