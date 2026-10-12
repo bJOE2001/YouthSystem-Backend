@@ -21,11 +21,15 @@ class UpdateResidentYouthRecordAction
     public function execute(YouthProfile $youthProfile, array $data, ?UploadedFile $attachedId): YouthProfile
     {
         return DB::transaction(function () use ($youthProfile, $data, $attachedId) {
+            $cleanLastName = trim(preg_replace('/\s+(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII)\b/i', '', $data['lastName'] ?? ''));
+            $cleanLastName = $cleanLastName ?: ($data['lastName'] ?? '');
+            $cleanSuffix = ! empty($data['suffix']) && $data['suffix'] !== 'None' ? $data['suffix'] : null;
+
             $name = trim(implode(' ', array_filter([
                 $data['firstName'],
                 $data['middleName'] ?? null,
-                $data['lastName'],
-                $data['suffix'] ?? null,
+                $cleanLastName,
+                $cleanSuffix,
             ])));
 
             $youthProfile->user->update([
@@ -36,8 +40,8 @@ class UpdateResidentYouthRecordAction
             $mappedProfileData = [
                 'first_name' => $data['firstName'],
                 'middle_name' => $data['middleName'] ?? null,
-                'last_name' => $data['lastName'],
-                'suffix' => $data['suffix'] ?? null,
+                'last_name' => $cleanLastName,
+                'suffix' => $cleanSuffix,
                 'gender' => $data['gender'],
                 'birth_date' => $data['birthdate'],
                 'place_of_birth' => $data['placeOfBirth'],
