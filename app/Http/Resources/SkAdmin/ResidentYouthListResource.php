@@ -14,13 +14,16 @@ class ResidentYouthListResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $cleanLastName = trim(preg_replace('/\s+(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII)\b/i', '', $this->last_name ?? ''));
+        $cleanLastName = $cleanLastName ?: $this->last_name;
+
         return [
             'id' => $this->id,
             'user_id' => $this->user_id,
             'name' => trim(implode(' ', array_filter([
                 $this->first_name,
                 $this->middle_name,
-                $this->last_name,
+                $cleanLastName,
                 $this->suffix,
             ]))),
             'profile_picture' => $this->profile_picture,
