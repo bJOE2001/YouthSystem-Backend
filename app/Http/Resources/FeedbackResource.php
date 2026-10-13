@@ -29,8 +29,7 @@ class FeedbackResource extends JsonResource
             }
         }
 
-        $resolvedBarangay = $this->barangay
-            ?? $this->event?->barangay
+        $resolvedBarangay = $this->event?->barangay
             ?? $this->sportsProgram?->barangay
             ?? $this->event?->user?->youthProfile?->barangay
             ?? $this->sportsProgram?->user?->youthProfile?->barangay;
@@ -40,18 +39,18 @@ class FeedbackResource extends JsonResource
             'user_id' => $this->user_id,
             'type' => $this->type,
             'target' => $this->target ?? ($isSk ? 'sk' : 'admin'),
-            'barangay' => $resolvedBarangay,
+            // 'barangay' => $resolvedBarangay,
             'is_sk' => $isSk,
             'category' => $this->category,
             'subject' => $this->subject,
             'message' => $this->message,
-            'is_anonymous' => (bool) $this->is_anonymous,
+            // 'is_anonymous' => (bool) $this->is_anonymous,
             'isAnonymous' => (bool) $this->is_anonymous,
-            'event_id' => $resolvedEventId,
+            // 'event_id' => $resolvedEventId,
             'eventId' => $resolvedEventId,
-            'sports_program_id' => $this->sports_program_id,
+            // 'sports_program_id' => $this->sports_program_id,
             'sportsProgramId' => $this->sports_program_id,
-            'event_name' => $resolvedEventName,
+            // 'event_name' => $resolvedEventName,
             'eventName' => $resolvedEventName,
             'user' => $this->when(! $this->is_anonymous && $this->user, function () {
                 $profile = $this->user->youthProfile;
