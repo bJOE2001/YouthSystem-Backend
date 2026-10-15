@@ -33,13 +33,13 @@ class UnifiedEventResource extends JsonResource
         $start = Carbon::parse($this->start_date);
         $end = $this->end_date ? Carbon::parse($this->end_date) : null;
 
-        $dateFormatted = $end ? $start->format('M d, Y').' - '.$end->format('M d, Y') : $start->format('M d, Y');
+        $dateFormatted = $end ? $start->format('M d, Y') . ' - ' . $end->format('M d, Y') : $start->format('M d, Y');
         $timeFormatted = $this->start_time ? Carbon::parse($this->start_time)->format('g:i A') : '';
         if ($isEvent && $this->end_time) {
-            $timeFormatted .= ' - '.Carbon::parse($this->end_time)->format('g:i A');
+            $timeFormatted .= ' - ' . Carbon::parse($this->end_time)->format('g:i A');
         }
 
-        $dateTime = trim($dateFormatted.' '.$timeFormatted);
+        $dateTime = trim($dateFormatted . ' ' . $timeFormatted);
 
         $user = Auth::guard('sanctum')->user() ?? Auth::user();
         $joined = false;
@@ -91,7 +91,7 @@ class UnifiedEventResource extends JsonResource
         $hasCertificate = ! empty($certificatePath);
         $isCompleted = strtolower((string) $this->status) === 'completed';
         $canDownloadCertificate = (bool) ($attended && $hasCertificate && $isCompleted);
-        $unifiedId = $isEvent ? 'event_'.$this->id : 'sport_'.$this->id;
+        $unifiedId = $isEvent ? 'event_' . $this->id : 'sport_' . $this->id;
         $certDownloadUrl = $canDownloadCertificate ? url("/api/events/{$unifiedId}/certificate") : null;
 
         $isList = $request->routeIs('*.index') || $request->routeIs('public.*') || $request->routeIs('*.my');
@@ -102,14 +102,12 @@ class UnifiedEventResource extends JsonResource
             'id' => $unifiedId,
             'originalId' => $this->id,
             'source' => $isEvent ? 'Event' : 'Sports Program',
-            'type' => $isEvent ? 'Event' : 'Sports Program',
-            'activityType' => $isEvent ? 'Event' : 'Sports Program',
+            'type' => $isEvent ? 'Event' : $this->type,
             'name' => $this->name,
-            'aipReferenceCode' => $this->when(! $isList, $isEvent ? $this->aip_reference_code : null),
+            'aipReferenceCode' => $isEvent ? $this->aip_reference_code : null,
             'ppaClassification' => $isEvent ? $this->ppa_classification : $this->type,
-            'category' => $isEvent ? $this->ppa_classification : $this->type, // frontend alias
-            'centerOfParticipation' => $this->when(! $isList, $isEvent ? $this->center_of_participation : null),
-            'sustainableDevelopmentGoal' => $this->when(! $isList, $isEvent ? $this->sustainable_development_goal : null),
+            'centerOfParticipation' => $isEvent ? $this->center_of_participation : null,
+            'sustainableDevelopmentGoal' => $isEvent ? $this->sustainable_development_goal : null,
             'startDate' => $this->start_date ? Carbon::parse($this->start_date)->format('Y-m-d') : null,
             'endDate' => $this->end_date ? Carbon::parse($this->end_date)->format('Y-m-d') : null,
             'startTime' => $this->start_time,
@@ -119,13 +117,12 @@ class UnifiedEventResource extends JsonResource
             'location' => $this->location,
             'barangay' => $this->barangay ?? $this->location ?? null,
             'openToAll' => ! $isEvent ? (bool) ($this->open_to_all_barangays ?? false) : (bool) ($this->open_to_all_barangays ?? true),
-            'hasNoAllocatedBudget' => $this->when(! $isList, $isEvent ? (bool) $this->has_no_allocated_budget : false),
-            'noBudgetReason' => $this->when(! $isList, $isEvent ? $this->no_budget_reason : null),
-            'performanceIndicator' => $this->when(! $isList, $isEvent ? $this->performance_indicator : $this->strategic_direction),
-            'description' => $this->when(! $isList, $isEvent ? $this->performance_indicator : $this->strategic_direction), // frontend alias
-            'primaryObjective1' => $this->when(! $isList, $isEvent ? $this->primary_objective_1 : $this->objective_1),
-            'primaryObjective2' => $this->when(! $isList, $isEvent ? $this->primary_objective_2 : $this->objective_2),
-            'primaryObjective3' => $this->when(! $isList, $isEvent ? $this->primary_objective_3 : $this->objective_3),
+            'strategicDirection' => ! $isEvent ? $this->strategic_direction : null,
+            'performanceIndicator' => $isEvent ? $this->performance_indicator : null,
+            'description' => $isEvent ? $this->performance_indicator : $this->strategic_direction,
+            'objective1' => ! $isEvent ? $this->objective_1 : $this->primary_objective_1,
+            'objective2' => ! $isEvent ? $this->objective_2 : $this->primary_objective_2,
+            'objective3' => ! $isEvent ? $this->objective_3 : $this->primary_objective_3,
             'status' => ucfirst(strtolower($this->status)),
             'joined' => $joined,
             'attendanceStatus' => $this->when(! $isList, $attended ? 'Attended' : 'Not Attended'),
@@ -134,11 +131,11 @@ class UnifiedEventResource extends JsonResource
             'certificate' => $this->when(! $isList, $certificatePath ?: ($hasCertificate ? true : null)),
             'certificatePath' => $this->when(! $isList, $certificatePath),
             'certificateTemplatePath' => $this->when(! $isList, $this->certificate_template_path),
-            'certificateTemplateUrl' => $this->when(! $isList, $this->certificate_template_path ? url('storage/'.$this->certificate_template_path) : null),
+            'certificateTemplateUrl' => $this->when(! $isList, $this->certificate_template_path ? url('storage/' . $this->certificate_template_path) : null),
             'certificateSettings' => $this->when(! $isList, $this->certificate_settings),
             'canDownloadCertificate' => $this->when(! $isList, $canDownloadCertificate),
             'certificateUrl' => $this->when(! $isList, $certDownloadUrl),
-            'shareUrl' => $this->when(! $isList, rtrim(config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost'), '/')."/activities/{$unifiedId}"),
+            'shareUrl' => $this->when(! $isList, rtrim(config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost'), '/') . "/activities/{$unifiedId}"),
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,
         ];

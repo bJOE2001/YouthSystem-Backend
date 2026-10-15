@@ -54,9 +54,9 @@ class SkSportsProgramController extends Controller
 
         if ($request->has('search') && ! empty($request->search)) {
             $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', '%'.$request->search.'%')
-                    ->orWhere('location', 'like', '%'.$request->search.'%')
-                    ->orWhere('type', 'like', '%'.$request->search.'%');
+                $q->where('name', 'like', '%' . $request->search . '%')
+                    ->orWhere('location', 'like', '%' . $request->search . '%')
+                    ->orWhere('type', 'like', '%' . $request->search . '%');
             });
         }
 
@@ -203,18 +203,19 @@ class SkSportsProgramController extends Controller
                     }
 
                     // Prevent duplicate expansion across multiple team members sharing the same roster
-                    $tmKey = $tmUserId ? "uid_{$tmUserId}" : 'name_'.strtolower(trim($tmName)).'_'.strtolower(trim($p['team_name'] ?? ''));
+                    $tmKey = $tmUserId ? "uid_{$tmUserId}" : 'name_' . strtolower(trim($tmName)) . '_' . strtolower(trim($p['team_name'] ?? ''));
                     if (isset($seenTeammateKeys[$tmKey])) {
                         continue;
                     }
                     $seenTeammateKeys[$tmKey] = true;
 
                     $tmStatus = (! empty($tm['attended_at']) || ($tm['status'] ?? '') === 'Attended') ? 'Attended' : 'Not Attended';
-                    $tmId = ! empty($tm['id']) ? $tm['id'] : ($tmUserId ?: 'tm_'.md5($p['id'].'_'.$tmName));
+                    $tmId = ! empty($tm['id']) ? $tm['id'] : ($tmUserId ?: 'tm_' . md5($p['id'] . '_' . $tmName));
 
                     $expandedParticipants[] = [
                         'id' => $tmId,
                         'user_id' => $tmUserId,
+                        'profile_id' => $tm['profile_id'] ?? null,
                         'name' => $tmName,
                         'profile_picture' => null,
                         'contact' => $tm['contact'] ?? '—',
@@ -267,7 +268,7 @@ class SkSportsProgramController extends Controller
             }
 
             if (preg_match('/^objective(\d+)$/', $snakeKey, $matches)) {
-                $snakeKey = 'objective_'.$matches[1];
+                $snakeKey = 'objective_' . $matches[1];
             }
 
             $mapped[$snakeKey] = $value;

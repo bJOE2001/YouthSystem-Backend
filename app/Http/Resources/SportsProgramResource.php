@@ -21,11 +21,11 @@ class SportsProgramResource extends JsonResource
 
         $dateFormatted = '';
         if ($start) {
-            $dateFormatted = $end ? $start->format('M d, Y').' - '.$end->format('M d, Y') : $start->format('M d, Y');
+            $dateFormatted = $end ? $start->format('M d, Y') . ' - ' . $end->format('M d, Y') : $start->format('M d, Y');
         }
 
         $timeFormatted = $this->start_time ? Carbon::parse($this->start_time)->format('g:i A') : '';
-        $dateTime = trim($dateFormatted.' '.$timeFormatted);
+        $dateTime = trim($dateFormatted . ' ' . $timeFormatted);
 
         $user = Auth::guard('sanctum')->user() ?? Auth::user();
         $attended = false;
@@ -50,7 +50,7 @@ class SportsProgramResource extends JsonResource
         $certDownloadUrl = $canDownloadCertificate ? url("/api/events/sport_{$this->id}/certificate") : null;
 
         $frontendUrl = config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost');
-        $shareUrl = rtrim($frontendUrl, '/')."/activities/sport_{$this->id}";
+        $shareUrl = rtrim($frontendUrl, '/') . "/activities/sport_{$this->id}";
 
         $isList = $request->routeIs('*.index') || $request->routeIs('public.*') || $request->routeIs('*.my');
 
@@ -60,17 +60,17 @@ class SportsProgramResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'type' => $this->type,
-            'strategicDirection' => $this->when(! $isList, $this->strategic_direction),
+            'strategicDirection' => $this->strategic_direction,
             'startDate' => $this->start_date ? $this->start_date->format('Y-m-d') : null,
             'endDate' => $this->end_date ? $this->end_date->format('Y-m-d') : null,
             'time' => $this->start_time ? Carbon::parse($this->start_time)->format('H:i') : null,
             'dateTime' => $dateTime,
             'location' => $this->location,
-            // 'budgetAllocated' => $this->budget_allocated ? (float) $this->budget_allocated : null,
-            // 'budgetUtilized' => $this->budget_utilized ? (float) $this->budget_utilized : null,
-            'objective1' => $this->when(! $isList, $this->objective_1),
-            'objective2' => $this->when(! $isList, $this->objective_2),
-            'objective3' => $this->when(! $isList, $this->objective_3),
+            'budgetAllocated' => $this->budget_allocated ? (float) $this->budget_allocated : null,
+            'budgetUtilized' => $this->budget_utilized ? (float) $this->budget_utilized : null,
+            'objective1' => $this->objective_1,
+            'objective2' => $this->objective_2,
+            'objective3' => $this->objective_3,
             'openToAll' => $this->open_to_all_barangays ?? true,
             'barangay' => $this->barangay,
             'status' => ucfirst(strtolower($this->status)),
@@ -81,7 +81,7 @@ class SportsProgramResource extends JsonResource
             'certificate' => $this->when(! $isList, $certificatePath ?: ($hasCertificate ? true : null)),
             'certificatePath' => $this->when(! $isList, $certificatePath),
             'certificateTemplatePath' => $this->when(! $isList, $this->certificate_template_path),
-            'certificateTemplateUrl' => $this->when(! $isList, $this->certificate_template_path ? url('storage/'.$this->certificate_template_path) : null),
+            'certificateTemplateUrl' => $this->when(! $isList, $this->certificate_template_path ? url('storage/' . $this->certificate_template_path) : null),
             'certificateSettings' => $this->when(! $isList, $this->certificate_settings),
             'canDownloadCertificate' => $this->when(! $isList, $canDownloadCertificate),
             'certificateUrl' => $this->when(! $isList, $certDownloadUrl),

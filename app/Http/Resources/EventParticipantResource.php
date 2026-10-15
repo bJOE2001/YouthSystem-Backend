@@ -23,7 +23,7 @@ class EventParticipantResource extends JsonResource
         $barangay = '';
 
         if ($this->youthProfile) {
-            $fullName = trim($this->youthProfile->first_name.' '.$this->youthProfile->last_name);
+            $fullName = trim($this->youthProfile->first_name . ' ' . $this->youthProfile->last_name);
             $name = ! empty($fullName) ? $fullName : $this->name;
             $contact = $this->youthProfile->mobile_number ?? '';
             $purok = $this->youthProfile->purok_sitio ?? '';
@@ -82,6 +82,8 @@ class EventParticipantResource extends JsonResource
 
         return [
             'id' => $this->id,
+            'user_id' => $this->id,
+            'profile_id' => $this->youthProfile?->id ?? null,
             'name' => $name,
             'profile_picture' => $this->youthProfile?->profile_picture ?? '',
             'contact' => $contact,

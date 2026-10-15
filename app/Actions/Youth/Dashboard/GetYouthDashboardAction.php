@@ -17,17 +17,29 @@ class GetYouthDashboardAction
     {
         $user = auth()->user();
 
-        // 1. Calculate Cards
-        $eventJoined = $user->joinedEvents()->count() + $user->joinedSportsPrograms()->count();
+        // 1. Check if youth user is overage (31+)
+        $isOverage = false;
+        $youthProfile = $user->youthProfile;
+        if ($youthProfile && $youthProfile->birth_date) {
+            $age = Carbon::parse($youthProfile->birth_date)->age;
+            if ($age >= 31) {
+                $isOverage = true;
+            }
+        }
 
-        // Count earned certificates from events:
-        // Event has a certificate template uploaded AND user attended
-        $eventCerts = $user->joinedEvents()
-            ->wherePivotNotNull('attended_at')
-            ->whereNotNull('events.certificate_template_path')
-            ->where('events.certificate_template_path', '!=', '')
-            ->distinct('events.id')
-            ->count('events.id');
+        // 2. Calculate Cards
+        $eventJoined = ($isOverage ? 0 : $user->joinedEvents()->count()) + $user->joinedSportsPrograms()->count();
+
+        // Count earned certificates from events (if not overage):
+        $eventCerts = 0;
+        if (! $isOverage) {
+            $eventCerts = $user->joinedEvents()
+                ->wherePivotNotNull('attended_at')
+                ->whereNotNull('events.certificate_template_path')
+                ->where('events.certificate_template_path', '!=', '')
+                ->distinct('events.id')
+                ->count('events.id');
+        }
 
         // Count earned certificates from sports programs:
         // a. Direct attended sports programs with certificate template
@@ -80,9 +92,9 @@ class GetYouthDashboardAction
         $readAnnouncementIds = $user->readAnnouncements()->pluck('announcements.id');
         $unreadAnnouncements = Announcement::whereNotIn('id', $readAnnouncementIds)->count();
 
-        $upcomingEventsCount = $user->joinedEvents()
+        $upcomingEventsCount = ($isOverage ? 0 : $user->joinedEvents()
             ->whereIn('events.status', ['upcoming', 'Upcoming'])
-            ->count()
+            ->count())
             + $user->joinedSportsPrograms()
                 ->whereIn('sports_programs.status', ['upcoming', 'Upcoming'])
                 ->count();
@@ -90,16 +102,37 @@ class GetYouthDashboardAction
         // 2. Fetch Latest Events & Sports Programs Combined
         $userBarangay = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
 
-        $eventsQuery = Event::query();
-        $eventsQuery->where(function ($q) use ($userBarangay) {
-            $q->where('open_to_all_barangays', true);
-            $q->orWhereHas('user', function ($uq) {
-                $uq->whereIn('role', ['admin', UserRole::Admin->value]);
+        $latestEvents = collect();
+        if (! $isOverage) {
+            $eventsQuery = Event::query();
+            $eventsQuery->where(function ($q) use ($userBarangay) {
+                $q->where('open_to_all_barangays', true);
+                $q->orWhereHas('user', function ($uq) {
+                    $uq->whereIn('role', ['admin', UserRole::Admin->value]);
+                });
+                if ($userBarangay) {
+                    $q->orWhereRaw('LOWER(barangay) = ?', [strtolower(trim($userBarangay))]);
+                }
             });
-            if ($userBarangay) {
-                $q->orWhereRaw('LOWER(barangay) = ?', [strtolower(trim($userBarangay))]);
-            }
-        });
+
+            $latestEvents = $eventsQuery->latest()->take(5)->get()->map(function ($event) use ($user) {
+                $start = Carbon::parse($event->start_date);
+
+                return [
+                    'id' => 'event_'.$event->id,
+                    'name' => $event->name,
+                    'source' => 'Event',
+                    'ppa_classification' => $event->ppa_classification,
+                    'ppaClassification' => $event->ppa_classification,
+                    'description' => $event->ppa_classification ?: str($event->performance_indicator)->limit(100)->toString(),
+                    'date' => $start->format('M d, Y').($event->start_time ? ' at '.Carbon::parse($event->start_time)->format('g:i A') : ''),
+                    'location' => $event->location,
+                    'status' => $event->status,
+                    'joined' => $event->participants()->where('user_id', $user->id)->exists(),
+                    'created_at' => $event->created_at,
+                ];
+            });
+        }
 
         $sportsQuery = SportsProgram::query();
         $sportsQuery->where(function ($q) use ($userBarangay) {
@@ -109,22 +142,6 @@ class GetYouthDashboardAction
             }
         });
 
-        $latestEvents = $eventsQuery->latest()->take(5)->get()->map(function ($event) use ($user) {
-            $start = Carbon::parse($event->start_date);
-
-            return [
-                'id' => 'event_'.$event->id,
-                'name' => $event->name,
-                'source' => 'Event',
-                'description' => str($event->performance_indicator)->limit(100)->toString(),
-                'date' => $start->format('M d, Y').($event->start_time ? ' at '.Carbon::parse($event->start_time)->format('g:i A') : ''),
-                'location' => $event->location,
-                'status' => $event->status,
-                'joined' => $event->participants()->where('user_id', $user->id)->exists(),
-                'created_at' => $event->created_at,
-            ];
-        });
-
         $latestSports = $sportsQuery->latest()->take(5)->get()->map(function ($sport) use ($user) {
             $start = Carbon::parse($sport->start_date);
 
@@ -132,7 +149,11 @@ class GetYouthDashboardAction
                 'id' => 'sport_'.$sport->id,
                 'name' => $sport->name,
                 'source' => 'Sports Program',
-                'description' => str($sport->objective_1)->limit(100)->toString(),
+                'type' => $sport->type,
+                'ppa_type' => $sport->type,
+                'ppa_classification' => $sport->type,
+                'ppaClassification' => $sport->type,
+                'description' => $sport->type ?: str($sport->objective_1)->limit(100)->toString(),
                 'date' => $start->format('M d, Y').($sport->start_time ? ' at '.Carbon::parse($sport->start_time)->format('g:i A') : ''),
                 'location' => $sport->location,
                 'status' => $sport->status,
@@ -141,8 +162,12 @@ class GetYouthDashboardAction
             ];
         });
 
-        $events = collect($latestEvents)->merge($latestSports)
-            ->sortByDesc('created_at')
+        $events = collect($latestSports);
+        if (! $isOverage) {
+            $events = $events->merge($latestEvents);
+        }
+
+        $events = $events->sortByDesc('created_at')
             ->take(5)
             ->values()
             ->toArray();

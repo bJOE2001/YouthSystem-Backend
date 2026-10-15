@@ -28,7 +28,7 @@ class SportsProgramController extends Controller
             $token = PersonalAccessToken::findToken($request->bearerToken());
             if ($token && $token->tokenable) {
                 auth()->setUser($token->tokenable);
-                $request->setUserResolver(fn () => $token->tokenable);
+                $request->setUserResolver(fn() => $token->tokenable);
             }
         }
 
@@ -90,9 +90,9 @@ class SportsProgramController extends Controller
 
         if ($request->has('search') && ! empty($request->search)) {
             $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', '%'.$request->search.'%')
-                    ->orWhere('location', 'like', '%'.$request->search.'%')
-                    ->orWhere('type', 'like', '%'.$request->search.'%');
+                $q->where('name', 'like', '%' . $request->search . '%')
+                    ->orWhere('location', 'like', '%' . $request->search . '%')
+                    ->orWhere('type', 'like', '%' . $request->search . '%');
             });
         }
 
@@ -247,18 +247,19 @@ class SportsProgramController extends Controller
                     }
 
                     // Prevent duplicate expansion across multiple team members sharing the same roster
-                    $tmKey = $tmUserId ? "uid_{$tmUserId}" : 'name_'.strtolower(trim($tmName)).'_'.strtolower(trim($p['team_name'] ?? ''));
+                    $tmKey = $tmUserId ? "uid_{$tmUserId}" : 'name_' . strtolower(trim($tmName)) . '_' . strtolower(trim($p['team_name'] ?? ''));
                     if (isset($seenTeammateKeys[$tmKey])) {
                         continue;
                     }
                     $seenTeammateKeys[$tmKey] = true;
 
                     $tmStatus = (! empty($tm['attended_at']) || ($tm['status'] ?? '') === 'Attended') ? 'Attended' : 'Not Attended';
-                    $tmId = ! empty($tm['id']) ? $tm['id'] : ($tmUserId ?: 'tm_'.md5($p['id'].'_'.$tmName));
+                    $tmId = ! empty($tm['id']) ? $tm['id'] : ($tmUserId ?: 'tm_' . md5($p['id'] . '_' . $tmName));
 
                     $expandedParticipants[] = [
                         'id' => $tmId,
                         'user_id' => $tmUserId,
+                        'profile_id' => $tm['profile_id'] ?? null,
                         'name' => $tmName,
                         'profile_picture' => null,
                         'contact' => $tm['contact'] ?? '—',
@@ -329,7 +330,7 @@ class SportsProgramController extends Controller
         if (! $sportsProgram->open_to_all_barangays && ! $isAdminOrSk) {
             $userBarangay = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
             if (! $userBarangay || strtolower(trim($userBarangay)) !== strtolower(trim($sportsProgram->barangay))) {
-                return response()->json(['message' => 'This sports program is exclusive to residents of Barangay '.$sportsProgram->barangay.'.'], 403);
+                return response()->json(['message' => 'This sports program is exclusive to residents of Barangay ' . $sportsProgram->barangay . '.'], 403);
             }
         }
 
@@ -352,9 +353,8 @@ class SportsProgramController extends Controller
             ->where('sports_program_id', $sportsProgram->id)
             ->get();
 
-        $checkExistingRegistration = function ($userId, $email = null, $name = null) use ($existingPivots) {
+        $checkExistingRegistration = function ($userId, $email = null) use ($existingPivots) {
             $emailNorm = ! empty($email) && $email !== '—' && strtolower($email) !== 'no email' ? strtolower(trim($email)) : null;
-            $nameNorm = ! empty($name) && $name !== '—' ? strtolower(trim(preg_replace('/[^\w\s]/', '', $name))) : null;
 
             foreach ($existingPivots as $pivot) {
                 $teamName = $pivot->team_name ?: 'another team';
@@ -368,15 +368,11 @@ class SportsProgramController extends Controller
                         foreach ($roster as $member) {
                             $mUserId = $member['user_id'] ?? null;
                             $mEmail = ! empty($member['email']) && $member['email'] !== '—' && strtolower($member['email']) !== 'no email' ? strtolower(trim($member['email'])) : null;
-                            $mName = ! empty($member['name']) && $member['name'] !== '—' ? strtolower(trim(preg_replace('/[^\w\s]/', '', $member['name']))) : null;
 
                             if ($userId && $mUserId && $userId == $mUserId) {
                                 return $teamName;
                             }
                             if ($emailNorm && $mEmail && $emailNorm === $mEmail) {
-                                return $teamName;
-                            }
-                            if ($nameNorm && $mName && ($nameNorm === $mName || str_contains($nameNorm, $mName) || str_contains($mName, $nameNorm))) {
                                 return $teamName;
                             }
                         }
@@ -388,11 +384,15 @@ class SportsProgramController extends Controller
         };
 
         if ($isAdminOrSk && $leaderData) {
-            $captainUserId = $leaderData['user_id'] ?? $leaderData['id'] ?? $validated['leader_id'] ?? null;
-            $leaderUser = $captainUserId ? User::find($captainUserId) : null;
-            if (! $leaderUser && $captainUserId) {
-                $leaderUser = User::whereHas('youthProfile', function ($q) use ($captainUserId) {
-                    $q->where('id', $captainUserId);
+            $captainUserId = $leaderData['user_id'] ?? null;
+            $captainProfileId = $leaderData['profile_id'] ?? $leaderData['id'] ?? $validated['leader_id'] ?? null;
+            $leaderUser = null;
+            if ($captainUserId) {
+                $leaderUser = User::find($captainUserId);
+            }
+            if (! $leaderUser && $captainProfileId) {
+                $leaderUser = User::whereHas('youthProfile', function ($q) use ($captainProfileId) {
+                    $q->where('id', $captainProfileId);
                 })->first();
             }
             if (! $leaderUser && ! empty($leaderData['email'])) {
@@ -406,10 +406,10 @@ class SportsProgramController extends Controller
             // Check if leader is already registered in this sports program
             $leaderName = $leaderUser->name ?? ($leaderData['name'] ?? 'The selected team leader');
             $leaderEmail = $leaderUser->email ?? ($leaderData['email'] ?? null);
-            $existingTeam = $checkExistingRegistration($leaderUser->id, $leaderEmail, $leaderName);
+            $existingTeam = $checkExistingRegistration($leaderUser->id, $leaderEmail);
             if ($existingTeam) {
                 return response()->json([
-                    'message' => $leaderName.' is already registered in team "'.$existingTeam.'" for this sports program.',
+                    'message' => $leaderName . ' is already registered in team "' . $existingTeam . '" for this sports program.',
                 ], 422);
             }
 
@@ -421,16 +421,16 @@ class SportsProgramController extends Controller
                 'role' => 'Team Leader',
             ];
         } else {
-            $existingTeam = $checkExistingRegistration($user->id, $user->email, $user->name);
+            $existingTeam = $checkExistingRegistration($user->id, $user->email);
             if ($existingTeam) {
                 return response()->json([
-                    'message' => 'You are already registered in team "'.$existingTeam.'" for this sports program.',
+                    'message' => 'You are already registered in team "' . $existingTeam . '" for this sports program.',
                 ], 400);
             }
 
             $captainInfo = [
                 'user_id' => $user->id,
-                'name' => $user->name ?? trim(($user->first_name ?? '').' '.($user->last_name ?? '')),
+                'name' => $user->name ?? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
                 'email' => $user->email,
                 'contact' => $user->youthProfile?->mobile_number ?? $user->contact_number ?? '',
                 'role' => 'Team Leader',
@@ -442,71 +442,81 @@ class SportsProgramController extends Controller
 
         // Pre-fetch all teammate user records to avoid N+1 queries
         $memberUserIdsToFetch = [];
+        $memberProfileIdsToFetch = [];
         $memberEmailsToFetch = [];
         foreach ($rawTeammates as $t) {
-            $memberUserId = $t['user_id'] ?? $t['id'] ?? null;
+            $memberUserId = $t['user_id'] ?? null;
+            $memberProfileId = $t['profile_id'] ?? $t['id'] ?? null;
             if ($memberUserId) $memberUserIdsToFetch[] = $memberUserId;
+            if ($memberProfileId) $memberProfileIdsToFetch[] = $memberProfileId;
             if (!empty($t['email'])) $memberEmailsToFetch[] = $t['email'];
         }
 
-        $fetchedUsersById = [];
+        $fetchedUsersByUserId = [];
+        $fetchedUsersByProfileId = [];
         $fetchedUsersByEmail = [];
-        if (!empty($memberUserIdsToFetch) || !empty($memberEmailsToFetch)) {
+        if (!empty($memberUserIdsToFetch) || !empty($memberProfileIdsToFetch) || !empty($memberEmailsToFetch)) {
             $usersQuery = User::query();
-            
-            if (!empty($memberUserIdsToFetch)) {
-                $usersQuery->where(function($q) use ($memberUserIdsToFetch) {
-                    $q->whereIn('id', $memberUserIdsToFetch)
-                      ->orWhereHas('youthProfile', function ($ypq) use ($memberUserIdsToFetch) {
-                          $ypq->whereIn('id', $memberUserIdsToFetch);
-                      });
-                });
-            }
-            if (!empty($memberEmailsToFetch)) {
+
+            $usersQuery->where(function ($q) use ($memberUserIdsToFetch, $memberProfileIdsToFetch, $memberEmailsToFetch) {
+                $hasCondition = false;
                 if (!empty($memberUserIdsToFetch)) {
-                    $usersQuery->orWhereIn('email', $memberEmailsToFetch);
-                } else {
-                    $usersQuery->whereIn('email', $memberEmailsToFetch);
+                    $q->whereIn('id', $memberUserIdsToFetch);
+                    $hasCondition = true;
                 }
-            }
-            
+                if (!empty($memberProfileIdsToFetch)) {
+                    $method = $hasCondition ? 'orWhereHas' : 'whereHas';
+                    $q->$method('youthProfile', function ($ypq) use ($memberProfileIdsToFetch) {
+                        $ypq->whereIn('id', $memberProfileIdsToFetch);
+                    });
+                    $hasCondition = true;
+                }
+                if (!empty($memberEmailsToFetch)) {
+                    $method = $hasCondition ? 'orWhereIn' : 'whereIn';
+                    $q->$method('email', $memberEmailsToFetch);
+                }
+            });
+
             $allFetchedUsers = $usersQuery->with('youthProfile')->get();
             foreach ($allFetchedUsers as $fu) {
-                $fetchedUsersById[$fu->id] = $fu;
+                $fetchedUsersByUserId[$fu->id] = $fu;
                 if ($fu->youthProfile && $fu->youthProfile->id) {
-                    $fetchedUsersById[$fu->youthProfile->id] = $fu;
+                    $fetchedUsersByProfileId[$fu->youthProfile->id] = $fu;
                 }
                 if (!empty($fu->email)) {
-                    $fetchedUsersByEmail[$fu->email] = $fu;
+                    $fetchedUsersByEmail[strtolower(trim($fu->email))] = $fu;
                 }
             }
         }
 
         foreach ($rawTeammates as $t) {
             $tRole = $t['role'] ?? 'Member';
-            $memberUserId = $t['user_id'] ?? $t['id'] ?? null;
+            $memberUserId = $t['user_id'] ?? null;
+            $memberProfileId = $t['profile_id'] ?? $t['id'] ?? null;
+            $memberEmailInput = !empty($t['email']) ? strtolower(trim($t['email'])) : null;
 
             $memberUser = null;
-            if ($memberUserId) {
-                $memberUser = $fetchedUsersById[$memberUserId] ?? null;
-            }
-            if (! $memberUser && ! empty($t['email'])) {
-                $memberUser = $fetchedUsersByEmail[$t['email']] ?? null;
+            if ($memberUserId && isset($fetchedUsersByUserId[$memberUserId])) {
+                $memberUser = $fetchedUsersByUserId[$memberUserId];
+            } elseif ($memberProfileId && isset($fetchedUsersByProfileId[$memberProfileId])) {
+                $memberUser = $fetchedUsersByProfileId[$memberProfileId];
+            } elseif ($memberEmailInput && isset($fetchedUsersByEmail[$memberEmailInput])) {
+                $memberUser = $fetchedUsersByEmail[$memberEmailInput];
             }
 
             $realMemberUserId = $memberUser ? $memberUser->id : $memberUserId;
             $memberName = $memberUser?->name ?? ($t['name'] ?? '');
             $memberEmail = $memberUser?->email ?? ($t['email'] ?? '');
 
-            if ($tRole === 'Team Leader' || ($captainInfo['user_id'] && $realMemberUserId == $captainInfo['user_id']) || (! empty($t['name']) && $t['name'] === $captainInfo['name'])) {
+            if ($tRole === 'Team Leader' || ($captainInfo['user_id'] && $realMemberUserId && $realMemberUserId == $captainInfo['user_id'])) {
                 continue;
             }
 
-            // Check if member is already registered in this sports program
-            $existingTeam = $checkExistingRegistration($realMemberUserId, $memberEmail, $memberName);
+            // Check if member is already registered in this sports program by user_id or email
+            $existingTeam = $checkExistingRegistration($realMemberUserId, $memberEmail);
             if ($existingTeam) {
                 return response()->json([
-                    'message' => ($memberName ?: 'A member').' is already registered in team "'.$existingTeam.'" for this sports program.',
+                    'message' => ($memberName ?: 'A member') . ' is already registered in team "' . $existingTeam . '" for this sports program.',
                 ], 422);
             }
 
@@ -528,7 +538,7 @@ class SportsProgramController extends Controller
             'team_name' => $teamName,
             'teammates' => $encodedRoster,
         ];
-        
+
         $syncData[$leaderUser->id] = $pivotAttributes;
 
         foreach ($formattedTeammates as $member) {
@@ -575,7 +585,7 @@ class SportsProgramController extends Controller
 
             // Fix for objective1 -> objective_1
             if (preg_match('/^objective(\d+)$/', $snakeKey, $matches)) {
-                $snakeKey = 'objective_'.$matches[1];
+                $snakeKey = 'objective_' . $matches[1];
             }
 
             $mapped[$snakeKey] = $value;

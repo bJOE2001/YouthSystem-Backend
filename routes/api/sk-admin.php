@@ -108,5 +108,4 @@ Route::middleware([
             Route::post('/{purok}', [PurokLibraryController::class, 'update'])->name('update');
             Route::post('/{purok}/delete', [PurokLibraryController::class, 'destroy'])->name('destroy');
         });
-
     });

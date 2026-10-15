@@ -32,7 +32,7 @@ class EventController extends Controller
             $token = PersonalAccessToken::findToken($request->bearerToken());
             if ($token && $token->tokenable) {
                 auth()->setUser($token->tokenable);
-                $request->setUserResolver(fn () => $token->tokenable);
+                $request->setUserResolver(fn() => $token->tokenable);
             }
         }
 
@@ -76,9 +76,9 @@ class EventController extends Controller
 
             if ($request->has('search') && ! empty($request->search)) {
                 $query->where(function ($q) use ($request) {
-                    $q->where('name', 'like', '%'.$request->search.'%')
-                        ->orWhere('location', 'like', '%'.$request->search.'%')
-                        ->orWhere('ppa_classification', 'like', '%'.$request->search.'%');
+                    $q->where('name', 'like', '%' . $request->search . '%')
+                        ->orWhere('location', 'like', '%' . $request->search . '%')
+                        ->orWhere('ppa_classification', 'like', '%' . $request->search . '%');
                 });
             }
             if ($request->has('sort_by') && ! empty($request->sort_by)) {
@@ -134,7 +134,7 @@ class EventController extends Controller
         }
 
         if ($request->has('search') && ! empty($request->search)) {
-            $search = '%'.$request->search.'%';
+            $search = '%' . $request->search . '%';
             $events->where(function ($q) use ($search) {
                 $q->where('name', 'like', $search)
                     ->orWhere('location', 'like', $search)
@@ -234,7 +234,20 @@ class EventController extends Controller
             $data['barangay'] = null;
         }
 
-        $event = Event::create($data);
+        try {
+            $event = Event::create($data);
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::error('Event creation query failed: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to create event. Please ensure all values, including budget amounts, are within valid limits.',
+                'error' => $e->getMessage(),
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Event creation failed: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to create event: ' . $e->getMessage(),
+            ], 422);
+        }
 
         return new EventResource($event);
     }
@@ -272,7 +285,20 @@ class EventController extends Controller
             }
         }
 
-        $event->update($data);
+        try {
+            $event->update($data);
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Log::error('Event update query failed: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to update event. Please ensure all values, including budget amounts, are within valid limits.',
+                'error' => $e->getMessage(),
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Event update failed: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to update event: ' . $e->getMessage(),
+            ], 422);
+        }
 
         return new EventResource($event);
     }
@@ -317,7 +343,7 @@ class EventController extends Controller
             if (! $sport->open_to_all_barangays) {
                 $userBarangay = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
                 if (! $userBarangay || strtolower(trim($userBarangay)) !== strtolower(trim($sport->barangay))) {
-                    return response()->json(['message' => 'This sports program is exclusive to residents of Barangay '.$sport->barangay.'.'], 403);
+                    return response()->json(['message' => 'This sports program is exclusive to residents of Barangay ' . $sport->barangay . '.'], 403);
                 }
             }
 
@@ -333,13 +359,24 @@ class EventController extends Controller
         $eventId = str_replace('event_', '', $id);
         $event = Event::with(['user.skOfficial', 'user.youthProfile'])->findOrFail($eventId);
 
+        // Age limit restriction: Youth aged 31 and above are not eligible to join youth events/programs
+        $youthProfile = $user->youthProfile;
+        if ($youthProfile && $youthProfile->birth_date) {
+            $age = \Carbon\Carbon::parse($youthProfile->birth_date)->age;
+            if ($age >= 31) {
+                return response()->json([
+                    'message' => 'Youth aged 31 and above are not eligible to join youth events/programs.',
+                ], 403);
+            }
+        }
+
         $creator = $event->user;
         $isSkEvent = $creator && ($creator->role === UserRole::SkAdmin || $creator->role === 'sk_admin' || $creator->role?->value === 'sk_admin');
         if ($isSkEvent && ! $event->open_to_all_barangays) {
             $eventBarangay = $creator->skOfficial?->barangay ?? $creator->youthProfile?->barangay;
             $userBarangay = $user->youthProfile?->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
             if ($eventBarangay && (! $userBarangay || strtolower(trim($userBarangay)) !== strtolower(trim($eventBarangay)))) {
-                return response()->json(['message' => 'This event is exclusive to residents of Barangay '.$eventBarangay.'.'], 403);
+                return response()->json(['message' => 'This event is exclusive to residents of Barangay ' . $eventBarangay . '.'], 403);
             }
         }
 
@@ -361,7 +398,7 @@ class EventController extends Controller
         $sports = $user->joinedSportsPrograms();
 
         if ($request->has('search') && ! empty($request->search)) {
-            $search = '%'.$request->search.'%';
+            $search = '%' . $request->search . '%';
             $events->where(function ($q) use ($search) {
                 $q->where('name', 'like', $search)
                     ->orWhere('location', 'like', $search)
@@ -542,7 +579,7 @@ class EventController extends Controller
             foreach ($roster as &$member) {
                 $mUserId = $member['user_id'] ?? null;
                 $mName = $member['name'] ?? '';
-                $tmGeneratedId = 'tm_'.md5($pivot->user_id.'_'.$mName);
+                $tmGeneratedId = 'tm_' . md5($pivot->user_id . '_' . $mName);
 
                 $isMatch = false;
 
@@ -743,7 +780,7 @@ class EventController extends Controller
 
         return response($preview['content'], 200, [
             'Content-Type' => $preview['mime'],
-            'Content-Disposition' => 'inline; filename="'.$preview['filename'].'"',
+            'Content-Disposition' => 'inline; filename="' . $preview['filename'] . '"',
         ]);
     }
 
@@ -788,7 +825,7 @@ class EventController extends Controller
 
         return response($certificate['content'], 200, [
             'Content-Type' => $certificate['mime'],
-            'Content-Disposition' => 'attachment; filename="'.$certificate['filename'].'"',
+            'Content-Disposition' => 'attachment; filename="' . $certificate['filename'] . '"',
             'Access-Control-Expose-Headers' => 'Content-Disposition',
         ]);
     }
@@ -895,7 +932,7 @@ class EventController extends Controller
 
             // Fix for primaryObjective1 -> primary_objective_1
             if (preg_match('/^primary_objective(\d+)$/', $snakeKey, $matches)) {
-                $snakeKey = 'primary_objective_'.$matches[1];
+                $snakeKey = 'primary_objective_' . $matches[1];
             }
 
             $mapped[$snakeKey] = $value;
