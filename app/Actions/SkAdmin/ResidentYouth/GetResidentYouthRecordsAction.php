@@ -86,6 +86,65 @@ class GetResidentYouthRecordsAction
             }
         }
 
+        $now = now();
+        $overageCutoffDate = $now->copy()->subYears(31)->format('Y-m-d');
+        $oneMonthAgo = $now->copy()->subDays(30);
+
+        $hasSearch = ! empty($filters['search']);
+        $hasAgeFilter = ! empty($filters['age_bracket']) || isset($filters['min_age']) || isset($filters['max_age']);
+        $statusFilter = strtolower(trim($filters['status'] ?? ''));
+
+        if (isset($filters['min_age']) && is_numeric($filters['min_age'])) {
+            $query->whereDate('birth_date', '<=', $now->copy()->subYears((int) $filters['min_age'])->format('Y-m-d'));
+        }
+        if (isset($filters['max_age']) && is_numeric($filters['max_age'])) {
+            $query->whereDate('birth_date', '>', $now->copy()->subYears((int) $filters['max_age'] + 1)->format('Y-m-d'));
+        }
+
+        if ($statusFilter === 'overage') {
+            $query->whereDate('birth_date', '<=', $overageCutoffDate);
+        } elseif ($statusFilter === 'inactive') {
+            $query->where(function ($q) use ($overageCutoffDate) {
+                $q->whereDate('birth_date', '>', $overageCutoffDate)
+                  ->orWhereNull('birth_date');
+            })->where(function ($q) use ($oneMonthAgo) {
+                $q->whereHas('user', function ($uq) use ($oneMonthAgo) {
+                    $uq->where('last_login_at', '<', $oneMonthAgo)
+                        ->orWhere(function ($nullQ) use ($oneMonthAgo) {
+                            $nullQ->whereNull('last_login_at')
+                                ->where('created_at', '<', $oneMonthAgo);
+                        });
+                });
+            });
+        } elseif ($statusFilter === 'active') {
+            $query->where(function ($q) use ($overageCutoffDate) {
+                $q->whereDate('birth_date', '>', $overageCutoffDate)
+                  ->orWhereNull('birth_date');
+            })->where(function ($q) use ($oneMonthAgo) {
+                $q->whereHas('user', function ($uq) use ($oneMonthAgo) {
+                    $uq->where('last_login_at', '>=', $oneMonthAgo)
+                        ->orWhere(function ($nullQ) use ($oneMonthAgo) {
+                            $nullQ->whereNull('last_login_at')
+                                ->where('created_at', '>=', $oneMonthAgo);
+                        });
+                })->orWhereNull('user_id');
+            });
+        } elseif (! $hasSearch && empty($statusFilter) && ! $hasAgeFilter) {
+            // Default view (no search, no status filter, no age bracket filter): only show active youth (hide overage and inactive)
+            $query->where(function ($q) use ($overageCutoffDate) {
+                $q->whereDate('birth_date', '>', $overageCutoffDate)
+                  ->orWhereNull('birth_date');
+            })->where(function ($q) use ($oneMonthAgo) {
+                $q->whereHas('user', function ($uq) use ($oneMonthAgo) {
+                    $uq->where('last_login_at', '>=', $oneMonthAgo)
+                        ->orWhere(function ($nullQ) use ($oneMonthAgo) {
+                            $nullQ->whereNull('last_login_at')
+                                ->where('created_at', '>=', $oneMonthAgo);
+                        });
+                })->orWhereNull('user_id');
+            });
+        }
+
         if (! empty($filters['search'])) {
             $search = '%'.$filters['search'].'%';
             $query->where(function ($q) use ($search, $filters) {

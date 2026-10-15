@@ -75,6 +75,8 @@ class ResidentYouthDetailsResource extends JsonResource
             'organization_id' => $this->organization_id,
             'organization_name' => $this->organization?->name ?? 'None',
             'status' => $this->organization?->name ?? 'None',
+            'profile_picture' => $this->profile_picture,
+            'profile_picture_url' => $this->profile_picture ? Storage::disk('public')->url($this->profile_picture) : null,
 
             // Assuming bookings and events might be loaded later, default to empty arrays
             'bookingHistory' => $this->whenLoaded('bookings', function () {
