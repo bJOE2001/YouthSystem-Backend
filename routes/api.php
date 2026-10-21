@@ -35,9 +35,13 @@ Route::get('/sk-officials', [PublicSkOfficialController::class, 'index'])->name(
 
 Route::get('/public/lydc-members', [PublicLydcMemberController::class, 'index'])->name('public.lydc-members.index');
 Route::get('/lydc-members', [PublicLydcMemberController::class, 'index'])->name('lydc-members.index');
+Route::get('/public/lydc-positions', [\App\Http\Controllers\Api\Admin\LydcPositionController::class, 'active'])->name('public.lydc-positions.index');
+Route::get('/lydc-positions', [\App\Http\Controllers\Api\Admin\LydcPositionController::class, 'active'])->name('lydc-positions.index');
 
 Route::get('/public/tcydo-directory-members', [PublicTcydoDirectoryMemberController::class, 'index'])->name('public.tcydo-directory-members.index');
 Route::get('/tcydo-directory-members', [PublicTcydoDirectoryMemberController::class, 'index'])->name('tcydo-directory-members.index');
+Route::get('/public/tcydo-directory-positions', [\App\Http\Controllers\Api\Admin\TcydoDirectoryPositionController::class, 'active'])->name('public.tcydo-directory-positions.index');
+Route::get('/tcydo-directory-positions', [\App\Http\Controllers\Api\Admin\TcydoDirectoryPositionController::class, 'active'])->name('tcydo-directory-positions.index');
 
 Route::get('/public/barangays', [PublicBarangayController::class, 'index'])->name('public.barangays.index');
 Route::get('/barangays', [PublicBarangayController::class, 'index'])->name('barangays.index');

@@ -65,6 +65,31 @@ class LydcMemberController extends Controller
         return response()->json(LydcMemberResource::make($lydcMember));
     }
 
+    public function update(Request $request, LydcMember $lydcMember): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'initials' => 'nullable|string|max:10',
+            'barangay' => 'nullable|string|max:255',
+            'contact' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:255',
+            'committee' => 'nullable|string|max:255',
+            'position' => 'nullable|string|max:255',
+            'organization' => 'nullable|string|max:255',
+            'sector' => 'nullable|string|max:255',
+            'responsibilities' => 'nullable|string',
+            'status' => 'nullable|string|max:50',
+        ]);
+
+        $lydcMember->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'LYDC Member updated successfully.',
+            'data' => LydcMemberResource::make($lydcMember),
+        ]);
+    }
+
     public function destroy(LydcMember $lydcMember): JsonResponse
     {
         $lydcMember->delete();

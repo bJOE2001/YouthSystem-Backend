@@ -13,7 +13,9 @@ use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\EcesproGrantReleaseController;
 use App\Http\Controllers\Api\Admin\EcesproSettingController;
 use App\Http\Controllers\Api\Admin\LydcMemberController;
+use App\Http\Controllers\Api\Admin\LydcPositionController;
 use App\Http\Controllers\Api\Admin\TcydoDirectoryMemberController;
+use App\Http\Controllers\Api\Admin\TcydoDirectoryPositionController;
 use App\Http\Controllers\Api\Admin\OrganizationController;
 use App\Http\Controllers\Api\Admin\ResidentYouthController;
 use App\Http\Controllers\Api\Admin\ScholarPositionController;
@@ -114,6 +116,24 @@ Route::middleware([
             Route::post('/{scholarPosition}/delete', [ScholarPositionController::class, 'destroy'])->name('destroy');
         });
 
+        Route::middleware('module:youth_records')->prefix('lydc-positions')->name('lydc-positions.')->group(function () {
+            Route::get('/', [LydcPositionController::class, 'index'])->name('index');
+            Route::get('/active', [LydcPositionController::class, 'active'])->name('active');
+            Route::get('/{lydcPosition}', [LydcPositionController::class, 'show'])->name('show');
+            Route::post('/', [LydcPositionController::class, 'store'])->name('store');
+            Route::post('/{lydcPosition}', [LydcPositionController::class, 'update'])->name('update');
+            Route::post('/{lydcPosition}/delete', [LydcPositionController::class, 'destroy'])->name('destroy');
+        });
+
+        Route::middleware('module:youth_records')->prefix('tcydo-directory-positions')->name('tcydo-directory-positions.')->group(function () {
+            Route::get('/', [TcydoDirectoryPositionController::class, 'index'])->name('index');
+            Route::get('/active', [TcydoDirectoryPositionController::class, 'active'])->name('active');
+            Route::get('/{tcydoDirectoryPosition}', [TcydoDirectoryPositionController::class, 'show'])->name('show');
+            Route::post('/', [TcydoDirectoryPositionController::class, 'store'])->name('store');
+            Route::post('/{tcydoDirectoryPosition}', [TcydoDirectoryPositionController::class, 'update'])->name('update');
+            Route::post('/{tcydoDirectoryPosition}/delete', [TcydoDirectoryPositionController::class, 'destroy'])->name('destroy');
+        });
+
         Route::middleware('module:sk_officials')->prefix('sk-officials')->name('sk-officials.')->group(function () {
             Route::get('/', [SkOfficialController::class, 'index'])->name('index');
             Route::get('/eligible-youths', [SkOfficialController::class, 'eligibleYouths'])->name('eligible-youths');
@@ -127,6 +147,8 @@ Route::middleware([
             Route::get('/', [LydcMemberController::class, 'index'])->name('index');
             Route::get('/{lydcMember}', [LydcMemberController::class, 'show'])->name('show');
             Route::post('/', [LydcMemberController::class, 'store'])->name('store');
+            Route::post('/{lydcMember}', [LydcMemberController::class, 'update'])->name('update');
+            Route::put('/{lydcMember}', [LydcMemberController::class, 'update'])->name('put-update');
             Route::post('/{lydcMember}/delete', [LydcMemberController::class, 'destroy'])->name('destroy');
         });
 
@@ -134,6 +156,8 @@ Route::middleware([
             Route::get('/', [TcydoDirectoryMemberController::class, 'index'])->name('index');
             Route::get('/{tcydoDirectoryMember}', [TcydoDirectoryMemberController::class, 'show'])->name('show');
             Route::post('/', [TcydoDirectoryMemberController::class, 'store'])->name('store');
+            Route::post('/{tcydoDirectoryMember}', [TcydoDirectoryMemberController::class, 'update'])->name('update');
+            Route::put('/{tcydoDirectoryMember}', [TcydoDirectoryMemberController::class, 'update'])->name('put-update');
             Route::post('/{tcydoDirectoryMember}/delete', [TcydoDirectoryMemberController::class, 'destroy'])->name('destroy');
         });
 
