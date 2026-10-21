@@ -20,12 +20,12 @@ class ResidentYouthDetailsResource extends JsonResource
 
         return [
             'id' => $this->id,
-            'name' => trim(implode(' ', array_filter([
+            'name' => mb_strtoupper(trim(implode(' ', array_filter([
                 $this->first_name,
                 $this->middle_name,
                 $cleanLastName,
                 $this->suffix,
-            ]))),
+            ])))),
             'firstName' => $this->first_name,
             'middleName' => $this->middle_name,
             'lastName' => $cleanLastName,

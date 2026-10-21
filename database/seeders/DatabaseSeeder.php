@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             LibraryCenterOfParticipationSeeder::class,
             LibraryStrategicDirectionSeeder::class,
             LibraryNoBudgetReasonSeeder::class,
+            LibraryLydcPositionSeeder::class,
             UserSeeder::class,
         ]);
     }

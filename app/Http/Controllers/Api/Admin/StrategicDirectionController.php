@@ -18,8 +18,11 @@ class StrategicDirectionController extends Controller
         $sortOrder = $request->input('sort_order', 'asc');
         $query->orderBy($sortBy, $sortOrder);
 
-        if ($request->has('all') && $request->all == 'true') {
-            return response()->json($query->where('status', 'active')->get());
+        if ($request->boolean('all')) {
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
+            return response()->json($query->get());
         }
 
         $perPage = $request->input('per_page', 15);

@@ -11,12 +11,15 @@ use App\Http\Resources\EventParticipantResource;
 use App\Http\Resources\SkAdmin\ResidentYouthListResource;
 use App\Http\Resources\SportsProgramResource;
 use App\Http\Resources\UnifiedEventResource;
+use App\Models\AttendanceLog;
 use App\Models\SkOfficial;
 use App\Models\SportsProgram;
 use App\Models\User;
+use App\Notifications\ParticipantCancelledNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -211,6 +214,205 @@ class SportsProgramController extends Controller
         $sportsProgram->delete();
 
         return response()->noContent();
+    }
+
+    public function removeParticipant(Request $request, SportsProgram $sportsProgram, $participant)
+    {
+        /** @var User $user */
+        $authUser = $request->user() ?? Auth::guard('sanctum')->user() ?? Auth::user();
+        if ($authUser) {
+            $this->authorizeSportsProgramModification($authUser, $sportsProgram);
+        }
+
+        $targetUserId = is_numeric($participant) ? (int) $participant : (int) $request->input('user_id');
+        $targetName = trim((string) ($request->input('name') ?: ''));
+        $targetTeamName = trim((string) ($request->input('team_name') ?: ''));
+
+        // If targetUserId is provided/numeric, find User
+        $user = $targetUserId > 0 ? User::find($targetUserId) : null;
+
+        // 1. If user is registered in sports_program_user pivot directly, detach them
+        if ($user && $sportsProgram->participants()->where('user_id', $user->id)->exists()) {
+            $sportsProgram->participants()->detach($user->id);
+
+            try {
+                AttendanceLog::where('sports_program_id', $sportsProgram->id)
+                    ->where('user_id', $user->id)
+                    ->delete();
+            } catch (\Throwable $e) {
+            }
+
+            try {
+                $user->notify(new ParticipantCancelledNotification($sportsProgram->name, 'sports'));
+            } catch (\Throwable $e) {
+                Log::warning('Failed to send sports cancellation notification: ' . $e->getMessage());
+            }
+        }
+
+        // 2. Scan and update all teammates JSON rosters for this sports program
+        $pivotQuery = DB::table('sports_program_user')
+            ->where('sports_program_id', $sportsProgram->id);
+
+        if (! empty($targetTeamName)) {
+            $pivotQuery->where(function ($q) use ($targetTeamName) {
+                $q->whereRaw('LOWER(TRIM(team_name)) = ?', [strtolower($targetTeamName)])
+                    ->orWhere('team_name', 'like', '%' . $targetTeamName . '%');
+            });
+        }
+
+        $pivots = $pivotQuery->get();
+
+        foreach ($pivots as $pivot) {
+            if (empty($pivot->teammates)) {
+                continue;
+            }
+
+            $roster = is_string($pivot->teammates) ? json_decode($pivot->teammates, true) : (array) $pivot->teammates;
+            if (! is_array($roster)) {
+                continue;
+            }
+
+            $initialCount = count($roster);
+            $newRoster = [];
+
+            foreach ($roster as $member) {
+                $mUserId = ! empty($member['user_id']) ? (int) $member['user_id'] : null;
+                $mId = ! empty($member['id']) ? (string) $member['id'] : '';
+                $mName = trim((string) ($member['name'] ?? ''));
+
+                $isMatch = false;
+
+                if ($targetUserId > 0 && $mUserId && $mUserId === $targetUserId) {
+                    $isMatch = true;
+                } elseif (! empty($participant) && ($participant === $mId || (string) $participant === (string) $mUserId)) {
+                    $isMatch = true;
+                } elseif (! empty($targetName) && strcasecmp($mName, $targetName) === 0) {
+                    $isMatch = true;
+                }
+
+                if ($isMatch) {
+                    // If member has user account and hasn't been notified yet
+                    if ($mUserId && (! $user || $mUserId !== $user->id)) {
+                        $mUser = User::find($mUserId);
+                        if ($mUser) {
+                            try {
+                                $sportsProgram->participants()->detach($mUser->id);
+                                AttendanceLog::where('sports_program_id', $sportsProgram->id)
+                                    ->where('user_id', $mUser->id)
+                                    ->delete();
+                                $mUser->notify(new ParticipantCancelledNotification($sportsProgram->name, 'sports'));
+                            } catch (\Throwable $e) {
+                            }
+                        }
+                    }
+                    continue; // Skip member, effectively removing from roster
+                }
+
+                $newRoster[] = $member;
+            }
+
+            if (count($newRoster) !== $initialCount) {
+                if (empty($newRoster)) {
+                    DB::table('sports_program_user')->where('id', $pivot->id)->delete();
+                } else {
+                    DB::table('sports_program_user')
+                        ->where('id', $pivot->id)
+                        ->update([
+                            'teammates' => json_encode(array_values($newRoster)),
+                            'updated_at' => now(),
+                        ]);
+                }
+            }
+        }
+
+        return response()->json([
+            'message' => 'Participant removed successfully.',
+        ]);
+    }
+
+    public function removeTeam(Request $request, SportsProgram $sportsProgram, $teamId)
+    {
+        /** @var User $user */
+        $authUser = $request->user() ?? Auth::guard('sanctum')->user() ?? Auth::user();
+        if ($authUser) {
+            $this->authorizeSportsProgramModification($authUser, $sportsProgram);
+        }
+
+        $rawTeamName = $request->input('team_name') ?? $teamId;
+        $cleanTeamName = preg_replace('/^(team_|indiv_)/', '', (string) $rawTeamName);
+        $cleanTeamName = trim($cleanTeamName);
+
+        // Find pivot rows for this sport program matching this team
+        $pivots = DB::table('sports_program_user')
+            ->where('sports_program_id', $sportsProgram->id)
+            ->where(function ($q) use ($cleanTeamName, $teamId, $rawTeamName) {
+                $q->whereRaw('LOWER(TRIM(team_name)) = ?', [strtolower($cleanTeamName)])
+                    ->orWhereRaw('LOWER(TRIM(team_name)) = ?', [strtolower($rawTeamName)])
+                    ->orWhere('team_name', 'like', '%' . $cleanTeamName . '%');
+                if (is_numeric($teamId)) {
+                    $q->orWhere('user_id', (int) $teamId);
+                }
+            })
+            ->get();
+
+        $userIdsToNotify = collect();
+
+        foreach ($pivots as $pivot) {
+            if ($pivot->user_id) {
+                $userIdsToNotify->push((int) $pivot->user_id);
+            }
+            if (! empty($pivot->teammates)) {
+                $roster = is_string($pivot->teammates) ? json_decode($pivot->teammates, true) : (array) $pivot->teammates;
+                if (is_array($roster)) {
+                    foreach ($roster as $m) {
+                        if (! empty($m['user_id'])) {
+                            $userIdsToNotify->push((int) $m['user_id']);
+                        }
+                    }
+                }
+            }
+        }
+
+        $userIdsToNotify = $userIdsToNotify->unique()->filter()->values();
+
+        // Detach all registered users
+        if ($userIdsToNotify->isNotEmpty()) {
+            $sportsProgram->participants()->detach($userIdsToNotify->all());
+
+            try {
+                AttendanceLog::where('sports_program_id', $sportsProgram->id)
+                    ->whereIn('user_id', $userIdsToNotify->all())
+                    ->delete();
+            } catch (\Throwable $e) {
+            }
+
+            // Send notification to each team member with an account
+            $users = User::whereIn('id', $userIdsToNotify->all())->get();
+            foreach ($users as $memberUser) {
+                try {
+                    $memberUser->notify(new ParticipantCancelledNotification($sportsProgram->name, 'sports'));
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to notify team member: ' . $e->getMessage());
+                }
+            }
+        }
+
+        // Delete all matching pivot rows
+        DB::table('sports_program_user')
+            ->where('sports_program_id', $sportsProgram->id)
+            ->where(function ($q) use ($cleanTeamName, $teamId, $rawTeamName) {
+                $q->whereRaw('LOWER(TRIM(team_name)) = ?', [strtolower($cleanTeamName)])
+                    ->orWhereRaw('LOWER(TRIM(team_name)) = ?', [strtolower($rawTeamName)])
+                    ->orWhere('team_name', 'like', '%' . $cleanTeamName . '%');
+                if (is_numeric($teamId)) {
+                    $q->orWhere('user_id', (int) $teamId);
+                }
+            })
+            ->delete();
+
+        return response()->json([
+            'message' => 'Team and participants removed successfully and notifications sent.',
+        ]);
     }
 
     public function participantsByBarangay(Request $request, SportsProgram $sportsProgram)

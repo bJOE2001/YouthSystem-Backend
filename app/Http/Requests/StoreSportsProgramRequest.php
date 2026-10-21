@@ -15,6 +15,26 @@ class StoreSportsProgramRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation()
+    {
+        $merge = [];
+
+        if ($this->has('startTime')) {
+            $raw = trim((string) $this->startTime);
+            if ($raw === '') {
+                $merge['startTime'] = null;
+            } elseif (preg_match('/^(\d{1,2}):(\d{2})/', $raw, $m)) {
+                $merge['startTime'] = str_pad($m[1], 2, '0', STR_PAD_LEFT) . ':' . $m[2];
+            } elseif ($parsed = strtotime($raw)) {
+                $merge['startTime'] = date('H:i', $parsed);
+            }
+        }
+
+        if (! empty($merge)) {
+            $this->merge($merge);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -28,7 +48,7 @@ class StoreSportsProgramRequest extends FormRequest
             'strategicDirection' => 'required|string',
             'startDate' => 'nullable|date',
             'endDate' => 'nullable|date|after_or_equal:startDate',
-            'startTime' => 'nullable|date_format:H:i',
+            'startTime' => 'nullable|date_format:H:i,H:i:s',
             'location' => 'nullable|string|max:255',
             // 'budgetAllocated' => 'nullable|numeric|min:0',
             // 'budgetUtilized' => 'nullable|numeric|min:0',

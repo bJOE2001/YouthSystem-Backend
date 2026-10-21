@@ -30,6 +30,7 @@ class YouthValidationListResource extends JsonResource
             'contact' => $this->mobile_number,
             'email' => $this->user ? $this->user->email : 'No Email',
             'age' => $this->birth_date ? $this->birth_date->age : null,
+            'barangay' => $this->barangay,
             'purok' => $this->purok_sitio,
             'status' => $status,
         ];

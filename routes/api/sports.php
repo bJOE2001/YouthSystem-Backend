@@ -27,6 +27,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/sports/{sportsProgram}', [SportsProgramController::class, 'update'])->name('sports.update');
         Route::post('/sports/{sportsProgram}/status', [SportsProgramController::class, 'updateStatus'])->name('sports.update-status');
         Route::post('/sports/{sportsProgram}/delete', [SportsProgramController::class, 'destroy'])->name('sports.destroy');
+        Route::post('/sports/{sportsProgram}/participants/{participant}/remove', [SportsProgramController::class, 'removeParticipant'])->name('sports.participants.remove');
+        Route::post('/sports/{sportsProgram}/teams/{teamId}/remove', [SportsProgramController::class, 'removeTeam'])->name('sports.teams.remove');
         Route::post('/sports/{sportsProgram}/certificate', [EventController::class, 'uploadCertificate'])->name('sports.certificate.upload');
         Route::post('/sports/{sportsProgram}/certificates', [EventController::class, 'uploadCertificate'])->name('sports.certificates.upload');
         Route::get('/sports/{sportsProgram}/certificate-preview', [EventController::class, 'certificatePreview'])->name('sports.certificate.preview');

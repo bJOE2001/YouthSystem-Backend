@@ -65,6 +65,31 @@ class TcydoDirectoryMemberController extends Controller
         return response()->json(TcydoDirectoryMemberResource::make($tcydoDirectoryMember));
     }
 
+    public function update(Request $request, TcydoDirectoryMember $tcydoDirectoryMember): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|max:255',
+            'initials' => 'nullable|string|max:10',
+            'barangay' => 'nullable|string|max:255',
+            'contact' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:255',
+            'committee' => 'nullable|string|max:255',
+            'position' => 'nullable|string|max:255',
+            'organization' => 'nullable|string|max:255',
+            'sector' => 'nullable|string|max:255',
+            'responsibilities' => 'nullable|string',
+            'status' => 'nullable|string|max:50',
+        ]);
+
+        $tcydoDirectoryMember->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'TCYDO Directory Member updated successfully.',
+            'data' => TcydoDirectoryMemberResource::make($tcydoDirectoryMember),
+        ]);
+    }
+
     public function destroy(TcydoDirectoryMember $tcydoDirectoryMember): JsonResponse
     {
         $tcydoDirectoryMember->delete();

@@ -23,7 +23,29 @@ class StoreEventRequest extends FormRequest
             $merge['status'] = strtolower($this->status);
         }
 
-        $nullableFields = ['endDate', 'endTime', 'location', 'noBudgetReason', 'budgetAllocated', 'budgetUtilized'];
+        if ($this->has('startTime')) {
+            $raw = trim((string) $this->startTime);
+            if ($raw === '') {
+                $merge['startTime'] = null;
+            } elseif (preg_match('/^(\d{1,2}):(\d{2})/', $raw, $m)) {
+                $merge['startTime'] = str_pad($m[1], 2, '0', STR_PAD_LEFT) . ':' . $m[2];
+            } elseif ($parsed = strtotime($raw)) {
+                $merge['startTime'] = date('H:i', $parsed);
+            }
+        }
+
+        if ($this->has('endTime')) {
+            $raw = trim((string) $this->endTime);
+            if ($raw === '') {
+                $merge['endTime'] = null;
+            } elseif (preg_match('/^(\d{1,2}):(\d{2})/', $raw, $m)) {
+                $merge['endTime'] = str_pad($m[1], 2, '0', STR_PAD_LEFT) . ':' . $m[2];
+            } elseif ($parsed = strtotime($raw)) {
+                $merge['endTime'] = date('H:i', $parsed);
+            }
+        }
+
+        $nullableFields = ['endDate', 'location', 'noBudgetReason', 'budgetAllocated', 'budgetUtilized', 'maxParticipants', 'max_participants'];
         foreach ($nullableFields as $field) {
             if ($this->has($field) && $this->input($field) === '') {
                 $merge[$field] = null;
@@ -50,8 +72,8 @@ class StoreEventRequest extends FormRequest
             'sustainableDevelopmentGoal' => ['required', 'string', 'max:255'],
             'startDate' => ['required', 'date'],
             'endDate' => ['nullable', 'date'],
-            'startTime' => ['required', 'date_format:H:i'],
-            'endTime' => ['nullable', 'date_format:H:i'],
+            'startTime' => ['required', 'date_format:H:i,H:i:s'],
+            'endTime' => ['nullable', 'date_format:H:i,H:i:s'],
             'location' => ['nullable', 'string', 'max:255'],
             'hasNoAllocatedBudget' => ['nullable', 'boolean'],
             'noBudgetReason' => ['required_if:hasNoAllocatedBudget,true', 'nullable', 'string', 'max:255'],
@@ -64,6 +86,8 @@ class StoreEventRequest extends FormRequest
             'status' => ['required', 'in:draft,upcoming,ongoing,completed,cancelled'],
             'openToAll' => ['nullable', 'boolean'],
             'openToAllBarangays' => ['nullable', 'boolean'],
+            'maxParticipants' => ['nullable', 'integer', 'min:1'],
+            'max_participants' => ['nullable', 'integer', 'min:1'],
         ];
     }
 }

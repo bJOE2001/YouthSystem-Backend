@@ -29,12 +29,17 @@ class GetPendingYouthRegistrationsAction
             }
         }
 
+        if (! empty($filters['barangay'])) {
+            $query->where('barangay', $filters['barangay']);
+        }
+
         if (! empty($filters['search'])) {
             $search = '%'.$filters['search'].'%';
             $query->where(function ($q) use ($search) {
                 $q->where(DB::raw("CONCAT(first_name, ' ', last_name)"), 'LIKE', $search)
                     ->orWhere(DB::raw("CONCAT(first_name, ' ', middle_name, ' ', last_name)"), 'LIKE', $search)
                     ->orWhere('mobile_number', 'LIKE', $search)
+                    ->orWhere('barangay', 'LIKE', $search)
                     ->orWhere('purok_sitio', 'LIKE', $search)
                     ->orWhereHas('user', function ($uq) use ($search) {
                         $uq->where('email', 'LIKE', $search);
@@ -49,6 +54,7 @@ class GetPendingYouthRegistrationsAction
         $sortMap = [
             'name' => 'first_name',
             'contact' => 'mobile_number',
+            'barangay' => 'barangay',
             'purok' => 'purok_sitio',
             'age' => 'birth_date', // Technically sorting by birth_date ascending means older first
             'created_at' => 'created_at',

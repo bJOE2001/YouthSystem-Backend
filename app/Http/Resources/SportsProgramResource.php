@@ -63,6 +63,7 @@ class SportsProgramResource extends JsonResource
             'strategicDirection' => $this->strategic_direction,
             'startDate' => $this->start_date ? $this->start_date->format('Y-m-d') : null,
             'endDate' => $this->end_date ? $this->end_date->format('Y-m-d') : null,
+            'startTime' => $this->start_time ? Carbon::parse($this->start_time)->format('H:i') : null,
             'time' => $this->start_time ? Carbon::parse($this->start_time)->format('H:i') : null,
             'dateTime' => $dateTime,
             'location' => $this->location,

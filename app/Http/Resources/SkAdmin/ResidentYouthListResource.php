@@ -44,12 +44,12 @@ class ResidentYouthListResource extends JsonResource
         return [
             'id' => $this->id,
             'user_id' => $this->user_id,
-            'name' => trim(implode(' ', array_filter([
+            'name' => mb_strtoupper(trim(implode(' ', array_filter([
                 $this->first_name,
                 $this->middle_name,
                 $cleanLastName,
                 $this->suffix,
-            ]))),
+            ])))),
             'profile_picture' => $this->profile_picture,
             'contact' => $this->mobile_number,
             'email' => $user ? $user->email : '',

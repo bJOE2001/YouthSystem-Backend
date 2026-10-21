@@ -9,15 +9,18 @@ use App\Http\Requests\Event\UpdateEventRequest;
 use App\Http\Resources\EventParticipantResource;
 use App\Http\Resources\EventResource;
 use App\Http\Resources\UnifiedEventResource;
+use App\Models\AttendanceLog;
 use App\Models\Event;
 use App\Models\SkOfficial;
 use App\Models\SportsProgram;
 use App\Models\User;
+use App\Notifications\ParticipantCancelledNotification;
 use App\Services\CertificateService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -47,7 +50,7 @@ class EventController extends Controller
 
             if ($user->isRootAdmin() || ($user->isSubAdmin() && $user->canAccessModule('events'))) {
                 // Citywide Admin-managed events created by any Admin or Sub-Admin
-                $query = Event::whereHas('user', function ($uq) {
+                $query = Event::withCount('participants')->whereHas('user', function ($uq) {
                     $uq->whereIn('role', [UserRole::Admin->value, UserRole::SubAdmin->value, 'admin', 'sub_admin']);
                 });
             } elseif ($user->isSubAdmin()) {
@@ -59,7 +62,7 @@ class EventController extends Controller
                 }
 
                 // Shared events belonging to this SK Admin's barangay only
-                $query = Event::where(function ($q) use ($skBarangay) {
+                $query = Event::withCount('participants')->where(function ($q) use ($skBarangay) {
                     $q->where(function ($bq) use ($skBarangay) {
                         $bq->whereNotNull('barangay')
                             ->whereRaw('LOWER(barangay) = ?', [strtolower(trim($skBarangay))]);
@@ -99,7 +102,7 @@ class EventController extends Controller
             $userBarangay = $user->youthProfile->barangay ?? SkOfficial::where('email', $user->email)->value('barangay') ?? null;
         }
 
-        $events = Event::whereIn('status', ['upcoming', 'ongoing', 'Upcoming', 'Ongoing']);
+        $events = Event::withCount('participants')->whereIn('status', ['upcoming', 'ongoing', 'Upcoming', 'Ongoing']);
         $sports = SportsProgram::whereIn('status', ['upcoming', 'ongoing', 'Upcoming', 'Ongoing']);
 
         if (! $user || $user->role !== UserRole::Admin) {
@@ -384,6 +387,10 @@ class EventController extends Controller
             return response()->json(['message' => 'Already joined this event.'], 400);
         }
 
+        if ($event->max_participants && $event->participants()->count() >= $event->max_participants) {
+            return response()->json(['message' => 'This event is already full and cannot accept more participants.'], 422);
+        }
+
         $user->joinedEvents()->attach($event->id);
 
         return new UnifiedEventResource($event);
@@ -500,6 +507,44 @@ class EventController extends Controller
             : (is_numeric($rawPerPage) && (int) $rawPerPage > 0 ? min((int) $rawPerPage, 500) : 10);
 
         return EventParticipantResource::collection($query->paginate($perPage));
+    }
+
+    public function removeParticipant(Request $request, $id, $participant)
+    {
+        $model = $this->resolveActivityModel($id, $request);
+
+        if ($model instanceof SportsProgram) {
+            return app(SportsProgramController::class)->removeParticipant($request, $model, $participant);
+        }
+
+        $user = is_numeric($participant) ? User::find($participant) : null;
+        if (! $user) {
+            return response()->json(['message' => 'Participant user not found.'], 404);
+        }
+
+        if (! $model->participants()->where('user_id', $user->id)->exists()) {
+            return response()->json(['message' => 'Participant is not registered in this event.'], 404);
+        }
+
+        $model->participants()->detach($user->id);
+
+        try {
+            AttendanceLog::where('event_id', $model->id)
+                ->where('user_id', $user->id)
+                ->delete();
+        } catch (\Throwable $e) {
+            // Ignore if AttendanceLog cannot be queried
+        }
+
+        try {
+            $user->notify(new ParticipantCancelledNotification($model->name, 'event'));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send event cancellation notification: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'message' => 'Participant removed successfully.',
+        ]);
     }
 
     public function markAttendance(Request $request, $id, $participant)
