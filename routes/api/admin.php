@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Admin\EcesproExaminationSetupController;
 use App\Http\Controllers\Api\Admin\LibrarySdgController;
 use App\Http\Controllers\Api\Admin\CenterOfParticipationController;
 use App\Http\Controllers\Api\Admin\BarangayLibraryController;
+use App\Http\Controllers\Api\Admin\PurokLibraryController;
 use App\Http\Controllers\Api\Admin\CommitteeLibraryController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\EcesproGrantReleaseController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Api\Admin\ScholarPositionController;
 use App\Http\Controllers\Api\Admin\SkOfficialController;
 use App\Http\Controllers\Api\Admin\SmsController;
 use App\Http\Controllers\Api\Admin\SystemSettingController;
+use App\Http\Controllers\Api\SkAdmin\YouthValidationController;
 use App\Http\Controllers\EcesproApplicationController;
 use App\Http\Controllers\EcesproComplianceScheduleController;
 use App\Http\Controllers\EcesproContractBatchController;
@@ -63,6 +65,14 @@ Route::middleware([
             Route::post('/', [BarangayLibraryController::class, 'store'])->name('store');
             Route::post('/{barangay}', [BarangayLibraryController::class, 'update'])->name('update');
             Route::post('/{barangay}/delete', [BarangayLibraryController::class, 'destroy'])->name('destroy');
+        });
+
+        Route::middleware('module:youth_records')->prefix('purok-library')->name('purok-library.')->group(function () {
+            Route::get('/', [PurokLibraryController::class, 'index'])->name('index');
+            Route::get('/{purok}', [PurokLibraryController::class, 'show'])->name('show');
+            Route::post('/', [PurokLibraryController::class, 'store'])->name('store');
+            Route::post('/{purok}', [PurokLibraryController::class, 'update'])->name('update');
+            Route::post('/{purok}/delete', [PurokLibraryController::class, 'destroy'])->name('destroy');
         });
 
         Route::middleware('module:youth_records')->prefix('committee-library')->name('committee-library.')->group(function () {
@@ -138,6 +148,13 @@ Route::middleware([
             Route::post('/{youthProfile}/organization', [ResidentYouthController::class, 'assignOrganization'])->name('organization');
             Route::post('/{youthProfile}/delete', [ResidentYouthController::class, 'destroy'])->name('destroy');
             Route::post('/{youthProfile}/toggle-sinag', [ResidentYouthController::class, 'toggleSinag'])->name('toggle-sinag');
+        });
+
+        Route::middleware('module:youth_records')->prefix('youth-registration')->name('youth-registration.')->group(function () {
+            Route::get('/', [YouthValidationController::class, 'index'])->name('index');
+            Route::get('/{youthProfile}', [YouthValidationController::class, 'show'])->name('show');
+            Route::post('/{youthProfile}/approve', [YouthValidationController::class, 'approve'])->name('approve');
+            Route::post('/{youthProfile}/disapprove', [YouthValidationController::class, 'disapprove'])->name('disapprove');
         });
 
         // ECESPRO Module Group

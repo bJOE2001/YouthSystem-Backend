@@ -93,6 +93,8 @@ Route::middleware([
             Route::post('/{sportsProgram}/status', [SkSportsProgramController::class, 'updateStatus'])->name('update-status');
             Route::post('/{sportsProgram}/delete', [SkSportsProgramController::class, 'destroy'])->name('destroy');
             Route::get('/{sportsProgram}/participants-by-barangay', [SkSportsProgramController::class, 'participantsByBarangay'])->name('participants-by-barangay');
+            Route::post('/{sportsProgram}/participants/{participant}/remove', [SportsProgramController::class, 'removeParticipant'])->name('participants.remove');
+            Route::post('/{sportsProgram}/teams/{teamId}/remove', [SportsProgramController::class, 'removeTeam'])->name('teams.remove');
         });
 
         /*

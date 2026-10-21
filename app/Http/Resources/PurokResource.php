@@ -19,7 +19,7 @@ class PurokResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'barangay' => $this->barangay,
+            'barangay' => is_string($this->barangay) ? $this->barangay : ($this->barangay?->name ?? $this->getRawOriginal('barangay')),
             'barangay_id' => $this->barangay_id,
             'user_id' => $this->user_id,
             'created_at' => $this->created_at?->toIso8601String(),

@@ -66,11 +66,62 @@ class GetAdminDashboard
                     ->groupBy('gender')
                     ->get(),
 
-                'youthPerBarangay' => (clone $approved)
-                    ->select('barangay', DB::raw('COUNT(*) as total'))
-                    ->groupBy('barangay')
-                    ->orderBy('barangay')
-                    ->get(),
+                'youthPerBarangay' => (function () use ($approved) {
+                    $allBarangays = \App\Models\Barangay::orderBy('name')->pluck('name');
+
+                    $youthCounts = (clone $approved)
+                        ->whereNotNull('barangay')
+                        ->where('barangay', '!=', '')
+                        ->select('barangay', DB::raw('COUNT(*) as total'))
+                        ->groupBy('barangay')
+                        ->pluck('total', 'barangay');
+
+                    $countsLookup = [];
+                    foreach ($youthCounts as $bName => $count) {
+                        $cleanName = trim((string) $bName);
+                        if ($cleanName !== '') {
+                            $countsLookup[strtolower($cleanName)] = [
+                                'name' => $cleanName,
+                                'total' => (int) $count,
+                                'matched' => false,
+                            ];
+                        }
+                    }
+
+                    $barangayList = collect();
+
+                    foreach ($allBarangays as $bName) {
+                        $cleanName = trim((string) $bName);
+                        if ($cleanName === '') {
+                            continue;
+                        }
+
+                        $key = strtolower($cleanName);
+                        $total = 0;
+                        if (isset($countsLookup[$key])) {
+                            $total = $countsLookup[$key]['total'];
+                            $countsLookup[$key]['matched'] = true;
+                        }
+
+                        $barangayList->push([
+                            'barangay' => $cleanName,
+                            'total' => $total,
+                        ]);
+                    }
+
+                    foreach ($countsLookup as $item) {
+                        if (! $item['matched']) {
+                            $barangayList->push([
+                                'barangay' => $item['name'],
+                                'total' => $item['total'],
+                            ]);
+                        }
+                    }
+
+                    return $barangayList
+                        ->sortBy('barangay', SORT_NATURAL | SORT_FLAG_CASE)
+                        ->values();
+                })(),
 
             ],
 

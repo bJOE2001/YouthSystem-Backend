@@ -14,7 +14,7 @@ class GetDashboardAction
     public function handle(): array
     {
         $user = auth()->user();
-        $barangay = SkOfficial::where('email', $user->email)->value('barangay');
+        $barangay = $user?->getBarangay() ?? SkOfficial::where('email', $user?->email)->value('barangay');
 
         $query = YouthProfile::query()
             ->where('status', YouthProfileStatus::Approved->value);
@@ -46,11 +46,64 @@ class GetDashboardAction
             ->groupBy('gender')
             ->get();
 
-        $youthPerPurok = (clone $approvedQuery)
+        $definedPuroks = collect();
+        if ($barangay) {
+            $definedPuroks = \App\Models\Purok::where('barangay', $barangay)
+                ->pluck('name');
+        }
+
+        $purokYouthCounts = (clone $approvedQuery)
+            ->whereNotNull('purok_sitio')
+            ->where('purok_sitio', '!=', '')
             ->select('purok_sitio as purok', DB::raw('COUNT(*) as total'))
             ->groupBy('purok_sitio')
-            ->orderBy('purok_sitio')
-            ->get();
+            ->pluck('total', 'purok');
+
+        $countsLookup = [];
+        foreach ($purokYouthCounts as $purokName => $count) {
+            $cleanName = trim((string) $purokName);
+            if ($cleanName !== '') {
+                $countsLookup[strtolower($cleanName)] = [
+                    'name' => $cleanName,
+                    'total' => (int) $count,
+                    'matched' => false,
+                ];
+            }
+        }
+
+        $youthPerPurokList = collect();
+
+        foreach ($definedPuroks as $purokName) {
+            $cleanName = trim((string) $purokName);
+            if ($cleanName === '') {
+                continue;
+            }
+
+            $key = strtolower($cleanName);
+            $total = 0;
+            if (isset($countsLookup[$key])) {
+                $total = $countsLookup[$key]['total'];
+                $countsLookup[$key]['matched'] = true;
+            }
+
+            $youthPerPurokList->push([
+                'purok' => $cleanName,
+                'total' => $total,
+            ]);
+        }
+
+        foreach ($countsLookup as $item) {
+            if (! $item['matched']) {
+                $youthPerPurokList->push([
+                    'purok' => $item['name'],
+                    'total' => $item['total'],
+                ]);
+            }
+        }
+
+        $youthPerPurok = $youthPerPurokList
+            ->sortBy('purok', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
 
         // 3. Announcements
         $announcements = AnnouncementResource::collection(
