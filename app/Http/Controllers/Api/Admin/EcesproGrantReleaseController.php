@@ -48,7 +48,7 @@ class EcesproGrantReleaseController extends Controller
                     strtolower(trim($grant->batch->semester)) === strtolower(trim($semester));
             });
 
-            $scholarType = $releasedGrants->isEmpty() ? 'New' : 'Continuing';
+            $scholarType = ($scholar->scholar_type === 'Continuing' || ! $releasedGrants->isEmpty()) ? 'Continuing' : 'New';
             $scholar->scholar_type = $scholarType;
             if ($hasReceivedCurrent) {
                 $scholar->is_eligible = false;
@@ -214,9 +214,31 @@ class EcesproGrantReleaseController extends Controller
 
     public function markReleased($grantReleaseId)
     {
-        $grantRelease = EcesproGrantRelease::findOrFail($grantReleaseId);
+        $grantRelease = EcesproGrantRelease::with('scholar')->findOrFail($grantReleaseId);
         $grantRelease->update(['status' => 'Released']);
 
+        if ($grantRelease->scholar && $grantRelease->scholar->scholar_type !== 'Continuing') {
+            $grantRelease->scholar->update(['scholar_type' => 'Continuing']);
+        }
+
         return response()->json(['message' => 'Grant marked as released successfully']);
+    }
+
+    public function markAllReleased($batchId)
+    {
+        $batch = EcesproGrantReleaseBatch::with('grants.scholar')->findOrFail($batchId);
+
+        foreach ($batch->grants as $grant) {
+            $grant->update(['status' => 'Released']);
+            if ($grant->scholar && $grant->scholar->scholar_type !== 'Continuing') {
+                $grant->scholar->update(['scholar_type' => 'Continuing']);
+            }
+        }
+
+        $batch->update(['status' => 'Completed']);
+
+        return response()->json([
+            'message' => 'All grants in this batch have been marked as released and scholars updated to Continuing.',
+        ]);
     }
 }
