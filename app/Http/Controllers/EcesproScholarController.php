@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EcesproApplication;
+use App\Models\EcesproProgram;
 use App\Models\EcesproScholar;
 use App\Models\EcesproSetting;
 use App\Models\EcesproVolunteerLog;
+use App\Models\User;
 use App\Notifications\EcesproApplicationStatusNotification;
 use App\Notifications\EcesproScholarStatusNotification;
 use Carbon\Carbon;
@@ -75,6 +78,130 @@ class EcesproScholarController extends Controller
     }
 
     /**
+     * Store an old / continuing scholar record.
+     */
+    public function storeOldScholar(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'school' => 'nullable|string|max:255',
+            'course' => 'nullable|string|max:255',
+            'year_level' => 'nullable|string|max:100',
+            'school_year' => 'nullable|string|max:50',
+            'semester' => 'nullable|string|max:50',
+            'earned_volunteer_hours' => 'nullable|numeric|min:0',
+            'required_volunteer_hours' => 'nullable|numeric|min:0|max:500',
+            'scholar_position_id' => 'nullable|exists:scholar_positions,id',
+            'scholar_no' => 'nullable|string|max:255',
+            'remarks' => 'nullable|string|max:1000',
+        ]);
+
+        // Prevent duplicate active scholars for the same user
+        $existing = EcesproScholar::where('user_id', $validated['user_id'])
+            ->whereIn('status', ['Active', 'active'])
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'message' => 'This resident youth is already an active ECESPRO scholar.',
+            ], 422);
+        }
+
+        $user = User::with('youthProfile')->findOrFail($validated['user_id']);
+        $profile = $user->youthProfile;
+
+        $school = ! empty($validated['school']) ? $validated['school'] : 'Not Specified';
+        $course = ! empty($validated['course'])
+            ? $validated['course']
+            : ($profile?->course_strand ?: ($profile?->educational_attainment ?: 'Not Specified'));
+
+        // Ensure or create an approved application record for this continuing scholar
+        $application = EcesproApplication::where('user_id', $user->id)->latest()->first();
+
+        if (! $application) {
+            $program = EcesproProgram::where('status', 'Open')->latest()->first()
+                ?? EcesproProgram::latest()->first();
+
+            // If no program exists at all, create a baseline program
+            if (! $program) {
+                $program = EcesproProgram::create([
+                    'title' => 'ECESPRO Scholarship Program',
+                    'school_year' => $validated['school_year'] ?? (date('Y') . '-' . (date('Y') + 1)),
+                    'status' => 'Open',
+                    'start_date' => now()->toDateString(),
+                    'end_date' => now()->addYear()->toDateString(),
+                ]);
+            }
+
+            $application = EcesproApplication::create([
+                'user_id' => $user->id,
+                'ecespro_program_id' => $program->id,
+                'first_name' => $profile?->first_name ?? $user->name,
+                'middle_name' => $profile?->middle_name,
+                'last_name' => $profile?->last_name,
+                'suffix' => $profile?->suffix,
+                'mobile_number' => $profile?->mobile_number,
+                'email_address' => $user->email,
+                'school' => $school,
+                'course' => $course,
+                'year_level' => $validated['year_level'] ?? null,
+                'school_year' => $validated['school_year'] ?? null,
+                'application_status' => 'Approved',
+            ]);
+        }
+
+        $requiredHours = isset($validated['required_volunteer_hours']) && $validated['required_volunteer_hours'] !== ''
+            ? (float) $validated['required_volunteer_hours']
+            : (float) EcesproSetting::get('required_volunteer_hours', 36.00);
+
+        $scholar = EcesproScholar::create([
+            'user_id' => $user->id,
+            'ecespro_application_id' => $application->id,
+            'scholar_no' => $validated['scholar_no'] ?? null,
+            'school' => $school,
+            'course' => $course,
+            'status' => 'Active',
+            'scholar_type' => 'Continuing',
+            'compliance_status' => 'Compliant',
+            'required_volunteer_hours' => $requiredHours,
+            'scholar_position_id' => $validated['scholar_position_id'] ?? null,
+            'remarks' => $validated['remarks'] ?? 'Registered as continuing / old scholar',
+        ]);
+
+        if (empty($scholar->scholar_no)) {
+            $scholar->scholar_no = 'SCH-' . str_pad($scholar->id, 4, '0', STR_PAD_LEFT);
+            $scholar->save();
+        }
+
+        // Record initial earned volunteer hours as a verified volunteer log
+        $earnedHours = (float) ($validated['earned_volunteer_hours'] ?? 0);
+        if ($earnedHours > 0) {
+            $semesterPeriod = trim(($validated['school_year'] ?? '') . ' ' . ($validated['semester'] ?? '')) ?: 'Prior Credited';
+
+            EcesproVolunteerLog::create([
+                'scholar_id' => $scholar->id,
+                'activity_type' => 'community_service',
+                'duty_title' => 'Credited Volunteer Hours (Continuing Scholar)',
+                'time_in' => now(),
+                'time_out' => now(),
+                'hours_rendered' => $earnedHours,
+                'semester_period' => $semesterPeriod,
+                'verified_by_user_id' => auth()->id() ?? $user->id,
+                'remarks' => 'Prior earned volunteer duty hours credited upon registration as continuing scholar',
+            ]);
+        }
+
+        $scholar->recalculateVolunteerHours();
+        $scholar->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Old scholar successfully added as a continuing scholar.',
+            'data' => $scholar->load(['user.youthProfile', 'application', 'scholarPosition']),
+        ], 201);
+    }
+
+    /**
      * Display the specified resource.
      */
     public function show(EcesproScholar $ecesproScholar)
@@ -99,11 +226,66 @@ class EcesproScholarController extends Controller
             'remarks' => 'nullable|string',
             'allowance_received_amount' => 'nullable|numeric|min:0',
             'required_volunteer_hours' => 'nullable|numeric|min:0|max:500',
+            'scholar_type' => 'nullable|string|max:50',
+            'scholar_position_id' => 'nullable',
+            'year_level' => 'nullable|string|max:100',
+            'general_average' => 'nullable|string|max:50',
+            'school_year' => 'nullable|string|max:50',
+            'type_of_school' => 'nullable|string|max:100',
         ]);
 
         $originalStatus = $ecesproScholar->status;
 
-        $ecesproScholar->update($validated);
+        // Separate scholar attributes from application academic attributes
+        $scholarData = collect($validated)->only([
+            'user_id',
+            'ecespro_application_id',
+            'scholar_no',
+            'school',
+            'course',
+            'compliance_status',
+            'requirements_history',
+            'status',
+            'remarks',
+            'allowance_received_amount',
+            'required_volunteer_hours',
+            'scholar_type',
+            'scholar_position_id',
+        ])->toArray();
+
+        // Convert empty string scholar_position_id to null
+        if (array_key_exists('scholar_position_id', $scholarData) && empty($scholarData['scholar_position_id'])) {
+            $scholarData['scholar_position_id'] = null;
+        }
+
+        $ecesproScholar->update($scholarData);
+
+        // Update linked application if academic fields were passed
+        if ($ecesproScholar->application) {
+            $applicationUpdates = [];
+            if (isset($validated['year_level'])) {
+                $applicationUpdates['year_level'] = $validated['year_level'];
+            }
+            if (isset($validated['general_average'])) {
+                $applicationUpdates['general_average'] = $validated['general_average'];
+            }
+            if (isset($validated['school_year'])) {
+                $applicationUpdates['school_year'] = $validated['school_year'];
+            }
+            if (isset($validated['type_of_school'])) {
+                $applicationUpdates['type_of_school'] = $validated['type_of_school'];
+            }
+            if (isset($validated['school'])) {
+                $applicationUpdates['school_intended_to_enroll'] = $validated['school'];
+            }
+            if (isset($validated['course'])) {
+                $applicationUpdates['course_intended_to_enroll'] = $validated['course'];
+            }
+            if (!empty($applicationUpdates)) {
+                $ecesproScholar->application->update($applicationUpdates);
+            }
+        }
+
         $ecesproScholar->recalculateVolunteerHours();
         $ecesproScholar->refresh();
 
@@ -114,7 +296,6 @@ class EcesproScholarController extends Controller
 
                 $message = null;
                 if ($remarks) {
-                    // Start with a generic or empty message if we append remarks
                     $message = "Your ECESPRO Scholarship status has been updated to {$status}. Remarks: {$remarks}";
                 }
 
@@ -128,7 +309,7 @@ class EcesproScholarController extends Controller
             }
         }
 
-        return $ecesproScholar->load(['user.youthProfile', 'application']);
+        return $ecesproScholar->load(['user.youthProfile', 'application', 'scholarPosition']);
     }
 
     /**

@@ -254,6 +254,7 @@ Route::middleware([
             // ECESPRO Scholars
             Route::get('ecespro-scholars', [EcesproScholarController::class, 'index'])->name('ecespro-scholars.index');
             Route::post('ecespro-scholars', [EcesproScholarController::class, 'store'])->name('ecespro-scholars.store');
+            Route::post('ecespro-scholars/old-scholar', [EcesproScholarController::class, 'storeOldScholar'])->name('ecespro-scholars.old-scholar');
             Route::get('ecespro-scholars/{ecespro_scholar}', [EcesproScholarController::class, 'show'])->name('ecespro-scholars.show');
             Route::post('ecespro-scholars/{ecespro_scholar}', [EcesproScholarController::class, 'update'])->name('ecespro-scholars.update');
             Route::post('ecespro-scholars/{ecespro_scholar}/position', [EcesproScholarController::class, 'assignPosition'])->name('ecespro-scholars.position');
@@ -304,6 +305,7 @@ Route::middleware([
             Route::post('ecespro-grant-release-batches/{id}/delete', [EcesproGrantReleaseController::class, 'destroy']);
             Route::post('ecespro-grant-releases/{grantReleaseId}/remove-from-batch', [EcesproGrantReleaseController::class, 'removeFromBatch']);
             Route::post('ecespro-grant-releases/{grantReleaseId}/mark-released', [EcesproGrantReleaseController::class, 'markReleased']);
+            Route::post('ecespro-grant-release-batches/{batchId}/mark-all-released', [EcesproGrantReleaseController::class, 'markAllReleased']);
         });
 
         // ECESPRO Settings

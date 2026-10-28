@@ -26,6 +26,7 @@ class EcesproScholar extends Model
         'total_rendered_hours',
         'is_volunteer_completed',
         'scholar_position_id',
+        'scholar_type',
     ];
 
     protected $appends = [
@@ -217,5 +218,23 @@ class EcesproScholar extends Model
         }
 
         return null;
+    }
+
+    public function getScholarTypeAttribute($value): string
+    {
+        if ($value) {
+            return $value;
+        }
+
+        if ($this->relationLoaded('grantReleases')) {
+            $hasReleased = $this->grantReleases->contains(function ($g) {
+                return strtolower($g->status) === 'released';
+            });
+            if ($hasReleased) {
+                return 'Continuing';
+            }
+        }
+
+        return 'New';
     }
 }
