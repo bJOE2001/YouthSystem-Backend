@@ -29,6 +29,8 @@ class SportsProgram extends Model
         'certificate_settings',
         'open_to_all_barangays',
         'barangay',
+        'feedback_questionnaire_id',
+        'feedback_questionnaire_assigned_at',
     ];
 
     protected function casts(): array
@@ -61,5 +63,15 @@ class SportsProgram extends Model
     public function feedbacks(): HasMany
     {
         return $this->hasMany(Feedback::class);
+    }
+
+    public function feedbackQuestionnaire(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(FeedbackQuestionnaire::class, 'feedback_questionnaire_id');
+    }
+
+    public function feedbackResponses(): HasMany
+    {
+        return $this->hasMany(FeedbackResponse::class);
     }
 }

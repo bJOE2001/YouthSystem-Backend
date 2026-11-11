@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\SkAdmin\PurokLibraryController;
 use App\Http\Controllers\Api\SkAdmin\ResidentYouthController;
 use App\Http\Controllers\Api\SkAdmin\SkOfficialController;
 use App\Http\Controllers\Api\SkAdmin\SkSportsProgramController;
+use App\Http\Controllers\Api\SportsProgramController;
 use App\Http\Controllers\Api\SkAdmin\YouthValidationController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
