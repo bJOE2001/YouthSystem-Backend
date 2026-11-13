@@ -19,12 +19,14 @@ class FeedbackQuestionnaire extends Model
         'barangay',
         'scope',
         'is_active',
+        'is_assigned_general',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'is_assigned_general' => 'boolean',
         ];
     }
 

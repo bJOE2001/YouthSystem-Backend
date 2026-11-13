@@ -225,6 +225,66 @@ class FeedbackQuestionnaireController extends Controller
     }
 
     /**
+     * Assign a questionnaire as active TCYSDO Office or Barangay Feedback.
+     */
+    public function assignGeneral(Request $request, $id)
+    {
+        $questionnaire = FeedbackQuestionnaire::findOrFail($id);
+
+        if ($questionnaire->target === 'sk') {
+            $barangay = $questionnaire->barangay ?? $this->getAssignedBarangay($request);
+            FeedbackQuestionnaire::where('target', 'sk')
+                ->where(function ($q) use ($barangay) {
+                    if ($barangay) {
+                        $q->whereRaw('LOWER(barangay) = ?', [strtolower(trim($barangay))]);
+                    } else {
+                        $q->whereNull('barangay');
+                    }
+                })
+                ->where('id', '!=', $questionnaire->id)
+                ->update(['is_assigned_general' => false]);
+        } else {
+            FeedbackQuestionnaire::where('target', 'admin')
+                ->where('id', '!=', $questionnaire->id)
+                ->update(['is_assigned_general' => false]);
+        }
+
+        $questionnaire->update([
+            'scope' => 'general',
+            'is_assigned_general' => true,
+            'is_active' => true,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $questionnaire->target === 'sk'
+                ? 'Questionnaire assigned as Barangay Feedback successfully.'
+                : 'Questionnaire assigned as TCYSDO Office Feedback successfully.',
+            'data' => $questionnaire->fresh(['questions']),
+        ]);
+    }
+
+    /**
+     * Unassign a questionnaire from being active TCYSDO Office or Barangay Feedback.
+     */
+    public function unassignGeneral(Request $request, $id)
+    {
+        $questionnaire = FeedbackQuestionnaire::findOrFail($id);
+
+        $questionnaire->update([
+            'is_assigned_general' => false,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $questionnaire->target === 'sk'
+                ? 'Questionnaire unassigned from Barangay Feedback.'
+                : 'Questionnaire unassigned from TCYSDO Office Feedback.',
+            'data' => $questionnaire->fresh(['questions']),
+        ]);
+    }
+
+    /**
      * Assign a questionnaire to a completed Event & notify participants.
      */
     public function assignToEvent(Request $request, $event)
@@ -374,7 +434,7 @@ class FeedbackQuestionnaireController extends Controller
 
         $response = FeedbackResponse::create([
             'questionnaire_id' => $questionnaire->id,
-            'user_id' => $isAnonymous ? null : $user?->id,
+            'user_id' => $user?->id,
             'event_id' => $eventId,
             'sports_program_id' => $sportsProgramId,
             'activity_type' => $validated['activity_type'] ?? 'event',
@@ -455,6 +515,15 @@ class FeedbackQuestionnaireController extends Controller
         $perPage = (int) ($request->per_page ?? 50);
         $responses = $query->latest()->paginate($perPage);
 
+        // Mask user info on anonymous submissions
+        $responses->getCollection()->transform(function ($resp) {
+            if ($resp->is_anonymous) {
+                $resp->setRelation('user', null);
+                $resp->user_id = null;
+            }
+            return $resp;
+        });
+
         return response()->json([
             'data' => $responses->items(),
             'meta' => [
@@ -517,9 +586,12 @@ class FeedbackQuestionnaireController extends Controller
                 'activity_id' => (string) $evt->id,
                 'activity_type' => 'event',
                 'activity_name' => $evt->name,
+                'name' => $evt->name,
+                'title' => $evt->name,
                 'barangay' => $evt->barangay,
                 'organizer_name' => $evt->barangay ? "SK {$evt->barangay}" : 'TCYSDO',
                 'date_time' => $evt->start_date ? $evt->start_date->format('M d, Y') : 'Completed',
+                'dateTime' => $evt->start_date ? $evt->start_date->format('M d, Y') : 'Completed',
                 'location' => $evt->location ?? 'Tagum City',
                 'questionnaire' => $evt->feedbackQuestionnaire,
             ];
@@ -533,16 +605,27 @@ class FeedbackQuestionnaireController extends Controller
                 'activity_id' => (string) $sport->id,
                 'activity_type' => 'sport',
                 'activity_name' => $sport->name,
+                'name' => $sport->name,
+                'title' => $sport->name,
                 'barangay' => $sport->barangay,
                 'organizer_name' => $sport->barangay ? "SK {$sport->barangay}" : 'TCYSDO',
                 'date_time' => $sport->start_date ? $sport->start_date->format('M d, Y') : 'Completed',
+                'dateTime' => $sport->start_date ? $sport->start_date->format('M d, Y') : 'Completed',
                 'location' => $sport->location ?? 'Tagum City',
                 'questionnaire' => $sport->feedbackQuestionnaire,
             ];
         }
 
+        $submittedQuestionnaireIds = FeedbackResponse::where('user_id', $user->id)
+            ->pluck('questionnaire_id')
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->toArray();
+
         return response()->json([
             'data' => $pending,
+            'submitted_questionnaire_ids' => $submittedQuestionnaireIds,
         ]);
     }
 
