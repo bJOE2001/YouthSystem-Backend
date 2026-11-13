@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\FeedbackResource;
 use App\Models\Event;
 use App\Models\Feedback;
+use App\Models\FeedbackResponse;
 use App\Models\SkOfficial;
 use App\Models\SportsProgram;
 use Illuminate\Http\Request;
@@ -206,12 +207,90 @@ class FeedbackController extends Controller
      */
     public function myFeedbacks(Request $request)
     {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['data' => []]);
+        }
+
         $feedbacks = Feedback::with(['event', 'sportsProgram'])
-            ->where('user_id', $request->user()->id)
+            ->where('user_id', $user->id)
             ->latest()
             ->get();
 
-        return FeedbackResource::collection($feedbacks);
+        $responses = FeedbackResponse::with(['event', 'sportsProgram', 'questionnaire.questions'])
+            ->where('user_id', $user->id)
+            ->latest()
+            ->get();
+
+        $merged = collect();
+
+        foreach ($feedbacks as $fb) {
+            $merged->push((new FeedbackResource($fb))->resolve());
+        }
+
+        foreach ($responses as $resp) {
+            $resolvedEventId = $resp->event_id ?? $resp->sports_program_id;
+            $resolvedEventName = $resp->event?->name ?? $resp->sportsProgram?->name ?? $resp->activity_name ?? 'Activity';
+            $isSport = ! empty($resp->sports_program_id);
+
+            $messageText = $resp->general_remarks;
+            if (empty($messageText) && is_array($resp->answers)) {
+                $lines = [];
+                foreach ($resp->answers as $a) {
+                    $qText = $a['question_text'] ?? '';
+                    $ans = $a['answer'] ?? '';
+                    if (! empty($ans)) {
+                        $lines[] = ($qText ? $qText . ': ' : '') . $ans;
+                    }
+                }
+                $messageText = implode("\n", $lines);
+            }
+
+            $qMap = $resp->questionnaire?->questions?->keyBy('id') ?? collect();
+            $answers = is_string($resp->answers) ? json_decode($resp->answers, true) : ($resp->answers ?? []);
+            if (is_array($answers)) {
+                foreach ($answers as &$a) {
+                    $qId = $a['question_id'] ?? null;
+                    if ($qId && empty($a['question_text']) && isset($qMap[$qId])) {
+                        $a['question_text'] = $qMap[$qId]->question_text;
+                    }
+                    if ($qId && empty($a['question_type']) && isset($qMap[$qId])) {
+                        $a['question_type'] = $qMap[$qId]->question_type;
+                    }
+                }
+                unset($a);
+            }
+
+            $merged->push([
+                'id' => 'resp_' . $resp->id,
+                'response_id' => $resp->id,
+                'user_id' => $resp->user_id,
+                'type' => $isSport ? 'sport' : (! empty($resp->event_id) ? 'event' : 'general'),
+                'target' => $resp->target ?? 'admin',
+                'category' => $resp->questionnaire?->title ?? 'Activity Evaluation',
+                'subject' => $resp->questionnaire?->title ?? 'Evaluation Response',
+                'message' => $messageText ?: 'Feedback evaluation submitted.',
+                'general_remarks' => $resp->general_remarks,
+                'comments' => $resp->general_remarks,
+                'rating' => $resp->average_rating,
+                'average_rating' => $resp->average_rating,
+                'is_anonymous' => (bool) $resp->is_anonymous,
+                'event_id' => $resp->event_id,
+                'sports_program_id' => $resp->sports_program_id,
+                'eventId' => $resolvedEventId,
+                'eventName' => $resolvedEventName,
+                'event_name' => $resolvedEventName,
+                'activity_name' => $resolvedEventName,
+                'questionnaire_title' => $resp->questionnaire?->title,
+                'questionnaire' => $resp->questionnaire,
+                'barangay' => $resp->barangay ?? $resp->event?->barangay ?? $resp->sportsProgram?->barangay,
+                'date' => $resp->created_at?->toIso8601String(),
+                'created_at' => $resp->created_at?->toIso8601String(),
+                'answers' => is_array($answers) ? $answers : [],
+            ]);
+        }
+
+        return response()->json(['data' => $merged->values()]);
     }
 
     /**

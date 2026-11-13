@@ -30,6 +30,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/feedback-questionnaires/{id}/delete', [FeedbackQuestionnaireController::class, 'destroy'])->name('feedback-questionnaires.destroy');
     Route::post('/feedback-questionnaires/{id}/assign-general', [FeedbackQuestionnaireController::class, 'assignGeneral'])->name('feedback-questionnaires.assign-general');
     Route::post('/feedback-questionnaires/{id}/unassign-general', [FeedbackQuestionnaireController::class, 'unassignGeneral'])->name('feedback-questionnaires.unassign-general');
+    Route::post('/feedback-questionnaires/{id}/default', [FeedbackQuestionnaireController::class, 'setDefault'])->name('feedback-questionnaires.set-default');
 
     // Activity Assignment
     Route::post('/events/{event}/assign-questionnaire', [FeedbackQuestionnaireController::class, 'assignToEvent'])->name('events.assign-questionnaire');

@@ -129,19 +129,14 @@ class GetResidentYouthRecordsAction
                         });
                 })->orWhereNull('user_id');
             });
-        } elseif (! $hasSearch && empty($statusFilter) && ! $hasAgeFilter) {
-            // Default view (no search, no status filter, no age bracket filter): only show active youth (hide overage and inactive)
+        } elseif ($statusFilter === 'all_with_overage') {
+            // Explicitly requested all records including overage
+        } else {
+            // Default view (and when status is 'all' or empty):
+            // Display active and inactive youth, excluding overage status
             $query->where(function ($q) use ($overageCutoffDate) {
                 $q->whereDate('birth_date', '>', $overageCutoffDate)
                   ->orWhereNull('birth_date');
-            })->where(function ($q) use ($oneMonthAgo) {
-                $q->whereHas('user', function ($uq) use ($oneMonthAgo) {
-                    $uq->where('last_login_at', '>=', $oneMonthAgo)
-                        ->orWhere(function ($nullQ) use ($oneMonthAgo) {
-                            $nullQ->whereNull('last_login_at')
-                                ->where('created_at', '>=', $oneMonthAgo);
-                        });
-                })->orWhereNull('user_id');
             });
         }
 

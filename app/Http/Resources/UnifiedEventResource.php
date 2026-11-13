@@ -90,11 +90,56 @@ class UnifiedEventResource extends JsonResource
         $certificatePath = $this->certificate_template_path ?? ($pivotRecord->certificate_path ?? null);
         $hasCertificate = ! empty($certificatePath);
         $isCompleted = strtolower((string) $this->status) === 'completed';
-        $canDownloadCertificate = (bool) ($attended && $hasCertificate && $isCompleted);
+
+        $isSport = ! $isEvent;
+        $feedbackSubmitted = false;
+        if ($user) {
+            $feedbackSubmitted = \App\Models\FeedbackResponse::where('user_id', $user->id)
+                ->where($isSport ? 'sports_program_id' : 'event_id', $this->id)
+                ->exists();
+
+            if (! $feedbackSubmitted) {
+                $feedbackSubmitted = \App\Models\Feedback::where('user_id', $user->id)
+                    ->where($isSport ? 'sports_program_id' : 'event_id', $this->id)
+                    ->exists();
+            }
+        }
+
+        $requiresFeedback = false;
+        if ($user && $attended && $isCompleted) {
+            $hasQuestionnaire = ! empty($this->feedback_questionnaire_id);
+            if (! $hasQuestionnaire) {
+                $defaultQuery = \App\Models\FeedbackQuestionnaire::where('is_active', true)
+                    ->whereIn('default_for', [$isSport ? 'sports' : 'events', 'both']);
+                $creator = $this->user;
+                $isSk = $this->target === 'sk' || ($creator && ($creator->role === 'sk_admin' || $creator->role?->value === 'sk_admin'));
+                if ($isSk || ! empty($this->barangay)) {
+                    $b = $this->barangay ?? $creator?->skOfficial?->barangay;
+                    $defaultQuery->where('target', 'sk')
+                        ->where(function ($q) use ($b) {
+                            if ($b) {
+                                $q->whereRaw('LOWER(barangay) = ?', [strtolower(trim($b))]);
+                            } else {
+                                $q->whereNull('barangay');
+                            }
+                        });
+                } else {
+                    $defaultQuery->where('target', 'admin');
+                }
+                $hasQuestionnaire = $defaultQuery->exists();
+            }
+
+            if ($hasQuestionnaire) {
+                $requiresFeedback = true;
+            }
+        }
+
+        $canDownloadCertificate = (bool) ($attended && $hasCertificate && $isCompleted && (! $requiresFeedback || $feedbackSubmitted));
         $unifiedId = $isEvent ? 'event_' . $this->id : 'sport_' . $this->id;
         $certDownloadUrl = $canDownloadCertificate ? url("/api/events/{$unifiedId}/certificate") : null;
 
-        $isList = $request->routeIs('*.index') || $request->routeIs('public.*') || $request->routeIs('*.my');
+        $isList = $request->routeIs('*.index') || $request->routeIs('public.*');
+        $isMyList = $request->routeIs('*.my');
 
         return [
             'creatorRole' => $this->user?->role instanceof \BackedEnum ? $this->user->role->value : $this->user?->role,
@@ -129,16 +174,19 @@ class UnifiedEventResource extends JsonResource
             'objective3' => ! $isEvent ? $this->objective_3 : $this->primary_objective_3,
             'status' => ucfirst(strtolower($this->status)),
             'joined' => $joined,
-            'attendanceStatus' => $this->when(! $isList, $attended ? 'Attended' : 'Not Attended'),
-            'attendedAt' => $this->when(! $isList, $attendedAt),
-            'hasCertificate' => $this->when(! $isList, $hasCertificate),
-            'certificate' => $this->when(! $isList, $certificatePath ?: ($hasCertificate ? true : null)),
+            'attended' => (bool) $attended,
+            'attendanceStatus' => $this->when(! $isList || $isMyList, $attended ? 'Attended' : 'Not Attended'),
+            'attendedAt' => $this->when(! $isList || $isMyList, $attendedAt),
+            'hasCertificate' => $this->when(! $isList || $isMyList, $hasCertificate),
+            'certificate' => $this->when(! $isList || $isMyList, $certificatePath ?: ($hasCertificate ? true : null)),
             'certificatePath' => $this->when(! $isList, $certificatePath),
             'certificateTemplatePath' => $this->when(! $isList, $this->certificate_template_path),
             'certificateTemplateUrl' => $this->when(! $isList, $this->certificate_template_path ? url('storage/' . $this->certificate_template_path) : null),
             'certificateSettings' => $this->when(! $isList, $this->certificate_settings),
-            'canDownloadCertificate' => $this->when(! $isList, $canDownloadCertificate),
-            'certificateUrl' => $this->when(! $isList, $certDownloadUrl),
+            'canDownloadCertificate' => (bool) $canDownloadCertificate,
+            'requiresFeedback' => (bool) $requiresFeedback,
+            'feedbackSubmitted' => (bool) $feedbackSubmitted,
+            'certificateUrl' => $this->when(! $isList || $isMyList, $certDownloadUrl),
             'shareUrl' => $this->when(! $isList, rtrim(config('app.frontend_url') ?: (config('app.url') ?: 'http://localhost'), '/') . "/activities/{$unifiedId}"),
             'createdAt' => $this->created_at,
             'updatedAt' => $this->updated_at,

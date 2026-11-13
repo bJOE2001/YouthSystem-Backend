@@ -285,6 +285,73 @@ class FeedbackQuestionnaireController extends Controller
     }
 
     /**
+     * Set or clear default questionnaire status for Events, Sports, or Both.
+     */
+    public function setDefault(Request $request, $id)
+    {
+        $questionnaire = FeedbackQuestionnaire::findOrFail($id);
+
+        $validated = $request->validate([
+            'default_for' => 'nullable|string|in:events,sports,both,none',
+        ]);
+
+        $defaultFor = $validated['default_for'] ?? null;
+        if ($defaultFor === 'none' || empty($defaultFor)) {
+            $defaultFor = null;
+        }
+
+        if ($defaultFor) {
+            $query = FeedbackQuestionnaire::where('target', $questionnaire->target);
+            if ($questionnaire->target === 'sk') {
+                $barangay = $questionnaire->barangay ?? $this->getAssignedBarangay($request);
+                if ($barangay) {
+                    $query->whereRaw('LOWER(barangay) = ?', [strtolower(trim($barangay))]);
+                } else {
+                    $query->whereNull('barangay');
+                }
+            }
+            $query->where('id', '!=', $questionnaire->id);
+
+            if ($defaultFor === 'both') {
+                $query->whereIn('default_for', ['events', 'sports', 'both'])
+                    ->update(['default_for' => null]);
+            } elseif ($defaultFor === 'events') {
+                $existingBoth = (clone $query)->where('default_for', 'both')->get();
+                foreach ($existingBoth as $item) {
+                    $item->update(['default_for' => 'sports']);
+                }
+                (clone $query)->where('default_for', 'events')->update(['default_for' => null]);
+            } elseif ($defaultFor === 'sports') {
+                $existingBoth = (clone $query)->where('default_for', 'both')->get();
+                foreach ($existingBoth as $item) {
+                    $item->update(['default_for' => 'events']);
+                }
+                (clone $query)->where('default_for', 'sports')->update(['default_for' => null]);
+            }
+        }
+
+        $questionnaire->update([
+            'default_for' => $defaultFor,
+            'is_active' => true,
+        ]);
+
+        $label = match ($defaultFor) {
+            'events' => 'Events Only',
+            'sports' => 'Sports Programs',
+            'both' => 'Both Events and Sports',
+            default => 'None',
+        };
+
+        return response()->json([
+            'success' => true,
+            'message' => $defaultFor
+                ? "Questionnaire successfully set as Default for {$label}."
+                : 'Default status removed from questionnaire.',
+            'data' => $questionnaire->fresh(['questions']),
+        ]);
+    }
+
+    /**
      * Assign a questionnaire to a completed Event & notify participants.
      */
     public function assignToEvent(Request $request, $event)
@@ -329,6 +396,32 @@ class FeedbackQuestionnaireController extends Controller
 
         $questionnaire = $eventModel->feedbackQuestionnaire()->with('questions')->first();
 
+        $isDefault = false;
+        if (! $questionnaire) {
+            $defaultQuery = FeedbackQuestionnaire::where('is_active', true)
+                ->whereIn('default_for', ['events', 'both']);
+
+            $creator = $eventModel->user;
+            $isSk = $eventModel->target === 'sk' || ($creator && ($creator->role === 'sk_admin' || $creator->role?->value === 'sk_admin'));
+            if ($isSk || !empty($eventModel->barangay)) {
+                $b = $eventModel->barangay ?? $creator?->skOfficial?->barangay;
+                $defaultQuery->where('target', 'sk')
+                    ->where(function ($q) use ($b) {
+                        if ($b) {
+                            $q->whereRaw('LOWER(barangay) = ?', [strtolower(trim($b))]);
+                        } else {
+                            $q->whereNull('barangay');
+                        }
+                    });
+            } else {
+                $defaultQuery->where('target', 'admin');
+            }
+            $questionnaire = $defaultQuery->with('questions')->first();
+            if ($questionnaire) {
+                $isDefault = true;
+            }
+        }
+
         return response()->json([
             'data' => [
                 'activity_id' => $eventModel->id,
@@ -336,6 +429,7 @@ class FeedbackQuestionnaireController extends Controller
                 'activity_name' => $eventModel->name,
                 'questionnaireId' => $questionnaire?->id,
                 'assignedAt' => $eventModel->feedback_questionnaire_assigned_at,
+                'is_default' => $isDefault,
                 'questionnaire' => $questionnaire,
             ],
         ]);
@@ -386,6 +480,32 @@ class FeedbackQuestionnaireController extends Controller
 
         $questionnaire = $sportsModel->feedbackQuestionnaire()->with('questions')->first();
 
+        $isDefault = false;
+        if (! $questionnaire) {
+            $defaultQuery = FeedbackQuestionnaire::where('is_active', true)
+                ->whereIn('default_for', ['sports', 'both']);
+
+            $creator = $sportsModel->user;
+            $isSk = $sportsModel->target === 'sk' || ($creator && ($creator->role === 'sk_admin' || $creator->role?->value === 'sk_admin'));
+            if ($isSk || !empty($sportsModel->barangay)) {
+                $b = $sportsModel->barangay ?? $creator?->skOfficial?->barangay;
+                $defaultQuery->where('target', 'sk')
+                    ->where(function ($q) use ($b) {
+                        if ($b) {
+                            $q->whereRaw('LOWER(barangay) = ?', [strtolower(trim($b))]);
+                        } else {
+                            $q->whereNull('barangay');
+                        }
+                    });
+            } else {
+                $defaultQuery->where('target', 'admin');
+            }
+            $questionnaire = $defaultQuery->with('questions')->first();
+            if ($questionnaire) {
+                $isDefault = true;
+            }
+        }
+
         return response()->json([
             'data' => [
                 'activity_id' => $sportsModel->id,
@@ -393,6 +513,7 @@ class FeedbackQuestionnaireController extends Controller
                 'activity_name' => $sportsModel->name,
                 'questionnaireId' => $questionnaire?->id,
                 'assignedAt' => $sportsModel->feedback_questionnaire_assigned_at,
+                'is_default' => $isDefault,
                 'questionnaire' => $questionnaire,
             ],
         ]);
@@ -427,8 +548,50 @@ class FeedbackQuestionnaireController extends Controller
             $cleanedId = preg_replace('/^(event_|sport_)/', '', (string) $validated['activity_id']);
             if (($validated['activity_type'] ?? '') === 'sport') {
                 $sportsProgramId = $cleanedId;
+                $sportsModel = SportsProgram::find($sportsProgramId);
+                if ($sportsModel && strtolower((string) $sportsModel->status) !== 'completed') {
+                    return response()->json([
+                        'message' => 'Feedback evaluation can only be submitted once the sports activity is marked as Completed.',
+                    ], 422);
+                }
+
+                // Verify user attendance for sports program
+                if ($user && $user->role !== 'admin' && $user->role !== 'sk_admin' && ($user->role?->value ?? '') !== 'admin' && ($user->role?->value ?? '') !== 'sk_admin') {
+                    $attended = DB::table('sports_program_user')
+                        ->where('sports_program_id', $sportsProgramId)
+                        ->where('user_id', $user->id)
+                        ->whereNotNull('attended_at')
+                        ->exists();
+
+                    if (! $attended) {
+                        return response()->json([
+                            'message' => 'You cannot submit feedback for a sports activity you did not attend.',
+                        ], 403);
+                    }
+                }
             } else {
                 $eventId = $cleanedId;
+                $eventModel = Event::find($eventId);
+                if ($eventModel && strtolower((string) $eventModel->status) !== 'completed') {
+                    return response()->json([
+                        'message' => 'Feedback evaluation can only be submitted once the event is marked as Completed.',
+                    ], 422);
+                }
+
+                // Verify user attendance for event
+                if ($user && $user->role !== 'admin' && $user->role !== 'sk_admin' && ($user->role?->value ?? '') !== 'admin' && ($user->role?->value ?? '') !== 'sk_admin') {
+                    $attended = DB::table('event_user')
+                        ->where('event_id', $eventId)
+                        ->where('user_id', $user->id)
+                        ->whereNotNull('attended_at')
+                        ->exists();
+
+                    if (! $attended) {
+                        return response()->json([
+                            'message' => 'You cannot submit feedback for an event you did not attend.',
+                        ], 403);
+                    }
+                }
             }
         }
 
@@ -545,22 +708,22 @@ class FeedbackQuestionnaireController extends Controller
             return response()->json(['data' => []]);
         }
 
-        // 1. Events attended by user that have an assigned questionnaire
-        $attendedEvents = Event::whereHas('participants', function ($q) use ($user) {
-            $q->where('users.id', $user->id)
-                ->whereNotNull('event_user.attended_at');
-        })
-            ->whereNotNull('feedback_questionnaire_id')
-            ->with('feedbackQuestionnaire.questions')
+        // 1. Events attended by user that are Completed
+        $attendedEvents = Event::whereRaw('LOWER(status) = ?', ['completed'])
+            ->whereHas('participants', function ($q) use ($user) {
+                $q->where('users.id', $user->id)
+                    ->whereNotNull('event_user.attended_at');
+            })
+            ->with(['feedbackQuestionnaire.questions', 'user.skOfficial'])
             ->get();
 
-        // 2. Sports programs attended by user that have an assigned questionnaire
-        $attendedSports = SportsProgram::whereHas('participants', function ($q) use ($user) {
-            $q->where('users.id', $user->id)
-                ->whereNotNull('sports_program_user.attended_at');
-        })
-            ->whereNotNull('feedback_questionnaire_id')
-            ->with('feedbackQuestionnaire.questions')
+        // 2. Sports programs attended by user that are Completed
+        $attendedSports = SportsProgram::whereRaw('LOWER(status) = ?', ['completed'])
+            ->whereHas('participants', function ($q) use ($user) {
+                $q->where('users.id', $user->id)
+                    ->whereNotNull('sports_program_user.attended_at');
+            })
+            ->with(['feedbackQuestionnaire.questions', 'user.skOfficial'])
             ->get();
 
         // 3. User's already submitted responses
@@ -582,6 +745,32 @@ class FeedbackQuestionnaireController extends Controller
             if (in_array((string) $evt->id, $submittedEventIds, true)) {
                 continue;
             }
+            $questionnaire = $evt->feedbackQuestionnaire;
+            if (! $questionnaire) {
+                $defaultQuery = FeedbackQuestionnaire::where('is_active', true)
+                    ->whereIn('default_for', ['events', 'both']);
+                $creator = $evt->user;
+                $isSk = $evt->target === 'sk' || ($creator && ($creator->role === 'sk_admin' || $creator->role?->value === 'sk_admin'));
+                if ($isSk || !empty($evt->barangay)) {
+                    $b = $evt->barangay ?? $creator?->skOfficial?->barangay;
+                    $defaultQuery->where('target', 'sk')
+                        ->where(function ($q) use ($b) {
+                            if ($b) {
+                                $q->whereRaw('LOWER(barangay) = ?', [strtolower(trim($b))]);
+                            } else {
+                                $q->whereNull('barangay');
+                            }
+                        });
+                } else {
+                    $defaultQuery->where('target', 'admin');
+                }
+                $questionnaire = $defaultQuery->with('questions')->first();
+            }
+
+            if (! $questionnaire) {
+                continue;
+            }
+
             $pending[] = [
                 'activity_id' => (string) $evt->id,
                 'activity_type' => 'event',
@@ -593,7 +782,7 @@ class FeedbackQuestionnaireController extends Controller
                 'date_time' => $evt->start_date ? $evt->start_date->format('M d, Y') : 'Completed',
                 'dateTime' => $evt->start_date ? $evt->start_date->format('M d, Y') : 'Completed',
                 'location' => $evt->location ?? 'Tagum City',
-                'questionnaire' => $evt->feedbackQuestionnaire,
+                'questionnaire' => $questionnaire,
             ];
         }
 
@@ -601,6 +790,32 @@ class FeedbackQuestionnaireController extends Controller
             if (in_array((string) $sport->id, $submittedSportIds, true)) {
                 continue;
             }
+            $questionnaire = $sport->feedbackQuestionnaire;
+            if (! $questionnaire) {
+                $defaultQuery = FeedbackQuestionnaire::where('is_active', true)
+                    ->whereIn('default_for', ['sports', 'both']);
+                $creator = $sport->user;
+                $isSk = $sport->target === 'sk' || ($creator && ($creator->role === 'sk_admin' || $creator->role?->value === 'sk_admin'));
+                if ($isSk || !empty($sport->barangay)) {
+                    $b = $sport->barangay ?? $creator?->skOfficial?->barangay;
+                    $defaultQuery->where('target', 'sk')
+                        ->where(function ($q) use ($b) {
+                            if ($b) {
+                                $q->whereRaw('LOWER(barangay) = ?', [strtolower(trim($b))]);
+                            } else {
+                                $q->whereNull('barangay');
+                            }
+                        });
+                } else {
+                    $defaultQuery->where('target', 'admin');
+                }
+                $questionnaire = $defaultQuery->with('questions')->first();
+            }
+
+            if (! $questionnaire) {
+                continue;
+            }
+
             $pending[] = [
                 'activity_id' => (string) $sport->id,
                 'activity_type' => 'sport',
@@ -612,7 +827,7 @@ class FeedbackQuestionnaireController extends Controller
                 'date_time' => $sport->start_date ? $sport->start_date->format('M d, Y') : 'Completed',
                 'dateTime' => $sport->start_date ? $sport->start_date->format('M d, Y') : 'Completed',
                 'location' => $sport->location ?? 'Tagum City',
-                'questionnaire' => $sport->feedbackQuestionnaire,
+                'questionnaire' => $questionnaire,
             ];
         }
 

@@ -20,6 +20,7 @@ class FeedbackQuestionnaire extends Model
         'scope',
         'is_active',
         'is_assigned_general',
+        'default_for',
     ];
 
     protected function casts(): array
