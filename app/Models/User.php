@@ -50,6 +50,10 @@ class User extends Authenticatable
                 DB::table('feedbacks')->where('user_id', $user->id)->update(['user_id' => null]);
             }
 
+            if (Schema::hasTable('feedback_responses')) {
+                DB::table('feedback_responses')->where('user_id', $user->id)->update(['user_id' => null]);
+            }
+
             if (Schema::hasTable('announcement_user')) {
                 DB::table('announcement_user')->where('user_id', $user->id)->delete();
             }

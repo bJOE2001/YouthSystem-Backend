@@ -62,7 +62,7 @@ class SportsProgram extends Model
 
     public function feedbacks(): HasMany
     {
-        return $this->hasMany(Feedback::class);
+        return $this->hasMany(FeedbackResponse::class);
     }
 
     public function feedbackQuestionnaire(): \Illuminate\Database\Eloquent\Relations\BelongsTo

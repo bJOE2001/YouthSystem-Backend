@@ -10,6 +10,7 @@ use App\Models\FeedbackResponse;
 use App\Models\SkOfficial;
 use App\Models\SportsProgram;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class FeedbackController extends Controller
 {
@@ -57,6 +58,10 @@ class FeedbackController extends Controller
      */
     public function index(Request $request)
     {
+        if (! Schema::hasTable('feedbacks')) {
+            return response()->json(['data' => []]);
+        }
+
         $query = Feedback::with(['user.youthProfile', 'event.user', 'sportsProgram.user']);
 
         // Strictly EXCLUDE SK feedbacks:
@@ -120,6 +125,10 @@ class FeedbackController extends Controller
      */
     public function skFeedbacks(Request $request)
     {
+        if (! Schema::hasTable('feedbacks')) {
+            return response()->json(['data' => []]);
+        }
+
         $user = $request->user();
         $barangay = $this->getAssignedBarangay($request);
 
@@ -212,21 +221,12 @@ class FeedbackController extends Controller
             return response()->json(['data' => []]);
         }
 
-        $feedbacks = Feedback::with(['event', 'sportsProgram'])
-            ->where('user_id', $user->id)
-            ->latest()
-            ->get();
-
         $responses = FeedbackResponse::with(['event', 'sportsProgram', 'questionnaire.questions'])
             ->where('user_id', $user->id)
             ->latest()
             ->get();
 
         $merged = collect();
-
-        foreach ($feedbacks as $fb) {
-            $merged->push((new FeedbackResource($fb))->resolve());
-        }
 
         foreach ($responses as $resp) {
             $resolvedEventId = $resp->event_id ?? $resp->sports_program_id;
@@ -298,6 +298,10 @@ class FeedbackController extends Controller
      */
     public function store(Request $request)
     {
+        if (! Schema::hasTable('feedbacks')) {
+            return response()->json(['message' => 'Legacy feedback submission discontinued.'], 410);
+        }
+
         $validated = $request->validate([
             'type' => 'required|string|in:general,event',
             'target' => 'nullable|string|in:admin,sk',
@@ -370,6 +374,10 @@ class FeedbackController extends Controller
      */
     public function storeEventFeedback(Request $request, $event)
     {
+        if (! Schema::hasTable('feedbacks')) {
+            return response()->json(['message' => 'Legacy feedback submission discontinued.'], 410);
+        }
+
         $validated = $request->validate([
             'target' => 'nullable|string|in:admin,sk',
             'category' => 'nullable|string|max:255',
@@ -423,6 +431,10 @@ class FeedbackController extends Controller
      */
     public function eventFeedbacks($event)
     {
+        if (! Schema::hasTable('feedbacks')) {
+            return response()->json(['data' => []]);
+        }
+
         $cleanedId = preg_replace('/^(event_|sport_)/', '', (string) $event);
         $eventModel = Event::find($cleanedId);
         $sportsModel = null;

@@ -97,12 +97,6 @@ class UnifiedEventResource extends JsonResource
             $feedbackSubmitted = \App\Models\FeedbackResponse::where('user_id', $user->id)
                 ->where($isSport ? 'sports_program_id' : 'event_id', $this->id)
                 ->exists();
-
-            if (! $feedbackSubmitted) {
-                $feedbackSubmitted = \App\Models\Feedback::where('user_id', $user->id)
-                    ->where($isSport ? 'sports_program_id' : 'event_id', $this->id)
-                    ->exists();
-            }
         }
 
         $requiresFeedback = false;
