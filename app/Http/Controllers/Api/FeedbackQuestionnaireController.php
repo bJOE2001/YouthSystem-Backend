@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\FeedbackQuestion;
@@ -37,19 +38,43 @@ class FeedbackQuestionnaireController extends Controller
     public function index(Request $request)
     {
         $query = FeedbackQuestionnaire::with('questions');
+        $user = $request->user();
+
+        // Enforce role-based barangay isolation
+        if ($user) {
+            $isYouth = $user->role === UserRole::Youth || $user->role === 'youth' || $user->role?->value === 'youth';
+            $isSk = $user->role === UserRole::SkAdmin || $user->role === 'sk_admin' || $user->role?->value === 'sk_admin';
+
+            if ($isYouth || $isSk) {
+                $userBarangay = $this->getAssignedBarangay($request);
+                $query->where(function ($q) use ($userBarangay) {
+                    $q->where('target', 'admin');
+                    if ($userBarangay) {
+                        $q->orWhere(function ($sub) use ($userBarangay) {
+                            $sub->where('target', 'sk')
+                                ->whereRaw('LOWER(barangay) = ?', [strtolower(trim($userBarangay))]);
+                        });
+                    }
+                });
+            }
+        }
 
         // Target filter ('admin' or 'sk')
         if ($request->filled('target') && $request->target !== 'all') {
             $query->where('target', $request->target);
         }
 
-        // Barangay filter
+        // Barangay filter (preserves admin questionnaires unless target is explicitly sk)
         if ($request->filled('barangay')) {
             $barangay = strtolower(trim($request->barangay));
-            $query->where(function ($q) use ($barangay) {
-                $q->whereNull('barangay')
-                    ->orWhereRaw('LOWER(barangay) = ?', [$barangay]);
-            });
+            if ($request->target === 'sk') {
+                $query->whereRaw('LOWER(barangay) = ?', [$barangay]);
+            } else {
+                $query->where(function ($q) use ($barangay) {
+                    $q->where('target', 'admin')
+                        ->orWhereRaw('LOWER(barangay) = ?', [$barangay]);
+                });
+            }
         }
 
         // Scope filter ('event', 'sports', 'general', 'all')
@@ -113,9 +138,9 @@ class FeedbackQuestionnaireController extends Controller
         ]);
 
         $user = $request->user();
-        $isSk = ($user->role === 'sk_admin' || $user->role === 'sk') || ($validated['target'] ?? '') === 'sk';
+        $isSk = ($user->role === UserRole::SkAdmin || $user->role === 'sk_admin' || $user->role?->value === 'sk_admin' || $user->role === 'sk') || ($validated['target'] ?? '') === 'sk';
         $target = $isSk ? 'sk' : ($validated['target'] ?? 'admin');
-        $barangay = $validated['barangay'] ?? ($isSk ? $this->getAssignedBarangay($request) : null);
+        $barangay = $isSk ? ($this->getAssignedBarangay($request) ?? $validated['barangay'] ?? null) : ($validated['barangay'] ?? null);
 
         $questionnaire = DB::transaction(function () use ($validated, $user, $target, $barangay) {
             $q = FeedbackQuestionnaire::create([
@@ -233,6 +258,9 @@ class FeedbackQuestionnaireController extends Controller
 
         if ($questionnaire->target === 'sk') {
             $barangay = $questionnaire->barangay ?? $this->getAssignedBarangay($request);
+            if ($barangay && ! $questionnaire->barangay) {
+                $questionnaire->barangay = $barangay;
+            }
             FeedbackQuestionnaire::where('target', 'sk')
                 ->where(function ($q) use ($barangay) {
                     if ($barangay) {
@@ -745,13 +773,27 @@ class FeedbackQuestionnaireController extends Controller
             if (in_array((string) $evt->id, $submittedEventIds, true)) {
                 continue;
             }
+
+            $creator = $evt->user;
+            $isSkEvent = ($creator && ($creator->role === UserRole::SkAdmin || $creator->role === 'sk_admin' || $creator->role?->value === 'sk_admin')) || !empty($evt->barangay);
+
+            // If this SK event is exclusive to its barangay, verify user belongs to this barangay
+            if ($isSkEvent && ! $evt->open_to_all_barangays) {
+                $eventBarangay = $evt->barangay ?? $creator?->skOfficial?->barangay ?? $creator?->youthProfile?->barangay;
+                $userBarangay = $this->getAssignedBarangay($request);
+                if ($eventBarangay && $userBarangay && strtolower(trim($eventBarangay)) !== strtolower(trim($userBarangay))) {
+                    continue;
+                }
+            }
+
             $questionnaire = $evt->feedbackQuestionnaire;
+            if (! $questionnaire && $evt->feedback_questionnaire_id) {
+                $questionnaire = FeedbackQuestionnaire::with('questions')->find($evt->feedback_questionnaire_id);
+            }
             if (! $questionnaire) {
                 $defaultQuery = FeedbackQuestionnaire::where('is_active', true)
                     ->whereIn('default_for', ['events', 'both']);
-                $creator = $evt->user;
-                $isSk = $evt->target === 'sk' || ($creator && ($creator->role === 'sk_admin' || $creator->role?->value === 'sk_admin'));
-                if ($isSk || !empty($evt->barangay)) {
+                if ($isSkEvent) {
                     $b = $evt->barangay ?? $creator?->skOfficial?->barangay;
                     $defaultQuery->where('target', 'sk')
                         ->where(function ($q) use ($b) {
@@ -790,13 +832,27 @@ class FeedbackQuestionnaireController extends Controller
             if (in_array((string) $sport->id, $submittedSportIds, true)) {
                 continue;
             }
+
+            $creator = $sport->user;
+            $isSkSport = ($creator && ($creator->role === UserRole::SkAdmin || $creator->role === 'sk_admin' || $creator->role?->value === 'sk_admin')) || !empty($sport->barangay);
+
+            // If this SK sports program is exclusive to its barangay, verify user belongs to this barangay
+            if ($isSkSport && ! $sport->open_to_all_barangays) {
+                $sportBarangay = $sport->barangay ?? $creator?->skOfficial?->barangay ?? $creator?->youthProfile?->barangay;
+                $userBarangay = $this->getAssignedBarangay($request);
+                if ($sportBarangay && $userBarangay && strtolower(trim($sportBarangay)) !== strtolower(trim($userBarangay))) {
+                    continue;
+                }
+            }
+
             $questionnaire = $sport->feedbackQuestionnaire;
+            if (! $questionnaire && $sport->feedback_questionnaire_id) {
+                $questionnaire = FeedbackQuestionnaire::with('questions')->find($sport->feedback_questionnaire_id);
+            }
             if (! $questionnaire) {
                 $defaultQuery = FeedbackQuestionnaire::where('is_active', true)
                     ->whereIn('default_for', ['sports', 'both']);
-                $creator = $sport->user;
-                $isSk = $sport->target === 'sk' || ($creator && ($creator->role === 'sk_admin' || $creator->role?->value === 'sk_admin'));
-                if ($isSk || !empty($sport->barangay)) {
+                if ($isSkSport) {
                     $b = $sport->barangay ?? $creator?->skOfficial?->barangay;
                     $defaultQuery->where('target', 'sk')
                         ->where(function ($q) use ($b) {
