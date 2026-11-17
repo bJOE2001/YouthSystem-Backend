@@ -623,6 +623,27 @@ class FeedbackQuestionnaireController extends Controller
             }
         }
 
+        // Prevent duplicate response by this user for the same questionnaire
+        if ($user) {
+            $existing = FeedbackResponse::where('user_id', $user->id)
+                ->where('questionnaire_id', $questionnaire->id);
+
+            if ($eventId) {
+                $existing->where('event_id', $eventId);
+            } elseif ($sportsProgramId) {
+                $existing->where('sports_program_id', $sportsProgramId);
+            } else {
+                $existing->whereNull('event_id')->whereNull('sports_program_id');
+            }
+
+            if ($existing->exists()) {
+                return response()->json([
+                    'message' => 'You have already submitted a response for this feedback questionnaire.',
+                    'already_submitted' => true,
+                ], 422);
+            }
+        }
+
         $response = FeedbackResponse::create([
             'questionnaire_id' => $questionnaire->id,
             'user_id' => $user?->id,
