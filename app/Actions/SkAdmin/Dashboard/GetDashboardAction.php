@@ -16,8 +16,15 @@ class GetDashboardAction
         $user = auth()->user();
         $barangay = $user?->getBarangay() ?? SkOfficial::where('email', $user?->email)->value('barangay');
 
+        $now = now();
+        $overageCutoffDate = $now->copy()->subYears(31)->format('Y-m-d');
+
         $query = YouthProfile::query()
-            ->where('status', YouthProfileStatus::Approved->value);
+            ->where('status', YouthProfileStatus::Approved->value)
+            ->where(function ($q) use ($overageCutoffDate) {
+                $q->whereDate('birth_date', '>', $overageCutoffDate)
+                  ->orWhereNull('birth_date');
+            });
 
         if ($barangay) {
             $query->where('barangay', $barangay);

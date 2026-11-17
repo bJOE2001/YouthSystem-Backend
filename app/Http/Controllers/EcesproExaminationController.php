@@ -39,7 +39,13 @@ class EcesproExaminationController extends Controller
      */
     public function show(EcesproExamination $ecesproExamination)
     {
-        return $ecesproExamination->load(['application', 'batch']);
+        return $ecesproExamination->load([
+            'application.user.youthProfile',
+            'application.program.examinationSetup.questionnaire',
+            'batch',
+            'answers.question.choices',
+            'answers.choice',
+        ]);
     }
 
     /**

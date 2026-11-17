@@ -12,8 +12,15 @@ class GetAdminDashboard
 {
     public function handle(): array
     {
+        $now = now();
+        $overageCutoffDate = $now->copy()->subYears(31)->format('Y-m-d');
+
         $approved = YouthProfile::query()
-            ->where('status', YouthProfileStatus::Approved->value);
+            ->where('status', YouthProfileStatus::Approved->value)
+            ->where(function ($q) use ($overageCutoffDate) {
+                $q->whereDate('birth_date', '>', $overageCutoffDate)
+                  ->orWhereNull('birth_date');
+            });
 
         return [
 

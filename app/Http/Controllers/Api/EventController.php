@@ -11,6 +11,8 @@ use App\Http\Resources\EventResource;
 use App\Http\Resources\UnifiedEventResource;
 use App\Models\AttendanceLog;
 use App\Models\Event;
+use App\Models\FeedbackQuestionnaire;
+use App\Models\FeedbackResponse;
 use App\Models\SkOfficial;
 use App\Models\SportsProgram;
 use App\Models\User;
@@ -850,6 +852,46 @@ class EventController extends Controller
         $isCompleted = strtolower((string) $model->status) === 'completed';
         if (! $isCompleted && $user->role !== UserRole::Admin && $user->role !== UserRole::SkAdmin) {
             return response()->json(['message' => 'Certificate is only available once the activity is marked as Completed.'], 403);
+        }
+
+        // Verify feedback submission if questionnaire exists or default questionnaire applies
+        if ($user->role !== UserRole::Admin && $user->role !== UserRole::SkAdmin) {
+            $hasQuestionnaire = !empty($model->feedback_questionnaire_id);
+            if (! $hasQuestionnaire) {
+                $isSport = $model instanceof SportsProgram;
+                $defaultQuery = FeedbackQuestionnaire::where('is_active', true)
+                    ->whereIn('default_for', [$isSport ? 'sports' : 'events', 'both']);
+                $creator = $model->user;
+                $isSk = $model->target === 'sk' || ($creator && ($creator->role === 'sk_admin' || $creator->role?->value === 'sk_admin'));
+                if ($isSk || !empty($model->barangay)) {
+                    $b = $model->barangay ?? $creator?->skOfficial?->barangay;
+                    $defaultQuery->where('target', 'sk')
+                        ->where(function ($q) use ($b) {
+                            if ($b) {
+                                $q->whereRaw('LOWER(barangay) = ?', [strtolower(trim($b))]);
+                            } else {
+                                $q->whereNull('barangay');
+                            }
+                        });
+                } else {
+                    $defaultQuery->where('target', 'admin');
+                }
+                $hasQuestionnaire = $defaultQuery->exists();
+            }
+
+            if ($hasQuestionnaire) {
+                $isSport = $model instanceof SportsProgram;
+                $hasSubmittedFeedback = FeedbackResponse::where('user_id', $user->id)
+                    ->where($isSport ? 'sports_program_id' : 'event_id', $model->id)
+                    ->exists();
+
+                if (! $hasSubmittedFeedback) {
+                    return response()->json([
+                        'message' => 'Please submit your feedback evaluation for this activity before downloading your certificate.',
+                        'requires_feedback' => true,
+                    ], 403);
+                }
+            }
         }
 
         // Verify certificate template existence

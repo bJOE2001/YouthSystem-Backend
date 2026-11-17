@@ -38,6 +38,8 @@ class Event extends Model
         'open_to_all_barangays',
         'barangay',
         'max_participants',
+        'feedback_questionnaire_id',
+        'feedback_questionnaire_assigned_at',
     ];
 
     protected function casts(): array
@@ -76,6 +78,16 @@ class Event extends Model
 
     public function feedbacks(): HasMany
     {
-        return $this->hasMany(Feedback::class);
+        return $this->hasMany(FeedbackResponse::class);
+    }
+
+    public function feedbackQuestionnaire(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(FeedbackQuestionnaire::class, 'feedback_questionnaire_id');
+    }
+
+    public function feedbackResponses(): HasMany
+    {
+        return $this->hasMany(FeedbackResponse::class);
     }
 }

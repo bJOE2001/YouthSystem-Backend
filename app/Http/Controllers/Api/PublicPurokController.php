@@ -20,8 +20,10 @@ class PublicPurokController extends Controller
             ]);
         }
 
+        $barangay = trim((string) $request->input('barangay'));
+
         $query = Purok::query()
-            ->where('barangay', $request->input('barangay'));
+            ->whereRaw('LOWER(barangay) = ?', [strtolower($barangay)]);
 
         if ($request->filled('search')) {
             $query->where('name', 'LIKE', '%'.$request->input('search').'%');
