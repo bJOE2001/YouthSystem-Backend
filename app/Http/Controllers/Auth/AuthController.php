@@ -68,14 +68,6 @@ class AuthController extends Controller
             $data['suffix'] ?? null,
         ])));
 
-        $user = User::create([
-            'name' => $name,
-            'email' => $data['email'],
-            'password' => Hash::make(Str::random(32)),
-            'role' => UserRole::Youth->value,
-            'status' => UserStatus::Pending->value,
-        ]);
-
         $mappedProfileData = [
             'first_name' => $data['firstName'],
             'middle_name' => $data['middleName'] ?? null,
@@ -115,11 +107,23 @@ class AuthController extends Controller
             'postal_code' => $data['zipcode'],
         ];
 
-        $createYouthProfile->execute(
-            $user,
-            $mappedProfileData,
-            $request->file('attachedId'),
-        );
+        $user = DB::transaction(function () use ($data, $name, $mappedProfileData, $request, $createYouthProfile): User {
+            $user = User::create([
+                'name' => $name,
+                'email' => $data['email'],
+                'password' => Hash::make(Str::random(32)),
+                'role' => UserRole::Youth->value,
+                'status' => UserStatus::Pending->value,
+            ]);
+
+            $createYouthProfile->execute(
+                $user,
+                $mappedProfileData,
+                $request->file('attachedId'),
+            );
+
+            return $user;
+        });
 
         return response()->json([
             'message' => 'Registration successful',
