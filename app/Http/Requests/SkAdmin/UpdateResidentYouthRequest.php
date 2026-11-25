@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests\SkAdmin;
 
+use App\Http\Requests\Concerns\ValidatesYouthRegistrationFields;
+use App\Models\User;
+use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -9,6 +12,8 @@ use Illuminate\Validation\Rules\File;
 
 class UpdateResidentYouthRequest extends FormRequest
 {
+    use ValidatesYouthRegistrationFields;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -28,7 +33,24 @@ class UpdateResidentYouthRequest extends FormRequest
         $userId = $youthProfile ? $youthProfile->user_id : null;
 
         return [
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($userId),
+                function (string $attribute, mixed $value, Closure $fail) use ($userId): void {
+                    if (is_string($value)) {
+                        $query = User::whereRaw('LOWER(email) = ?', [strtolower($value)]);
+                        if ($userId !== null) {
+                            $query->where('id', '!=', $userId);
+                        }
+                        if ($query->exists()) {
+                            $fail('This email is already used. You cannot reuse the same email address.');
+                        }
+                    }
+                },
+            ],
             'firstName' => ['required', 'string', 'max:100'],
             'middleName' => ['nullable', 'string', 'max:100'],
             'lastName' => ['required', 'string', 'max:100'],
@@ -91,5 +113,13 @@ class UpdateResidentYouthRequest extends FormRequest
             'province' => ['required', 'string', 'max:100'],
             'zipcode' => ['required', 'string', 'max:10'],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return $this->youthRegistrationMessages();
     }
 }

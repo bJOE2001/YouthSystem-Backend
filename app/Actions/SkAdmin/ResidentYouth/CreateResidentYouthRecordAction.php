@@ -50,18 +50,6 @@ class CreateResidentYouthRecordAction
                 'email_verified_at' => now(),
             ]);
 
-            Mail::to($user->email)->send(new YouthValidatedEmail($user, $plainPassword));
-
-            if (! empty($data['mobileNumber'])) {
-                $smsMessage = "Welcome to TCYSDO! Your account has been created. Email: {$user->email}, Temp Password: {$plainPassword}. Please login and change your password.";
-                app(SmsService::class)->send(
-                    $data['mobileNumber'],
-                    $smsMessage,
-                    $user,
-                    'resident_youth_created'
-                );
-            }
-
             $mappedProfileData = [
                 'first_name' => $data['firstName'],
                 'middle_name' => $data['middleName'] ?? null,
@@ -121,7 +109,21 @@ class CreateResidentYouthRecordAction
                 );
             }
 
-            return $this->createYouthProfileAction->execute($user, $mappedProfileData, $attachedId);
+            $youthProfile = $this->createYouthProfileAction->execute($user, $mappedProfileData, $attachedId);
+
+            Mail::to($user->email)->send(new YouthValidatedEmail($user, $plainPassword));
+
+            if (! empty($data['mobileNumber'])) {
+                $smsMessage = "Welcome to TCYSDO! Your account has been created. Email: {$user->email}, Temp Password: {$plainPassword}. Please login and change your password.";
+                app(SmsService::class)->send(
+                    $data['mobileNumber'],
+                    $smsMessage,
+                    $user,
+                    'resident_youth_created'
+                );
+            }
+
+            return $youthProfile;
         });
     }
 }
