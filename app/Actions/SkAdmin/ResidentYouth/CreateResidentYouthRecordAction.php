@@ -3,9 +3,11 @@
 namespace App\Actions\SkAdmin\ResidentYouth;
 
 use App\Actions\YouthProfile\CreateYouthProfileAction;
+use App\Actions\YouthProfile\FindMatchingYouthProfileAction;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
 use App\Enums\YouthProfileStatus;
+use App\Exceptions\DuplicateYouthRecordException;
 use App\Mail\YouthValidatedEmail;
 use App\Models\Barangay;
 use App\Models\Purok;
@@ -22,7 +24,10 @@ use Throwable;
 
 class CreateResidentYouthRecordAction
 {
-    public function __construct(private CreateYouthProfileAction $createYouthProfileAction) {}
+    public function __construct(
+        private CreateYouthProfileAction $createYouthProfileAction,
+        private FindMatchingYouthProfileAction $findMatchingYouthProfileAction,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $data
@@ -32,6 +37,10 @@ class CreateResidentYouthRecordAction
     public function execute(array $data, UploadedFile $attachedId): YouthProfile
     {
         return DB::transaction(function () use ($data, $attachedId) {
+            if ($this->findMatchingYouthProfileAction->execute($data) !== null) {
+                throw new DuplicateYouthRecordException(DuplicateYouthRecordException::ADMIN_MESSAGE);
+            }
+
             $name = trim(implode(' ', array_filter([
                 $data['firstName'],
                 $data['middleName'] ?? null,

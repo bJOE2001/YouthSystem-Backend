@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Actions\YouthProfile\CreateYouthProfileAction;
+use App\Actions\YouthProfile\FindMatchingYouthProfileAction;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
+use App\Exceptions\DuplicateYouthRecordException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
@@ -57,7 +59,8 @@ class AuthController extends Controller
      */
     public function register(
         RegisterRequest $request,
-        CreateYouthProfileAction $createYouthProfile
+        CreateYouthProfileAction $createYouthProfile,
+        FindMatchingYouthProfileAction $findMatchingYouthProfile
     ): JsonResponse {
         $data = $request->validated();
 
@@ -107,7 +110,18 @@ class AuthController extends Controller
             'postal_code' => $data['zipcode'],
         ];
 
-        $user = DB::transaction(function () use ($data, $name, $mappedProfileData, $request, $createYouthProfile): User {
+        $user = DB::transaction(function () use (
+            $data,
+            $name,
+            $mappedProfileData,
+            $request,
+            $createYouthProfile,
+            $findMatchingYouthProfile
+        ): User {
+            if ($findMatchingYouthProfile->execute($mappedProfileData) !== null) {
+                throw new DuplicateYouthRecordException;
+            }
+
             $user = User::create([
                 'name' => $name,
                 'email' => $data['email'],
