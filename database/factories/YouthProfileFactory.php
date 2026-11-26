@@ -68,12 +68,19 @@ class YouthProfileFactory extends Factory
             'city' => 'Tagum City',
             'province' => 'Davao del Norte',
             'postal_code' => '8100',
-            'status' => YouthProfileStatus::Pending->value,
+            'status' => YouthProfileStatus::Approved->value,
             'organization_id' => null,
             'reviewed_by' => null,
-            'reviewed_at' => null,
-            'rejection_reason' => null,
+            'reviewed_at' => now(),
         ];
+    }
+
+    public function pending(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'status' => YouthProfileStatus::Pending->value,
+            'reviewed_at' => null,
+        ]);
     }
 
     public function approved(): static
@@ -81,7 +88,6 @@ class YouthProfileFactory extends Factory
         return $this->state(fn (array $attributes): array => [
             'status' => YouthProfileStatus::Approved->value,
             'reviewed_at' => now(),
-            'rejection_reason' => null,
         ]);
     }
 
@@ -90,7 +96,6 @@ class YouthProfileFactory extends Factory
         return $this->state(fn (array $attributes): array => [
             'status' => YouthProfileStatus::Rejected->value,
             'reviewed_at' => now(),
-            'rejection_reason' => 'The submitted identification could not be verified.',
         ]);
     }
 }

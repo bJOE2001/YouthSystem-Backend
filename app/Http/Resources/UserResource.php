@@ -22,6 +22,7 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'role' => $this->role->value,
             'status' => $this->status->value,
+            'must_change_password' => (bool) $this->must_change_password,
             'permissions' => $this->permissions ?? [],
             'is_root' => $this->isRootAdmin(),
             'can_scan' => (bool) $this->canScan(),

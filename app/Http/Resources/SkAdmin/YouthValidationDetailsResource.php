@@ -4,7 +4,6 @@ namespace App\Http\Resources\SkAdmin;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class YouthValidationDetailsResource extends JsonResource
 {
@@ -22,6 +21,11 @@ class YouthValidationDetailsResource extends JsonResource
 
         $cleanLastName = trim(preg_replace('/\s+(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII)\b/i', '', $this->last_name ?? ''));
         $cleanLastName = $cleanLastName ?: $this->last_name;
+
+        $prefix = $request->is('api/admin/*') ? '/admin' : '/sk';
+        $attachedIdEndpoint = $this->attached_id_path
+            ? "{$prefix}/youth-registration/{$this->id}/attached-id"
+            : null;
 
         return [
             'id' => $this->id,
@@ -41,7 +45,7 @@ class YouthValidationDetailsResource extends JsonResource
             'placeOfBirth' => $this->place_of_birth,
             'contact' => $this->mobile_number,
             'mobileNumber' => $this->mobile_number,
-            'email' => $this->user ? $this->user->email : null,
+            'email' => $this->email,
             'fatherFirstName' => $this->father_first_name,
             'fatherMiddleName' => $this->father_middle_name,
             'fatherLastName' => $this->father_last_name,
@@ -63,8 +67,8 @@ class YouthValidationDetailsResource extends JsonResource
             'lgbtqMember' => $this->lgbtq_member ? 'Yes' : 'No',
             'specialYouthSector' => $this->special_youth_sector,
             'attachedId' => $this->attached_id_path ? 'View ID' : null,
-            'attachedIdImage' => $this->attached_id_path ? Storage::disk('public')->url($this->attached_id_path) : null,
-            'attachedIdUrl' => $this->attached_id_path ? Storage::disk('public')->url($this->attached_id_path) : null,
+            'attachedIdImage' => $attachedIdEndpoint,
+            'attachedIdUrl' => $attachedIdEndpoint,
             'birthRegistered' => $this->birth_registered ? 'Yes' : 'No',
             'civilStatus' => $this->civil_status,
             'soloParent' => $this->solo_parent ? 'Yes' : 'No',
@@ -75,6 +79,7 @@ class YouthValidationDetailsResource extends JsonResource
             'province' => $this->province,
             'zipcode' => $this->postal_code,
             'status' => $status,
+            'rejectionReason' => $this->rejection_reason,
             'registrationDate' => $this->created_at ? $this->created_at->format('F j, Y') : null,
         ];
     }

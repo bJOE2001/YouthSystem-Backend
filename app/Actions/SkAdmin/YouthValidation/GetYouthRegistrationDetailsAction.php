@@ -2,14 +2,12 @@
 
 namespace App\Actions\SkAdmin\YouthValidation;
 
-use App\Models\YouthProfile;
+use App\Models\YouthValidation;
 
 class GetYouthRegistrationDetailsAction
 {
-    public function execute(YouthProfile $youthProfile): YouthProfile
+    public function execute(YouthValidation $youthValidation): YouthValidation
     {
-        $youthProfile->loadMissing('user');
-
-        return $youthProfile;
+        return $youthValidation;
     }
 }

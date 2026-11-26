@@ -17,7 +17,7 @@ class YouthProfile extends Model
      * @var array<string, mixed>
      */
     protected $attributes = [
-        'status' => YouthProfileStatus::Pending->value,
+        'status' => YouthProfileStatus::Approved->value,
     ];
 
     /**

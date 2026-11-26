@@ -2,10 +2,13 @@
 
 namespace App\Http\Resources\SkAdmin;
 
+use App\Models\YouthProfile;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
 
+/** @mixin YouthProfile */
 class ResidentYouthDetailsResource extends JsonResource
 {
     /**
@@ -17,6 +20,14 @@ class ResidentYouthDetailsResource extends JsonResource
     {
         $cleanLastName = trim(preg_replace('/\s+(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII)\b/i', '', $this->last_name ?? ''));
         $cleanLastName = $cleanLastName ?: $this->last_name;
+
+        $prefix = $request->is('api/admin/*') ? '/admin' : '/sk';
+        $attachedIdEndpoint = $this->attached_id_path
+            ? "{$prefix}/resident-youth/{$this->id}/attached-id"
+            : null;
+
+        /** @var FilesystemAdapter $publicDisk */
+        $publicDisk = Storage::disk('public');
 
         return [
             'id' => $this->id,
@@ -60,8 +71,8 @@ class ResidentYouthDetailsResource extends JsonResource
             'lgbtqMember' => $this->lgbtq_member ? 'Yes' : 'No',
             'specialYouthSector' => $this->special_youth_sector,
             'attachedId' => $this->attached_id_path ? 'View ID' : null,
-            'attachedIdImage' => $this->attached_id_path ? Storage::disk('public')->url($this->attached_id_path) : null,
-            'attachedIdUrl' => $this->attached_id_path ? Storage::disk('public')->url($this->attached_id_path) : null,
+            'attachedIdImage' => $attachedIdEndpoint,
+            'attachedIdUrl' => $attachedIdEndpoint,
             'birthRegistered' => $this->birth_registered ? 'Yes' : 'No',
             'civilStatus' => $this->civil_status,
             'soloParent' => $this->solo_parent ? 'Yes' : 'No',
@@ -76,7 +87,7 @@ class ResidentYouthDetailsResource extends JsonResource
             'organization_name' => $this->organization?->name ?? 'None',
             'status' => $this->organization?->name ?? 'None',
             'profile_picture' => $this->profile_picture,
-            'profile_picture_url' => $this->profile_picture ? Storage::disk('public')->url($this->profile_picture) : null,
+            'profile_picture_url' => $this->profile_picture ? $publicDisk->url($this->profile_picture) : null,
 
             // Assuming bookings and events might be loaded later, default to empty arrays
             'bookingHistory' => $this->whenLoaded('bookings', function () {

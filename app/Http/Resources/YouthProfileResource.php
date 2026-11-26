@@ -3,7 +3,6 @@
 namespace App\Http\Resources;
 
 use App\Enums\UserRole;
-use App\Enums\YouthProfileStatus;
 use App\Models\SkOfficial;
 use App\Models\YouthProfile;
 use Illuminate\Http\Request;
@@ -73,10 +72,6 @@ class YouthProfileResource extends JsonResource
             'postal_code' => $this->postal_code,
             'status' => $this->status->value,
             'reviewed_at' => $this->reviewed_at?->toISOString(),
-            'rejection_reason' => $this->when(
-                $this->status === YouthProfileStatus::Rejected,
-                $this->rejection_reason,
-            ),
             'can_scan' => (bool) $this->user?->canScanAsScholar(),
             'scholar_position' => $this->user?->scholar?->scholarPosition ? [
                 'id' => $this->user->scholar->scholarPosition->id,

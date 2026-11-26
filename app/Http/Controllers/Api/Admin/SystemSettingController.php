@@ -310,6 +310,7 @@ class SystemSettingController extends Controller
 
         $user->update([
             'password' => Hash::make($request->new_password),
+            'must_change_password' => false,
         ]);
 
         return response()->json([

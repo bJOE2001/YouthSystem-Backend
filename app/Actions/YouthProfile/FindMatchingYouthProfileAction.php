@@ -4,18 +4,24 @@ namespace App\Actions\YouthProfile;
 
 use App\Enums\YouthProfileStatus;
 use App\Models\YouthProfile;
+use App\Models\YouthValidation;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class FindMatchingYouthProfileAction
 {
     /**
      * Match incoming registration/profile data against existing non-rejected youth profiles
-     * using Primary (First + Middle + Last + Date of Birth) and Supporting (Suffix + Sex + Mobile + Address) attributes.
+     * and pending youth validations using Primary (First + Middle + Last + Date of Birth)
+     * and Supporting (Suffix + Sex + Mobile + Address) attributes.
      *
      * @param  array<string, mixed>  $attributes
      */
-    public function execute(array $attributes, ?int $ignoreYouthProfileId = null): ?YouthProfile
-    {
+    public function execute(
+        array $attributes,
+        ?int $ignoreYouthProfileId = null,
+        ?int $ignoreYouthValidationId = null,
+    ): YouthProfile|YouthValidation|null {
         $birthDate = $this->normalizeDate($attributes['birth_date'] ?? $attributes['birthdate'] ?? null);
         if ($birthDate === null) {
             return null;
@@ -30,12 +36,59 @@ class FindMatchingYouthProfileAction
         $incomingPhone = $this->normalizePhone($attributes['mobile_number'] ?? $attributes['mobileNumber'] ?? null);
         $incomingAddress = $this->normalizeAddress($attributes);
 
-        $candidates = YouthProfile::query()
+        $profileCandidates = YouthProfile::query()
             ->where('status', '!=', YouthProfileStatus::Rejected->value)
             ->whereDate('birth_date', $birthDate)
             ->when($ignoreYouthProfileId !== null, fn ($q) => $q->where('id', '!=', $ignoreYouthProfileId))
             ->get();
 
+        $matchedProfile = $this->findMatchingCandidate(
+            $profileCandidates,
+            $incomingFirst,
+            $incomingMiddle,
+            $incomingLast,
+            $incomingSuffix,
+            $incomingSex,
+            $incomingPhone,
+            $incomingAddress,
+        );
+
+        if ($matchedProfile !== null) {
+            return $matchedProfile;
+        }
+
+        $validationCandidates = YouthValidation::query()
+            ->where('status', YouthProfileStatus::Pending->value)
+            ->whereDate('birth_date', $birthDate)
+            ->when($ignoreYouthValidationId !== null, fn ($q) => $q->where('id', '!=', $ignoreYouthValidationId))
+            ->get();
+
+        return $this->findMatchingCandidate(
+            $validationCandidates,
+            $incomingFirst,
+            $incomingMiddle,
+            $incomingLast,
+            $incomingSuffix,
+            $incomingSex,
+            $incomingPhone,
+            $incomingAddress,
+        );
+    }
+
+    /**
+     * @param  Collection<int, YouthProfile|YouthValidation>  $candidates
+     * @param  array{barangay: string, purok_sitio: string, city: string, province: string}  $incomingAddress
+     */
+    private function findMatchingCandidate(
+        Collection $candidates,
+        string $incomingFirst,
+        string $incomingMiddle,
+        string $incomingLast,
+        string $incomingSuffix,
+        string $incomingSex,
+        string $incomingPhone,
+        array $incomingAddress,
+    ): YouthProfile|YouthValidation|null {
         foreach ($candidates as $candidate) {
             [$candFirst, $candMiddle, $candLast, $candSuffix] = $this->extractNameParts([
                 'first_name' => $candidate->first_name,

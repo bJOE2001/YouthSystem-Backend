@@ -56,6 +56,7 @@ class CreateResidentYouthRecordAction
                 'password' => Hash::make($plainPassword),
                 'role' => UserRole::Youth->value,
                 'status' => UserStatus::Active->value,
+                'must_change_password' => true,
                 'email_verified_at' => now(),
             ]);
 
