@@ -134,7 +134,7 @@ Route::middleware([
             Route::post('/{tcydoDirectoryPosition}/delete', [TcydoDirectoryPositionController::class, 'destroy'])->name('destroy');
         });
 
-        Route::middleware('module:sk_officials')->prefix('sk-officials')->name('sk-officials.')->group(function () {
+        Route::middleware(['role:admin,sub_admin', 'module:sk_officials'])->prefix('sk-officials')->name('sk-officials.')->group(function () {
             Route::get('/', [SkOfficialController::class, 'index'])->name('index');
             Route::get('/eligible-youths', [SkOfficialController::class, 'eligibleYouths'])->name('eligible-youths');
             Route::get('/{skOfficial}', [SkOfficialController::class, 'show'])->name('show');
