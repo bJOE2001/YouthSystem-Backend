@@ -6,6 +6,7 @@ use App\Actions\SkAdmin\SkOfficials\CreateSkOfficialAction;
 use App\Actions\SkAdmin\SkOfficials\DeleteSkOfficialAction;
 use App\Actions\SkAdmin\SkOfficials\GetSkOfficialDetailsAction;
 use App\Actions\SkAdmin\SkOfficials\GetSkOfficialsAction;
+use App\Enums\UserRole;
 use App\Enums\YouthProfileStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\SkAdmin\SkOfficialResource;
@@ -15,11 +16,22 @@ use App\Models\YouthProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\Response;
 
 class SkOfficialController extends Controller
 {
+    private function ensureAdminRole(Request $request): void
+    {
+        abort_unless(
+            $request->user()?->hasRole(UserRole::Admin, UserRole::SubAdmin),
+            Response::HTTP_FORBIDDEN,
+            'Only administrators can manage SK officials.'
+        );
+    }
+
     public function index(Request $request, GetSkOfficialsAction $action): JsonResponse
     {
+        $this->ensureAdminRole($request);
         $officials = $action->execute($request->all());
 
         return SkOfficialResource::collection($officials)->response();
@@ -27,6 +39,7 @@ class SkOfficialController extends Controller
 
     public function eligibleYouths(Request $request): JsonResponse
     {
+        $this->ensureAdminRole($request);
         $barangay = $request->query('barangay');
         $search = $request->query('search');
 
@@ -86,6 +99,7 @@ class SkOfficialController extends Controller
 
     public function store(Request $request, CreateSkOfficialAction $action): JsonResponse
     {
+        $this->ensureAdminRole($request);
         $validated = $request->validate([
             'user_id' => [
                 'required',
@@ -138,8 +152,9 @@ class SkOfficialController extends Controller
         ], 201);
     }
 
-    public function show(SkOfficial $skOfficial, GetSkOfficialDetailsAction $action): JsonResponse
+    public function show(Request $request, SkOfficial $skOfficial, GetSkOfficialDetailsAction $action): JsonResponse
     {
+        $this->ensureAdminRole($request);
         $official = $action->execute($skOfficial->loadMissing('user.youthProfile'));
 
         return response()->json(SkOfficialResource::make($official));
@@ -147,6 +162,7 @@ class SkOfficialController extends Controller
 
     public function changeEmail(Request $request, SkOfficial $skOfficial): JsonResponse
     {
+        $this->ensureAdminRole($request);
         $userId = $skOfficial->user_id;
 
         $validated = $request->validate([
@@ -180,8 +196,9 @@ class SkOfficialController extends Controller
         ]);
     }
 
-    public function destroy(SkOfficial $skOfficial, DeleteSkOfficialAction $action): JsonResponse
+    public function destroy(Request $request, SkOfficial $skOfficial, DeleteSkOfficialAction $action): JsonResponse
     {
+        $this->ensureAdminRole($request);
         $action->execute($skOfficial);
 
         return response()->json([
