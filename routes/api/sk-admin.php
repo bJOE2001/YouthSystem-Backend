@@ -47,6 +47,7 @@ Route::middleware([
         Route::prefix('resident-youth')->name('resident-youth.')->group(function () {
             Route::get('/', [ResidentYouthController::class, 'index'])->name('index');
             Route::get('/{youthProfile}', [ResidentYouthController::class, 'show'])->name('show');
+            Route::get('/{youthProfile}/attached-id', [ResidentYouthController::class, 'attachedId'])->name('attached-id');
             Route::get('/{youthProfile}/bookings', [ResidentYouthController::class, 'bookings'])->name('bookings');
             Route::get('/{youthProfile}/events', [ResidentYouthController::class, 'events'])->name('events');
             Route::post('/', [ResidentYouthController::class, 'store'])->name('store');
@@ -62,9 +63,10 @@ Route::middleware([
 
         Route::prefix('youth-registration')->name('youth-registration.')->group(function () {
             Route::get('/', [YouthValidationController::class, 'index'])->name('index');
-            Route::get('/{youthProfile}', [YouthValidationController::class, 'show'])->name('show');
-            Route::post('/{youthProfile}/approve', [YouthValidationController::class, 'approve'])->name('approve');
-            Route::post('/{youthProfile}/disapprove', [YouthValidationController::class, 'disapprove'])->name('disapprove');
+            Route::get('/{youthValidation}', [YouthValidationController::class, 'show'])->name('show');
+            Route::get('/{youthValidation}/attached-id', [YouthValidationController::class, 'attachedId'])->name('attached-id');
+            Route::post('/{youthValidation}/approve', [YouthValidationController::class, 'approve'])->name('approve');
+            Route::post('/{youthValidation}/disapprove', [YouthValidationController::class, 'disapprove'])->name('disapprove');
         });
         /*
     |--------------------------------------------------------------------------

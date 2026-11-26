@@ -254,6 +254,7 @@ class User extends Authenticatable
         'role',
         'permissions',
         'status',
+        'must_change_password',
         'qr_code_token',
         'email_verified_at',
         'last_login_at',
@@ -281,6 +282,7 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'password' => 'hashed',
             'permissions' => 'array',
+            'must_change_password' => 'boolean',
             'role' => UserRole::class,
             'status' => UserStatus::class,
         ];

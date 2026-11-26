@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Concerns;
 
+use App\Enums\YouthProfileStatus;
 use App\Models\User;
+use App\Models\YouthValidation;
 use Closure;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\File;
@@ -72,7 +74,18 @@ trait ValidatesYouthRegistrationFields
                 'max:255',
                 'unique:users,email',
                 function (string $attribute, mixed $value, Closure $fail): void {
-                    if (is_string($value) && User::whereRaw('LOWER(email) = ?', [strtolower($value)])->exists()) {
+                    if (! is_string($value)) {
+                        return;
+                    }
+
+                    $normalizedEmail = strtolower($value);
+                    $existsInUsers = User::whereRaw('LOWER(email) = ?', [$normalizedEmail])->exists();
+                    $existsInPendingValidations = YouthValidation::query()
+                        ->where('status', YouthProfileStatus::Pending->value)
+                        ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
+                        ->exists();
+
+                    if ($existsInUsers || $existsInPendingValidations) {
                         $fail('This email is already used. You cannot reuse the same email address.');
                     }
                 },

@@ -2,21 +2,23 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Actions\YouthProfile\CreateYouthProfileAction;
+use App\Actions\YouthProfile\FindMatchingYouthProfileAction;
+use App\Actions\YouthValidation\CreateYouthValidationAction;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
+use App\Exceptions\DuplicateYouthRecordException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Resources\SkAdmin\YouthValidationDetailsResource;
 use App\Http\Resources\UserResource;
 use App\Models\SkOfficial;
 use App\Models\User;
+use App\Models\YouthValidation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -36,7 +38,13 @@ class AuthController extends Controller
             ]);
         }
 
-        $user = $request->user();
+        $user = Auth::guard('web')->user();
+        if (! $user instanceof User) {
+            throw ValidationException::withMessages([
+                'email' => [__('auth.failed')],
+            ]);
+        }
+
         $user->forceFill(['last_login_at' => now()])->save();
 
         // Single Session Enforcement: Revoke previous sessions
@@ -57,16 +65,10 @@ class AuthController extends Controller
      */
     public function register(
         RegisterRequest $request,
-        CreateYouthProfileAction $createYouthProfile
+        CreateYouthValidationAction $createYouthValidation,
+        FindMatchingYouthProfileAction $findMatchingYouthProfile
     ): JsonResponse {
         $data = $request->validated();
-
-        $name = trim(implode(' ', array_filter([
-            $data['firstName'],
-            $data['middleName'] ?? null,
-            $data['lastName'],
-            $data['suffix'] ?? null,
-        ])));
 
         $mappedProfileData = [
             'first_name' => $data['firstName'],
@@ -107,27 +109,27 @@ class AuthController extends Controller
             'postal_code' => $data['zipcode'],
         ];
 
-        $user = DB::transaction(function () use ($data, $name, $mappedProfileData, $request, $createYouthProfile): User {
-            $user = User::create([
-                'name' => $name,
-                'email' => $data['email'],
-                'password' => Hash::make(Str::random(32)),
-                'role' => UserRole::Youth->value,
-                'status' => UserStatus::Pending->value,
-            ]);
+        $validation = DB::transaction(function () use (
+            $data,
+            $mappedProfileData,
+            $request,
+            $createYouthValidation,
+            $findMatchingYouthProfile
+        ): YouthValidation {
+            if ($findMatchingYouthProfile->execute($mappedProfileData) !== null) {
+                throw new DuplicateYouthRecordException;
+            }
 
-            $createYouthProfile->execute(
-                $user,
+            return $createYouthValidation->execute(
+                $data['email'],
                 $mappedProfileData,
                 $request->file('attachedId'),
             );
-
-            return $user;
         });
 
         return response()->json([
             'message' => 'Registration successful',
-            'user' => UserResource::make($user),
+            'validation' => YouthValidationDetailsResource::make($validation),
         ], Response::HTTP_CREATED);
     }
 

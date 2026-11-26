@@ -20,6 +20,8 @@ use App\Models\YouthProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 class ResidentYouthController extends Controller
@@ -36,6 +38,20 @@ class ResidentYouthController extends Controller
         $details = $action->execute($youthProfile);
 
         return response()->json(ResidentYouthDetailsResource::make($details));
+    }
+
+    public function attachedId(YouthProfile $youthProfile): BinaryFileResponse
+    {
+        $path = $youthProfile->attached_id_path;
+        abort_if(empty($path), Response::HTTP_NOT_FOUND, 'Identification document not found.');
+
+        foreach (['local', 'public'] as $disk) {
+            if (Storage::disk($disk)->exists($path)) {
+                return response()->file(Storage::disk($disk)->path($path));
+            }
+        }
+
+        abort(Response::HTTP_NOT_FOUND, 'Identification document not found.');
     }
 
     public function store(StoreResidentYouthRequest $request, CreateResidentYouthRecordAction $action): JsonResponse
